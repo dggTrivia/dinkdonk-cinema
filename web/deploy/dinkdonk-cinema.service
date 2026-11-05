@@ -1,0 +1,21 @@
+[Unit]
+Description=DinkDonk Cinema (hosted lobby and auditorium screens)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=dinkdonk
+WorkingDirectory=/opt/dinkdonk-cinema/current
+EnvironmentFile=/etc/dinkdonk-cinema.env
+Environment=NODE_ENV=production PORT=8080 DATA=/var/lib/dinkdonk-cinema
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/dinkdonk-cinema
+
+[Install]
+WantedBy=multi-user.target

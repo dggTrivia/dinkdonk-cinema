@@ -103,6 +103,7 @@ function collection(w, h) {
       });
     }
     if (s.id === 'browser_source' && /^http:\/\/127\.0\.0\.1:18770\//.test(s.settings.url)) {
+      s.settings.url = s.settings.url.replace('/roxy.html', '/lobby.html');   // renamed 05 Nov; the package has no redirect stub
       s.settings.width = Math.round(s.settings.width * f);
       s.settings.height = Math.round(s.settings.height * f);
     }

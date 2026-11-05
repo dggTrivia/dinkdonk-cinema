@@ -1,6 +1,6 @@
 'use strict';
 
-// Which files the lobby (roxy.html) and the auditorium (auditorium.html) load at runtime, shared by the zip package
+// Which files the lobby (lobby.html) and the auditorium (auditorium.html) load at runtime, shared by the zip package
 // (package/build.js) and the hosted edition (web/build.js). Returns paths relative to the standby folder.
 
 const fs = require('node:fs');

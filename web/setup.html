@@ -73,6 +73,7 @@
   <div class="card">
     <h2>3 · Every stream</h2>
     <p style="margin:0 0 8px">Switch to the DinkDonk scenes when you're on break or before the film. The <a id="ctl" target="_blank" rel="noopener">control panel</a> moves the camera, runs the auditorium phases (seating › lights down › film › lights up) and the automatic director. It works from your phone too.</p>
+    <p style="margin:0" class="dim">Film on the cinema screen: on OBS 32 and older the auditorium talks to OBS by itself. Newer OBS (33+) won't let a website inside OBS reach it, so then <b>keep the control panel open in this browser on this PC</b> during the film: it passes the screen position on to OBS. Its top line says whether that link is up.</p>
   </div>
 
   <div class="card">
@@ -94,7 +95,7 @@
   const base = `${location.origin}/`;
 
   function who() { return $('who').value === 'tag' && $('nick').value.trim() ? `tag=${encodeURIComponent($('nick').value.trim().replace(/^@/, ''))}` : 'everyone=1'; }
-  const lobbyUrl = () => `${base}roxy.html?k=${KEY}&${who()}`;
+  const lobbyUrl = () => `${base}lobby.html?k=${KEY}&${who()}`;
   const audUrl = (pw, port) => `${base}auditorium.html?k=${KEY}&${who()}` + (pw !== undefined ? `#obs=${encodeURIComponent(pw)}&obsport=${port}` : '');
   function fillUrls() {
     $('u-lobby').value = lobbyUrl();
@@ -161,6 +162,8 @@
     $('status').textContent = 'Connecting…';
     try {
       await connect($('pw').value, Number($('port').value) || 4455);
+      // the control panel in this browser uses it to drive the film screen where OBS's own browser can't (OBS 33+)
+      try { localStorage.setItem('dd-obs', JSON.stringify({ pw: $('pw').value, port: Number($('port').value) || 4455 })); } catch { /* storage blocked */ }
       const v = await req('GetVersion');
       const vs = await req('GetVideoSettings');
       canvas = { w: vs.baseWidth, h: vs.baseHeight };

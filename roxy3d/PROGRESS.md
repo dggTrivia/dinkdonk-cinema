@@ -548,3 +548,20 @@ twins up for 6.5 s after lights-up. Headless check: twin opacity = background di
   of the v 1.4 walking line, clear of standees/extinguisher). Sim: no one stops behind the wall any more, group fully
   visible (qa10/hall-spots-moved.png), 0 errors. Clerks checked: heads stay 45-58 px under the wall top.
   Owner's "lights up / lights down are scuffed" (auditorium) forwarded to Cinema Screen Map.
+- 05 Nov 2026, rename + GitHub: the owner asked to drop the "roxy" name. roxy.html -> lobby.html, roxy-qa.html ->
+  lobby-qa.html; roxy*.html are now redirect stubs that pass the query string through (OBS URLs keep working). The old
+  concept lobby.html moved to concepts/cinema-lobby.html. Titles/labels updated (index, control, README, package/build.js).
+  roxy3d/ folder and the 'roxy-<role>' emote keys are unchanged. Backups: backup-2026-11-05-pre-lobby-rename/.
+  standby/ is now a git repo pushed to github.com/reothrowaway/dinkdonk-cinema (public): source, docs, blends,
+  out10 + out10mist, and the qa11 files auditorium.html loads (package/art.js). Draft/QA/old packs/caches stay local
+  (.gitignore). The "Lobby and auditorium OBS package" session was told to switch web/ to lobby.html.
+- 05 Nov 2026, packaging + hosting (OBS package session): package/build.js builds dist/DinkDonk-Cinema.zip (lobby,
+  auditorium, only the art they load via package/art.js, chat relay, OBS collections 1080p/1440p/2160p with lobby.html
+  URLs, START.bat). web/ is the hosted edition (web/README.md): web/server.js (room keys, one shared DGG chat upstream,
+  per-room control panel, emote/dinkdonk cache), web/shim.js injected into lobby/auditorium/control (adds the key,
+  runs the film-screen bridge in the page: direct to OBS 4455, or relayed through the server to the control panel for
+  OBS 33+, whose Chromium blocks websites from reaching 127.0.0.1), web/setup.html (creates the OBS scenes over
+  obs-websocket, any film source), web/admin.html (invites). Live pages are not edited; the builds copy them.
+  Tested locally on 18772 with real chat and a mock obs-websocket: setup, direct and relay film pinning, film off when
+  the auditorium closes, per-room isolation, revoke. Not deployed yet: no SSH access to the Hetzner server
+  (2.29.56.208); web/deploy/deploy.sh is ready once access is added (web/README.md, "Server access").

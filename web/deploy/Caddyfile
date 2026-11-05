@@ -1,0 +1,12 @@
+# DinkDonk Cinema: HTTPS in front of the Node server (certificate from Let's Encrypt, renewed by Caddy).
+{{DOMAIN}} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy 127.0.0.1:8080 {
+		# server-sent events for the control panel
+		flush_interval -1
+	}
+}

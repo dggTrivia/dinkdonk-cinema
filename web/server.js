@@ -1,6 +1,6 @@
 'use strict';
 
-// DinkDonk Cinema, hosted edition. Serves the lobby (roxy.html) and the auditorium (auditorium.html) to anyone with a
+// DinkDonk Cinema, hosted edition. Serves the lobby (lobby.html) and the auditorium (auditorium.html) to anyone with a
 // room key, so streamers only need OBS: no Node, no relay, no bridge on their PC.
 //   - one shared Destiny.gg chat connection, fanned out to every open screen (/__dgg_chat_ws?k=KEY)
 //   - the emote list and dinkdonk.mov data, fetched once for everyone (/dgg/*, /dd/*)
@@ -22,6 +22,12 @@ const DATA = path.resolve(process.env.DATA || path.join(__dirname, 'data'));
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 if (ADMIN_TOKEN.length < 24) { console.error('Set ADMIN_TOKEN (24+ characters).'); process.exit(1); }
 process.env.DINKDONK_CACHE = process.env.DINKDONK_CACHE || path.join(DATA, 'dinkdonk.json');
+// first start: film titles from the build's last good copy until dinkdonk.mov answers
+const SEED = path.join(__dirname, 'seed', 'dinkdonk.json');
+if (!fs.existsSync(process.env.DINKDONK_CACHE) && fs.existsSync(SEED)) {
+  fs.mkdirSync(path.dirname(process.env.DINKDONK_CACHE), { recursive: true });
+  fs.copyFileSync(SEED, process.env.DINKDONK_CACHE);
+}
 const dinkdonk = require(path.join(SITE, 'dinkdonk.js'));
 
 const CDN = 'https://cdn.destiny.gg';
@@ -38,8 +44,8 @@ const TYPES = {
   '.shader': 'text/plain; charset=utf-8', '.ico': 'image/x-icon',
 };
 // pages that need a room key; the shim goes into the ones that talk to the server
-const KEYED = new Set(['roxy.html', 'auditorium.html', 'control.html', 'setup.html', 'home.html']);
-const SHIMMED = new Set(['roxy.html', 'auditorium.html', 'control.html']);
+const KEYED = new Set(['lobby.html', 'roxy.html', 'auditorium.html', 'control.html', 'setup.html']);
+const SHIMMED = new Set(['lobby.html', 'auditorium.html', 'control.html']);
 const PRIVATE = /^(dinkdonk\.js|server\.js)$/i;
 
 // ---------- rooms ----------
@@ -174,6 +180,56 @@ wss.on('connection', (client, req, key) => {
   });
 });
 
+// ---------- film-screen relay, per room (see web/shim.js) ----------
+// For OBS builds whose browser may not reach 127.0.0.1 from a website: the auditorium (role=page) sends the screen
+// corners here, the control panel in the streamer's own browser (role=obs) applies them in OBS and reports back
+// whether OBS is linked. Same rules as obs-bridge.js: the newest page drives; when it goes, the film goes off.
+const bridgeWss = new WebSocketServer({ noServer: true, maxPayload: 8192 });
+function roomBridge(key) {
+  const room = roomLive(key);
+  if (!room.bridge) room.bridge = { host: null, ready: false, pages: new Set(), driver: null };
+  return room.bridge;
+}
+const sendIfOpen = (ws, text) => { if (ws?.readyState === WebSocket.OPEN) ws.send(text); };
+bridgeWss.on('connection', (ws, req, key, role) => {
+  const b = roomBridge(key);
+  const tellHost = () => sendIfOpen(b.host, JSON.stringify({ pages: b.pages.size }));
+  if (role === 'obs') {
+    if (b.host) b.host.close(4000, 'another control panel took over');
+    b.host = ws;
+    b.ready = false;
+    tellHost();
+    ws.on('message', (data) => {
+      let m;
+      try { m = JSON.parse(data.toString()); } catch { return; }
+      if (typeof m.obs !== 'boolean') return;
+      b.ready = m.obs;
+      for (const p of b.pages) sendIfOpen(p, JSON.stringify({ obs: b.ready }));
+    });
+    ws.on('close', () => {
+      if (b.host !== ws) return;
+      b.host = null;
+      b.ready = false;
+      for (const p of b.pages) sendIfOpen(p, '{"obs":false}');
+    });
+    return;
+  }
+  b.pages.add(ws);
+  b.driver = ws;
+  sendIfOpen(ws, JSON.stringify({ obs: b.ready }));
+  tellHost();
+  ws.on('message', (data) => { if (ws === b.driver) sendIfOpen(b.host, data.toString()); });
+  ws.on('close', () => {
+    b.pages.delete(ws);
+    if (b.driver === ws) {
+      b.driver = [...b.pages].pop() || null;
+      // the auditorium source shut down or reloaded: no film floating over the next scene
+      sendIfOpen(b.host, '{"film":false}');
+    }
+    tellHost();
+  });
+});
+
 // ---------- control panel, per room ----------
 async function controlRoute(req, res, pathname, key) {
   if (foreignOrigin(req)) return send(res, 403, 'text/plain', 'Forbidden');
@@ -242,6 +298,8 @@ async function adminRoute(req, res, pathname) {
     rooms[body.key].revoked = new Date().toISOString();
     saveRooms();
     for (const c of live.get(body.key)?.chat || []) c.close(4003, 'room revoked');
+    const b = live.get(body.key)?.bridge;
+    if (b) { b.host?.close(4003, 'room revoked'); for (const p of b.pages) p.close(4003, 'room revoked'); }
     for (const s of live.get(body.key)?.screens.keys() || []) s.end();
     log(`room revoked: ${rooms[body.key].name}`);
     return json(res, 200, { ok: true });
@@ -340,7 +398,14 @@ const server = http.createServer(async (req, res) => {
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url || '/', 'http://x');
   const key = url.searchParams.get('k') || '';
-  if (url.pathname !== '/__dgg_chat_ws' || !validKey(key) || foreignOrigin(req)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
+  if (!validKey(key) || foreignOrigin(req)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
+  if (url.pathname === '/__bridge') {
+    const role = url.searchParams.get('role') === 'obs' ? 'obs' : 'page';
+    if (role === 'page' && roomBridge(key).pages.size >= MAX_SCREENS_PER_ROOM) { socket.end('HTTP/1.1 429 Too Many Requests\r\n\r\n'); return; }
+    bridgeWss.handleUpgrade(req, socket, head, (ws) => bridgeWss.emit('connection', ws, req, key, role));
+    return;
+  }
+  if (url.pathname !== '/__dgg_chat_ws') { socket.end('HTTP/1.1 404 Not Found\r\n\r\n'); return; }
   if (roomLive(key).chat.size >= MAX_SCREENS_PER_ROOM) { socket.end('HTTP/1.1 429 Too Many Requests\r\n\r\n'); return; }
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, key));
 });
