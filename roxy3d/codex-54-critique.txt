@@ -1,0 +1,11 @@
+1. **Nearly, but not signed off:** CINEMAS shares the sign’s colour and perspective; cramped lower clearance and visible hardware still make it feel added afterward.
+2. **Size:** keep the **28.8/64 = 45%** cap height; the hierarchy is right, and enlarging it would worsen congestion.
+3. **Spacing:** reduce tracking **0.34 → 0.26–0.28 world-u**; this brings subtitle width from **73% to 66–68%** of DINK DONK. Retain title-only centring.
+4. **Colour:** keep the existing cyan glass/core materials; **0 hue change** needed. Warm bulbs and the gold bell already provide sufficient contrast.
+5. **Lower clearance:** increase baseline-to-bulb-rail clearance **12 → 18 logical px**, moving the rail **z272 → z266** and extending its connected structure.
+6. **Bulb frame:** the stretched side spacing exposes the extension; add approximately **2 bulbs per upright**, matching the original pitch within **10%**.
+7. **Mounting:** make the single shared raceway visually coherent; simplify to **2–3 readable clips per glyph**, with carrier silhouettes around **1 px** at comparison size.
+8. **S:** it reads too much like **$**; offset its central carrier by **0.15–0.20 world-u** and preserve at least **3 screen px** of clearance from the S’s open terminals.
+9. **DONK overlap:** no obvious neon-tube collision, but braces clutter the M/A/S region; reposition those supports for **4–6 screen px** of separation from cyan strokes.
+10. **Floodlights:** the central bright fitting competes with DONK, and the right fitting crowds the subtitle/frame; reposition fittings roughly **8–12 screen px**, targeting **6 px** clear separation.
+11. **Bell timing: correct on paper**—**A12/B12**, **0.50 s/state**, **1 s/cycle**, **6 cycles/6 s**, no gap; frame **144 → 0** wraps correctly. The still cannot establish whether the slower toggle feels right in playback.

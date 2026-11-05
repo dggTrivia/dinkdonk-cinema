@@ -1,0 +1,3 @@
+![Cinema draft 07](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/cinema_draft_07.png)
+
+STATUS: DRAFT 07 RENDERED — [Report](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/CINEMA-DRAFT-07.md) · [Layout JSON](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/cinema_layout_07.json) — one image; originals preserved; stair-light and route visibility limitations documented — STOP.

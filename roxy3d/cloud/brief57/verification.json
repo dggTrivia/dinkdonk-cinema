@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "archive": {
+    "archive": "cloud\\roxy-cloud-bundle-56.tar.gz",
+    "bytes": 167296502,
+    "sha256": "cb6d338753a3a0da2c402d976d4c3db45ee910e27024f5651c6932d364145883",
+    "files": 888,
+    "all_member_hashes_verified": true
+  },
+  "preflight": true,
+  "smoke": true,
+  "smoke_seconds": 104.41522759999498,
+  "original_uncached_smoke_seconds": 130.29585740002221,
+  "captures": [
+    "brief57_smoke_sign_0",
+    "brief57_smoke_sign_12"
+  ],
+  "full_res_frames_rendered": 0,
+  "owner_images_created": 0,
+  "production_driver_byte_identical": true,
+  "runtime_byte_identical": true,
+  "frozen_scene_byte_identical": true,
+  "run_sh_watchdog_byte_identical": true,
+  "helper_only_requested_changes": true,
+  "protected_files": 2690,
+  "cloud_render_helper_executed": false,
+  "pods_started": 0
+}

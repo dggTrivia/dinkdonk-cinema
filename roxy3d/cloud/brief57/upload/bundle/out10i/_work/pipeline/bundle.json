@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "scene_source": "Frozen Brief 56 / approved draft 23",
+  "source_sha256": "8a03da7a47714e85e681e1211a29ec19de9ed072cde2ccd5309fd361e2d0c7c8",
+  "scene_sha256": "33090d845e0c10348627b42b24f55a774691eb44b1b47326158099e657987942",
+  "blender_version": "5.2.3",
+  "fonts": [
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "arialbd.ttf",
+    "georgiab.ttf",
+    "impact.ttf"
+  ],
+  "images": [
+    "0_boxing.png.png",
+    "1_buttons.png.png",
+    "2_cabge.png.png",
+    "3_cinema.png.png",
+    "4_conductor.png.png",
+    "5_courier.png.png",
+    "6_EatFresh.png.png",
+    "7_flyer.png.png",
+    "8_glorp.png.png",
+    "9_lookalike.png.png",
+    "10_newspaper.png.png",
+    "12_timetable.png.png",
+    "13_travel.png.png",
+    "15_wcat.png.001.png",
+    "16_whiplash.png.png"
+  ],
+  "source_scene_unchanged": true,
+  "paths_relative": true,
+  "linked_libraries": 0
+}

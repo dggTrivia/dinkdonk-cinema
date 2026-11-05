@@ -1,0 +1,7 @@
+{
+  "fingerprint": "ff2284fe403f48d6138089dd1cc2bfbc01708f50e67a55bce4e19038e98ef575",
+  "source": "Frozen Brief 56 production rendered on cloud RTX 4090 by Brief 57; home QA and packaging by Brief 58",
+  "home_acceptance_pending": false,
+  "page_acceptance_pending": true,
+  "home_qa": "../qa58/verification.json"
+}

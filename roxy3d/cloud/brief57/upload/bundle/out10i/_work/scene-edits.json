@@ -1,0 +1,112 @@
+{
+  "reference": "out10h/draft23/draft23-cinemas.blend",
+  "flood_head_before": {
+    "D13 compact floodlight housing.001": {
+      "location": [
+        7.347713947296143,
+        3.648930549621582,
+        3.3612442016601562
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "D13 recessed aluminium reflector.001": {
+      "location": [
+        7.363210201263428,
+        3.6066489219665527,
+        3.396188974380493
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "D13 floodlight emitting glass.001": {
+      "location": [
+        7.36565637588501,
+        3.599972724914551,
+        3.4017064571380615
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "D13 truss reflector flood 1": {
+      "location": [
+        7.368375301361084,
+        3.592555046081543,
+        3.407837152481079
+      ],
+      "rotation": [
+        -0.910862922668457,
+        -3.1415927410125732,
+        0.3512907922267914
+      ]
+    }
+  },
+  "target_world": [
+    9.699999809265137,
+    0.6899999976158142,
+    3.3204193115234375
+  ],
+  "flood_head_after": {
+    "D13 compact floodlight housing.001": {
+      "location": [
+        7.347713947296143,
+        3.648930549621582,
+        3.3612442016601562
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "D13 recessed aluminium reflector.001": {
+      "location": [
+        7.383183002471924,
+        3.6043148040771484,
+        3.360628604888916
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "D13 floodlight emitting glass.001": {
+      "location": [
+        7.388782978057861,
+        3.5972700119018555,
+        3.3605313301086426
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "D13 truss reflector flood 1": {
+      "location": [
+        7.395005702972412,
+        3.589442729949951,
+        3.3604235649108887
+      ],
+      "rotation": [
+        -0.910862922668457,
+        -3.1415927410125732,
+        0.3512907922267914
+      ]
+    }
+  },
+  "hood_objects": 22,
+  "lamp_power_unchanged": 24.0,
+  "removed_covered_annex_faces": 1,
+  "source_sha256": "0fa1c86fb297079b0b0b1944cad5d9ae08f6a8babaf2bd558c9a43d35417ef24"
+}

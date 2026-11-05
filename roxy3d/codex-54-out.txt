@@ -1,0 +1,10 @@
+Draft complete.
+
+- [Comparison image — 1280×720](</C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa10/draft22-dinkdonk-cinemas.png>)
+- [NOTES-54.md](</C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/NOTES-54.md>)
+
+Added cyan **CINEMAS** at **45%** of the title’s cap height, with physical mounts and an extended lower bulb frame. The timing strip shows **6 → 12 frames per state**—0.25 → 0.50 seconds—fitting seamlessly into the unchanged six-second loop.
+
+Production packs and source are unchanged. This task made no page writes; the notes record a concurrent page change, verification results, required production outputs and the local render estimate.
+
+**STATUS: COMPLETE — draft only; stopped.**

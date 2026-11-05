@@ -1,0 +1,41 @@
+{
+  "background": {
+    "count": 48,
+    "render_sum": 2242.939482438378,
+    "render_mean": 46.72790588413287,
+    "total_mean": 48.45511705172248
+  },
+  "other": {
+    "count": 32,
+    "render_sum": 728.7614398947917,
+    "render_mean": 22.77379499671224,
+    "total_mean": 35.37471745194489
+  },
+  "foreground": {
+    "count": 309,
+    "render_sum": 2554.5156167261302,
+    "render_mean": 8.2670408308289,
+    "total_mean": 10.494710553184296
+  },
+  "weather": {
+    "count": 48,
+    "render_sum": 620.7229829528369,
+    "render_mean": 12.931728811517436,
+    "total_mean": 14.745035609118835
+  },
+  "door": {
+    "count": 48,
+    "render_sum": 383.29490769305266,
+    "render_mean": 7.9853105769385975,
+    "total_mean": 8.438045179558685
+  },
+  "brief56": {
+    "foreground_parents": 39,
+    "wet_parents": 13,
+    "foreground_captures": 351,
+    "background_captures": 50,
+    "weather_captures": 49,
+    "door_poses": 48,
+    "WC_states": 2
+  }
+}

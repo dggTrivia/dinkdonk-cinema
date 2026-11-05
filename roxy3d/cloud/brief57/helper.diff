@@ -1,0 +1,23 @@
+--- pre57
++++ brief57
+@@ -25,7 +25,8 @@
+ ROXY="$(cd "$HERE/.." && pwd)"
+ RPC="$ROXY/../tools/runpodctl/runpodctl.exe"
+ KEY="$HOME/.ssh/runpod_ed25519"
+-ARCHIVE="$HERE/roxy-cloud-bundle.tar.gz"   # Codex's packed bundle (contains bundle/)
++ARCHIVE="${ARCHIVE:-$HERE/roxy-cloud-bundle.tar.gz}"   # Codex's packed bundle (contains bundle/)
++OUTDIR="${OUTDIR:-$ROXY/out10.new}"   # full-mode unpack destination; relative paths use the caller's cwd
+ # first available wins (RunPod stock changes by the minute); override with GPUS="id1,id2"
+ GPUS="${GPUS:-NVIDIA GeForce RTX 5090,NVIDIA GeForce RTX 4090,NVIDIA L40S}"
+ CLOUD="${CLOUD:-SECURE}"   # community machines often lack a public ssh port
+@@ -103,8 +104,8 @@
+     "${SCP[@]}" "$USERNAME@$HOST:$src/out10.tar.gz" "$HERE/result-full.tar.gz" >>"$LOG" 2>&1
+     local want got; want="$("${SSH[@]}" "cut -d' ' -f1 $src/out10.tar.gz.sha256")"; got="$(sha256sum "$HERE/result-full.tar.gz" | cut -d' ' -f1)"
+     [ "$want" = "$got" ] || { say "!! downloaded archive checksum mismatch - volume kept"; return 1; }
+-    rm -rf "$ROXY/out10.new"; mkdir -p "$ROXY/out10.new" && tar -C "$ROXY/out10.new" -xzf "$HERE/result-full.tar.gz"
+-    say "pack unpacked into roxy3d/out10.new (Claude checks it, then renames it to out10)"
++    rm -rf "$OUTDIR"; mkdir -p "$OUTDIR" && tar -C "$OUTDIR" -xzf "$HERE/result-full.tar.gz"
++    say "pack unpacked into $OUTDIR (Claude checks it, then promotes it)"
+   else
+     "${SCP[@]}" "$USERNAME@$HOST:$src/smoke.tar.gz" "$HERE/result-smoke.tar.gz" >>"$LOG" 2>&1
+     rm -rf "$HERE/smoke-result"; mkdir -p "$HERE/smoke-result" && tar -C "$HERE/smoke-result" -xzf "$HERE/result-smoke.tar.gz"

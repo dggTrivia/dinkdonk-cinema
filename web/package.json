@@ -1,0 +1,15 @@
+{
+  "name": "dinkdonk-cinema-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DinkDonk Cinema, hosted edition: the lobby and auditorium screens for OBS, served to invited streamers",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  }
+}

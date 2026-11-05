@@ -1,0 +1,12 @@
+Completed Brief 58. `out10i/` contains the full verified pack: **810 payload files**, with **444 changed files and eight new mist maps**.
+
+Delivered:
+
+- [NOTES-56.md](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/NOTES-56.md) — verified provenance, timings, sizes, memory and QA.
+- [out10i-copy-list.txt](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/out10i-copy-list.txt) — exact changes with explicit destinations.
+- [draft24 comparison](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa10/draft24-dinkdonk-production.png) — inspected 1280×720 A/B comparison.
+- [Final verification](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa58/final-validation.json) — passed.
+
+All **432 video frames**, A12/B12 cadence, wraps, wet sheets, alpha/depth and Brief 53 identity checks passed. All **2,757 protected hashes** match. No pod was started or scene rerendered; live paths, fallback and cloud evidence remain unchanged.
+
+**STATUS: COMPLETE — stopped for Claude’s `?artdir=out10i&mistdir=out10i` page test and promotion.**

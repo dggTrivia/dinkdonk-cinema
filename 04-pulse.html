@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Standby 04 — Pulse</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  :root { --ink: #f2efe6; --dim: #8d897d; --line: rgba(242, 239, 230, .14); --acc: #d4ff3a; --pepe: #59c35a; --yee: #f0b43c; --bg: #0d0d0c; }
+  #stage { background: var(--bg); color: var(--ink); font-family: 'Inter Tight', sans-serif; }
+  #blob { position: absolute; left: 0; top: 0; }
+  #grain { position: absolute; inset: 0; opacity: .07; pointer-events: none; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>"); }
+
+  .label { font: 500 18px 'JetBrains Mono', monospace; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); }
+  #top { position: absolute; left: 70px; right: 520px; top: 54px; display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  #top .live::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--acc);
+    margin-right: 12px; vertical-align: 1px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+
+  #hero { position: absolute; left: 70px; top: 118px; width: 1330px; display: flex; align-items: flex-end; justify-content: space-between; }
+  #title { font: 400 168px/0.92 'Instrument Serif', serif; letter-spacing: -4px; }
+  #title em { color: var(--acc); }
+  #subline { font-size: 30px; color: var(--dim); margin-top: 12px; max-width: 760px; }
+  #timerbox { text-align: right; }
+  #timer { font: 700 112px/1 'JetBrains Mono', monospace; letter-spacing: -4px; font-variant-numeric: tabular-nums; }
+
+  #cloudbox { position: absolute; left: 70px; top: 440px; width: 1330px; height: 300px; border-top: 1px solid var(--line); padding-top: 16px; }
+  #cloud { position: relative; margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 26px; height: 250px; overflow: hidden; }
+  .w { display: inline-flex; align-items: center; gap: 6px; line-height: 1; transition: font-size .8s cubic-bezier(.2,.8,.2,1), opacity .8s, color .8s;
+    font-family: 'Instrument Serif', serif; white-space: nowrap; }
+  .w.hot { color: var(--acc); font-style: italic; }
+  .w sup { font: 500 .28em 'JetBrains Mono', monospace; color: var(--dim); align-self: flex-start; margin-top: .2em; }
+
+  #cards { position: absolute; left: 70px; top: 770px; width: 1330px; height: 160px; display: grid; grid-template-columns: 1.35fr 1fr 1.3fr 1fr; border-top: 1px solid var(--line); }
+  .card { padding: 18px 26px 0 0; border-right: 1px solid var(--line); margin-right: 26px; position: relative; }
+  .card:last-child { border-right: 0; margin-right: 0; }
+  .num { font: 700 70px/1.05 'JetBrains Mono', monospace; letter-spacing: -3px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+  #spark { position: absolute; right: 26px; bottom: 6px; }
+  .who { font-size: 24px; margin-top: 10px; line-height: 1.35; }
+  .who div { display: flex; justify-content: space-between; gap: 10px; }
+  .who span:last-child { font-family: 'JetBrains Mono', monospace; color: var(--dim); font-size: 20px; }
+  #combo { margin-top: 12px; display: flex; align-items: center; gap: 14px; font: 700 54px 'JetBrains Mono', monospace; transition: transform .2s; }
+  #combo.bump { transform: scale(1.12); }
+
+  #war { position: absolute; left: 70px; top: 958px; width: 1330px; height: 84px; }
+  #war .ends { display: flex; justify-content: space-between; align-items: center; height: 40px; }
+  #war .side { display: flex; align-items: center; gap: 12px; font: 700 22px 'JetBrains Mono', monospace; }
+  #war .mid { color: var(--dim); }
+  #track { position: relative; height: 16px; margin-top: 12px; border-radius: 8px; overflow: hidden; background: var(--yee); }
+  #track i { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: var(--pepe); transition: width 1s cubic-bezier(.2,.8,.2,1); }
+  #knot { position: absolute; top: 46px; width: 4px; height: 32px; margin-left: -2px; background: var(--ink); left: 50%; transition: left 1s cubic-bezier(.2,.8,.2,1); }
+
+  #chatwrap { position: absolute; left: 1460px; top: 54px; right: 30px; bottom: 30px; border-left: 1px solid var(--line); }
+  #chathead { padding: 0 0 18px 26px; border-bottom: 1px solid var(--line); height: 41px; }
+  #chathead span { float: right; color: var(--ink); }
+  #chat { left: 0; right: 0; top: 60px; bottom: 0; }
+  #toast { position: absolute; left: 70px; top: 400px; font: italic 400 34px 'Instrument Serif', serif; color: var(--acc); opacity: 0; transition: opacity .4s; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="blob"></canvas>
+  <div id="grain"></div>
+
+  <div id="top">
+    <div class="label live">Intermission · chat is live</div>
+    <div class="label" id="clock"></div>
+  </div>
+
+  <div id="hero">
+    <div><div id="title"></div><div id="subline"></div></div>
+    <div id="timerbox"><div class="label" id="timer-label">away for</div><div id="timer">0:00</div></div>
+  </div>
+  <div id="toast"></div>
+
+  <div id="cloudbox"><div class="label">Chat is talking about</div><div id="cloud"></div></div>
+
+  <div id="cards">
+    <div class="card"><div class="label">Messages / min</div><div class="num" id="mpm">0</div><canvas id="spark"></canvas></div>
+    <div class="card"><div class="label">Chatting now</div><div class="num" id="active">0</div></div>
+    <div class="card"><div class="label">Loudest</div><div class="who" id="loud"></div></div>
+    <div class="card"><div class="label">Combo</div><div id="combo">—</div></div>
+  </div>
+
+  <div id="war">
+    <div class="ends">
+      <div class="side" id="pepe-side"><span id="pepe-n">0</span></div>
+      <div class="label mid">the eternal war · vote <b style="color:var(--pepe)">!pepe</b> or <b style="color:var(--yee)">!yee</b></div>
+      <div class="side" id="yee-side"><span id="yee-n">0</span></div>
+    </div>
+    <div id="track"><i id="pepe-bar"></i></div>
+    <div id="knot"></div>
+  </div>
+
+  <div id="chatwrap">
+    <div id="chathead" class="label">Live chat <span id="viewers"></span></div>
+    <div id="chat"></div>
+  </div>
+</div>
+
+<script src="shared/core.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  SB.mountStage($('stage'));
+  SB.mountChat($('chat'), { emoteHeight: 30 });
+
+  // Last word of the title gets the accent, editorial style.
+  const words = (SB.cfg.title || 'Back shortly.').split(' ');
+  const lastWord = words.pop();
+  const em = document.createElement('em');
+  em.textContent = lastWord;
+  $('title').append(words.length ? `${words.join(' ')} ` : '', em);
+  $('subline').textContent = SB.cfg.sub || 'Stretch, refill, keep chat warm. Everything below is live from Destiny.gg chat.';
+
+  // ---------- background blob (breathes faster when chat is busy) ----------
+  const bctx = SB.fitCanvas($('blob'));
+  let phase = 0;
+  let energy = 0;
+  function drawBlob(dt) {
+    energy += (Math.min(1, SB.mpm() / 60) - energy) * dt * 0.5;
+    phase += dt * (0.15 + energy * 0.9);
+    bctx.clearRect(0, 0, 1920, 1080);
+    const spots = [
+      { x: 1100 + Math.cos(phase) * 220, y: 380 + Math.sin(phase * 1.3) * 120, r: 520 + energy * 160, c: '212,255,58' },
+      { x: 300 + Math.sin(phase * 0.8) * 200, y: 900 + Math.cos(phase) * 90, r: 460, c: '89,195,90' },
+      { x: 1500 + Math.cos(phase * 0.6) * 120, y: 980, r: 380, c: '240,180,60' },
+    ];
+    for (const s of spots) {
+      const g = bctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
+      g.addColorStop(0, `rgba(${s.c},${0.08 + energy * 0.06})`);
+      g.addColorStop(1, `rgba(${s.c},0)`);
+      bctx.fillStyle = g;
+      bctx.fillRect(0, 0, 1920, 1080);
+    }
+  }
+
+  // ---------- word + emote cloud ----------
+  const cloudEls = new Map();
+  function renderCloud() {
+    const emotes = SB.topEmotes(8).map((e) => ({ ...e, emote: true }));
+    const words = SB.topWords(18).filter((w) => w.c > 1 || SB.stats.wordHits.length < 40);
+    const items = [...emotes, ...words].sort((a, b) => b.c - a.c).slice(0, 22);
+    const max = items[0]?.c || 1;
+    const keep = new Set();
+    items.forEach((it, i) => {
+      const key = (it.emote ? 'e:' : 'w:') + it.k;
+      keep.add(key);
+      let el = cloudEls.get(key);
+      const size = 24 + (it.c / max) ** 0.7 * 70;
+      if (!el) {
+        el = document.createElement('span');
+        el.className = 'w';
+        el.style.fontSize = '10px';
+        el.style.opacity = '0';
+        el.append(it.emote ? SB.emoteEl(it.k, 1) : it.k, document.createElement('sup'));
+        cloudEls.set(key, el);
+        $('cloud').append(el);
+      }
+      if (it.emote) el.firstChild.replaceWith(SB.emoteEl(it.k, size * 0.95));
+      el.lastChild.textContent = it.c;
+      el.classList.toggle('hot', i < 2 && !it.emote);
+      el.style.order = String(i);
+      requestAnimationFrame(() => { el.style.fontSize = `${size}px`; el.style.opacity = String(0.45 + 0.55 * (it.c / max)); });
+    });
+    for (const [key, el] of cloudEls) {
+      if (!keep.has(key)) { el.style.opacity = '0'; el.style.fontSize = '10px'; cloudEls.delete(key); setTimeout(() => el.remove(), 800); }
+    }
+    // Once sizes settle, hide whatever wrapped below the box instead of clipping it.
+    setTimeout(() => {
+      const box = $('cloud');
+      for (const el of box.children) el.style.visibility = el.offsetTop + el.offsetHeight > box.clientHeight ? 'hidden' : '';
+    }, 900);
+  }
+
+  // ---------- sparkline: messages per 10 s over the last 10 minutes ----------
+  const sctx = SB.fitCanvas($('spark'), 200, 70);
+  const buckets = new Array(60).fill(0);
+  SB.on('msg', () => { buckets[buckets.length - 1] += 1; });
+  setInterval(() => { buckets.shift(); buckets.push(0); }, 10_000);
+  function drawSpark() {
+    const max = Math.max(4, ...buckets);
+    sctx.clearRect(0, 0, 200, 70);
+    sctx.beginPath();
+    buckets.forEach((v, i) => sctx.lineTo((i / (buckets.length - 1)) * 196 + 2, 66 - (v / max) * 60));
+    sctx.strokeStyle = '#d4ff3a';
+    sctx.lineWidth = 2.5;
+    sctx.lineJoin = 'round';
+    sctx.stroke();
+    sctx.lineTo(198, 70); sctx.lineTo(2, 70);
+    sctx.fillStyle = 'rgba(212,255,58,.08)';
+    sctx.fill();
+  }
+
+  // ---------- PEPE vs YEE ----------
+  const war = { pepe: [], yee: [] };
+  const isPepe = (e) => /^pepe|pepe$|^PEPE|^Pepo|FeelsGoodMan|FeelsBadMan|monkaS/i.test(e) && !/yee/i.test(e);
+  const isYee = (e) => /^YEE|YEE$/i.test(e);
+  SB.on('msg', (m) => {
+    const now = Date.now();
+    for (const e of m.emotes) {
+      if (isYee(e)) war.yee.push(now);
+      else if (isPepe(e)) war.pepe.push(now);
+    }
+  });
+  function vote(side, weight) { const now = Date.now(); for (let i = 0; i < weight; i++) war[side].push(now); }
+  SB.command('pepe', 0, ({ nick }) => { vote('pepe', 3); toast(`${nick} pulls for PEPE`); });
+  SB.command('yee', 0, ({ nick }) => { vote('yee', 3); toast(`${nick} pulls for YEE`); });
+  function renderWar() {
+    const cut = Date.now() - 600_000;
+    for (const k of ['pepe', 'yee']) while (war[k].length && war[k][0] < cut) war[k].shift();
+    const p = war.pepe.length;
+    const y = war.yee.length;
+    const share = p + y ? p / (p + y) : 0.5;
+    $('pepe-bar').style.width = `${share * 100}%`;
+    $('knot').style.left = `${share * 100}%`;
+    $('pepe-n').textContent = `${p} PEPE`;
+    $('yee-n').textContent = `YEE ${y}`;
+  }
+
+  let toastTimer;
+  function toast(text) {
+    $('toast').textContent = text;
+    $('toast').classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2200);
+  }
+
+  // ---------- combo ----------
+  let comboClear;
+  SB.on('combo', ({ emote, count }) => {
+    $('combo').replaceChildren(SB.emoteEl(emote, 56), `×${count}`);
+    $('combo').classList.add('bump');
+    setTimeout(() => $('combo').classList.remove('bump'), 200);
+    clearTimeout(comboClear);
+  });
+  SB.on('comboEnd', ({ emote, count }) => {
+    comboClear = setTimeout(() => { $('combo').textContent = '—'; }, 8_000);
+    if (count >= 5) toast(`${count}× ${emote} combo`);
+  });
+
+  SB.on('names', ({ connections }) => { $('viewers').textContent = connections ? `${connections.toLocaleString()} connected` : ''; });
+  SB.on('emotes', () => {
+    const pe = SB.emotes.names.has('PEPE') ? 'PEPE' : null;
+    const ye = SB.emotes.names.has('YEE') ? 'YEE' : null;
+    if (pe) $('pepe-side').prepend(SB.emoteEl(pe, 40));
+    if (ye) $('yee-side').append(SB.emoteEl(ye, 40));
+  });
+
+  setInterval(() => {
+    const t = SB.timerText();
+    $('timer').textContent = t.value;
+    $('timer-label').textContent = t.label;
+    $('clock').textContent = new Date().toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    $('mpm').textContent = SB.mpm();
+    $('active').textContent = SB.activeChatters().length;
+    $('loud').replaceChildren(...SB.topChatters(3).map((c) => {
+      const row = document.createElement('div');
+      const n = document.createElement('span');
+      n.textContent = c.nick;
+      n.style.color = c.color;
+      const k = document.createElement('span');
+      k.textContent = c.recent;
+      row.append(n, k);
+      return row;
+    }));
+    drawSpark();
+    renderWar();
+  }, 1000);
+  setInterval(renderCloud, 2500);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    drawBlob(dt);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  SB.start();
+})();
+</script>
+</body>
+</html>

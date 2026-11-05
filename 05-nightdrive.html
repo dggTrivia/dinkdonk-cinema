@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Standby 05 — Night Drive</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Monoton&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  :root { --a: #ff2fd0; --b: #2de2ff; --c: #ffd84a; }
+  #stage { background: #0a0018; font-family: 'Orbitron', sans-serif; color: #fff; }
+  #scene { position: absolute; left: 0; top: 0; }
+  #signs { position: absolute; inset: 0; pointer-events: none; z-index: 0; } /* keeps sign z-order below the HUD and chat */
+  .sign { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform; }
+  .sign .board { padding: 14px 18px; border-radius: 10px; background: rgba(10, 0, 24, .85); border: 5px solid var(--a);
+    box-shadow: 0 0 24px var(--a), inset 0 0 18px rgba(255,47,208,.4); display: flex; align-items: center; justify-content: center; }
+  .sign .pole { width: 12px; height: 160px; margin: 0 auto; background: linear-gradient(90deg, #222, #666, #222); }
+  .sign .tag { font: 700 26px 'Orbitron'; color: var(--b); text-align: center; text-shadow: 0 0 10px var(--b); white-space: nowrap; margin-top: 8px; }
+
+  #title { position: absolute; left: 70px; top: 50px; font: 108px/1 'Monoton', cursive; color: var(--c);
+    text-shadow: 0 0 12px var(--c), 0 0 40px var(--a); letter-spacing: 4px; white-space: nowrap; }
+  #subline { position: absolute; left: 76px; top: 176px; font: 500 26px 'Orbitron'; color: var(--b); letter-spacing: 6px; text-transform: uppercase;
+    text-shadow: 0 0 10px var(--b); }
+
+  .hud { position: absolute; background: rgba(10, 0, 24, .6); border: 2px solid rgba(45,226,255,.5); border-radius: 14px;
+    box-shadow: 0 0 20px rgba(45,226,255,.25), inset 0 0 20px rgba(45,226,255,.12); backdrop-filter: blur(4px); }
+  .hud small { display: block; font: 500 16px 'Orbitron'; letter-spacing: 4px; color: var(--b); opacity: .85; }
+  #speedo { left: 60px; bottom: 50px; width: 330px; padding: 16px 24px; }
+  #speed { font: 900 92px/1 'Orbitron'; color: #fff; text-shadow: 0 0 16px var(--a); font-variant-numeric: tabular-nums; }
+  #speed span { font-size: 30px; color: var(--a); margin-left: 8px; }
+  #rpm { display: flex; gap: 4px; margin-top: 10px; }
+  #rpm i { flex: 1; height: 14px; border-radius: 2px; background: rgba(255,255,255,.12); }
+  #rpm i.on { background: var(--b); box-shadow: 0 0 8px var(--b); }
+  #rpm i.on.hi { background: var(--a); box-shadow: 0 0 8px var(--a); }
+  #odo { margin-top: 10px; font: 500 20px 'Orbitron'; color: var(--c); }
+
+  #radio { left: 420px; bottom: 50px; width: 600px; padding: 16px 24px; }
+  #station { font: 700 36px 'Orbitron'; color: var(--c); text-shadow: 0 0 12px var(--c); margin-top: 4px; white-space: nowrap; }
+  #nowline { font: 500 20px 'Orbitron'; margin-top: 8px; color: #fff; opacity: .9; white-space: nowrap; overflow: hidden; }
+  #cmds { margin-top: 10px; font: 500 17px 'Orbitron'; color: var(--b); }
+  #cmds b { color: var(--a); }
+
+  #timerbox { right: 520px; top: 50px; padding: 14px 24px; text-align: right; }
+  #timer { font: 900 64px/1 'Orbitron'; text-shadow: 0 0 14px var(--b); font-variant-numeric: tabular-nums; }
+
+  #pop { position: absolute; left: 720px; top: 420px; transform: translate(-50%, -50%) scale(.3); opacity: 0;
+    font: 900 120px 'Orbitron'; color: #fff; text-shadow: 0 0 20px var(--a), 0 0 60px var(--a); white-space: nowrap; transition: all .3s cubic-bezier(.2,1.6,.4,1); text-align: center; }
+  #pop small { display: block; font-size: 34px; color: var(--c); text-shadow: 0 0 12px var(--c); }
+  #pop.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 37% 80%, rgba(255,255,230,.65), transparent 60%); opacity: 0; transition: opacity .6s; pointer-events: none; }
+  #flash.on { opacity: 1; transition: none; }
+
+  #chatwrap { position: absolute; right: 30px; top: 30px; bottom: 30px; width: 450px; border-radius: 18px;
+    background: rgba(10, 0, 24, .78); border: 2px solid rgba(255,47,208,.55); box-shadow: 0 0 26px rgba(255,47,208,.3); overflow: hidden; }
+  #chathead { height: 60px; line-height: 60px; padding: 0 22px; font: 700 22px 'Orbitron'; letter-spacing: 3px; color: var(--a);
+    border-bottom: 1px solid rgba(255,47,208,.35); text-shadow: 0 0 10px var(--a); }
+  #chathead span { float: right; font-size: 16px; color: #fff; opacity: .7; text-shadow: none; }
+  #chat { left: 0; right: 0; top: 62px; bottom: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="scene"></canvas>
+  <div id="signs"></div>
+  <div id="flash"></div>
+
+  <div id="title"></div>
+  <div id="subline"></div>
+  <div id="timerbox" class="hud"><small id="timer-label">away for</small><div id="timer">0:00</div></div>
+
+  <div id="speedo" class="hud">
+    <small>chat speed</small>
+    <div id="speed">0<span>km/h</span></div>
+    <div id="rpm"></div>
+    <div id="odo">ODO 0.0 km</div>
+  </div>
+  <div id="radio" class="hud">
+    <small>now tuned to</small>
+    <div id="station"></div>
+    <div id="nowline"></div>
+    <div id="cmds"><b>!boost</b> · <b>!honk</b> · <b>!radio</b> · emotes become billboards</div>
+  </div>
+  <div id="pop"></div>
+
+  <div id="chatwrap">
+    <div id="chathead">CB RADIO <span id="viewers"></span></div>
+    <div id="chat"></div>
+  </div>
+</div>
+
+<script src="shared/core.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  SB.mountStage($('stage'));
+  SB.mountChat($('chat'), { emoteHeight: 30 });
+  $('title').textContent = (SB.cfg.title || 'BE RIGHT BACK').toUpperCase();
+  $('subline').textContent = SB.cfg.sub || 'cruising until the next reel';
+
+  const ctx = SB.fitCanvas($('scene'));
+  const VX = 720;          // vanishing point x (centre of the area left of chat)
+  const HY = 600;          // horizon
+  const FLOOR_H = 1080 - HY;
+
+  const STATIONS = [
+    { name: 'CHAT FM 98.7', sky: ['#0a0018', '#3b0a5c', '#ff2fd0'], grid: '#ff2fd0', sun: ['#ffd84a', '#ff2fd0'], mtn: '#14002b', edge: '#2de2ff' },
+    { name: 'DGG NIGHT 104.2', sky: ['#000814', '#022b4a', '#2de2ff'], grid: '#2de2ff', sun: ['#b6fff7', '#2d7cff'], mtn: '#001022', edge: '#ff2fd0' },
+    { name: 'YEE WAVE 88.1', sky: ['#060f00', '#173d00', '#9dff2f'], grid: '#9dff2f', sun: ['#fff36a', '#ff8a2f'], mtn: '#071500', edge: '#ffd84a' },
+    { name: 'ANGELTHUMP AM 666', sky: ['#120000', '#4a0012', '#ff5a2f'], grid: '#ff5a2f', sun: ['#ffe9a8', '#ff2f5a'], mtn: '#1a0006', edge: '#ffd84a' },
+  ];
+  let station = 0;
+
+  // Mountains: two fixed ridges.
+  const ridge = (n, base, amp, seed) => Array.from({ length: n + 1 }, (_, i) => {
+    const x = (i / n) * 1920;
+    const y = base - Math.abs(Math.sin(i * 1.7 + seed) * amp) - Math.abs(Math.sin(i * 0.53 + seed * 2) * amp * 0.6);
+    return [x, y];
+  });
+  const far = ridge(28, HY, 120, 1.3);
+  const near = ridge(18, HY + 2, 80, 4.1);
+  const stars = Array.from({ length: 160 }, () => ({ x: SB.rand(0, 1920), y: SB.rand(0, HY - 60), r: SB.rand(0.6, 2), p: SB.rand(0, 6) }));
+
+  // ---------- speed ----------
+  let speed = 0;
+  let boost = 0;
+  let travel = 0;   // world units
+  let odo = 0;      // km
+  let t = 0;
+  const targetSpeed = () => Math.min(260, 40 + SB.mpm() * 3.5) + boost * 160;
+
+  // ---------- billboards ----------
+  const signs = [];
+  let side = 1;
+  function spawnSign(emote, label) {
+    if (signs.length > 14) return;
+    const el = document.createElement('div');
+    el.className = 'sign';
+    const board = document.createElement('div');
+    board.className = 'board';
+    board.append(SB.emoteEl(emote, 150));
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.textContent = label || '';
+    const pole = document.createElement('div');
+    pole.className = 'pole';
+    el.append(board, tag, pole);
+    $('signs').append(el);
+    side = -side;
+    signs.push({ el, x: side * SB.rand(5.5, 7.5), z: 30, w: 0, nick: label });
+  }
+
+  function updateSigns(dz) {
+    for (let i = signs.length - 1; i >= 0; i--) {
+      const s = signs[i];
+      s.z -= dz;
+      if (s.z < 0.9) { s.el.remove(); signs.splice(i, 1); continue; }
+      if (!s.w) s.w = s.el.offsetWidth;
+      const k = 1 / s.z;
+      const sx = VX + s.x * FLOOR_H * k * 0.55;
+      const sy = HY + FLOOR_H * k;
+      const scale = Math.min(2.2, k * 1.6);
+      const h = s.el.offsetHeight;
+      s.el.style.transform = `translate(${sx - s.w / 2}px, ${sy - h}px) scale(${scale})`;
+      s.el.style.opacity = String(Math.min(1, (30 - s.z) / 6));
+      s.el.style.zIndex = String(Math.round(100 - s.z));
+    }
+  }
+
+  // ---------- drawing ----------
+  function draw() {
+    const st = STATIONS[station];
+    // Sky.
+    const g = ctx.createLinearGradient(0, 0, 0, HY);
+    g.addColorStop(0, st.sky[0]);
+    g.addColorStop(0.65, st.sky[1]);
+    g.addColorStop(1, st.sky[2]);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 1920, HY);
+    for (const s of stars) {
+      ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 1.2 + s.p));
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
+    ctx.globalAlpha = 1;
+    // Sun with scrolling bands.
+    const R = 230;
+    const sy = HY - 90;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(VX, sy, R, 0, Math.PI * 2);
+    ctx.clip();
+    const sg = ctx.createLinearGradient(0, sy - R, 0, sy + R);
+    sg.addColorStop(0, st.sun[0]);
+    sg.addColorStop(1, st.sun[1]);
+    ctx.fillStyle = sg;
+    ctx.fillRect(VX - R, sy - R, R * 2, R * 2);
+    ctx.fillStyle = st.sky[1];
+    const off = (t * 18) % 34;
+    for (let y = sy - 10 + off; y < sy + R; y += 34) {
+      const hgt = 2 + ((y - sy) / R) * 14;
+      ctx.fillRect(VX - R, y, R * 2, Math.max(0, hgt));
+    }
+    ctx.restore();
+    ctx.shadowColor = st.sun[1];
+    ctx.shadowBlur = 80;
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath(); ctx.arc(VX, sy, R, 0, Math.PI * 2); ctx.fillStyle = st.sun[1]; ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    // Mountains.
+    for (const [pts, fill, alpha] of [[far, st.mtn, 0.85], [near, st.mtn, 1]]) {
+      ctx.beginPath();
+      ctx.moveTo(0, HY);
+      for (const [x, y] of pts) ctx.lineTo(x, y);
+      ctx.lineTo(1920, HY);
+      ctx.closePath();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = st.edge;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = st.edge;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      for (const [x, y] of pts) ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    // Floor.
+    const fg = ctx.createLinearGradient(0, HY, 0, 1080);
+    fg.addColorStop(0, '#000');
+    fg.addColorStop(1, st.sky[0]);
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, HY, 1920, FLOOR_H);
+    ctx.strokeStyle = st.grid;
+    ctx.shadowColor = st.grid;
+    ctx.shadowBlur = 8;
+    // Converging lines.
+    ctx.lineWidth = 2;
+    for (let X = -40; X <= 40; X += 2) {
+      ctx.beginPath();
+      ctx.moveTo(VX, HY);
+      ctx.lineTo(VX + X * FLOOR_H * 0.55, 1080 + FLOOR_H * 0.0);
+      ctx.globalAlpha = 0.7;
+      ctx.stroke();
+    }
+    // Horizontal lines scrolling toward us.
+    const spacing = 1.2;
+    const phase = travel % spacing;
+    for (let z = 1 + spacing - phase; z < 40; z += spacing) {
+      const y = HY + FLOOR_H / z;
+      ctx.globalAlpha = Math.min(1, 1.6 / Math.sqrt(z));
+      ctx.lineWidth = Math.max(1, 3 / Math.sqrt(z));
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(1920, y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    // Road.
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.beginPath();
+    ctx.moveTo(VX - 4, HY); ctx.lineTo(VX + 4, HY); ctx.lineTo(VX + 3.2 * FLOOR_H * 0.55, 1080); ctx.lineTo(VX - 3.2 * FLOOR_H * 0.55, 1080);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (let z = 1 + 2 - (travel % 2); z < 30; z += 2) {
+      const y1 = HY + FLOOR_H / z;
+      const y2 = HY + FLOOR_H / (z + 0.8);
+      const w1 = 0.12 * FLOOR_H * 0.55 / z;
+      const w2 = 0.12 * FLOOR_H * 0.55 / (z + 0.8);
+      ctx.globalAlpha = Math.min(1, 2 / z);
+      ctx.beginPath();
+      ctx.moveTo(VX - w1, y1); ctx.lineTo(VX + w1, y1); ctx.lineTo(VX + w2, y2); ctx.lineTo(VX - w2, y2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Speed lines while boosting.
+    if (boost > 0.05) {
+      ctx.strokeStyle = `rgba(255,255,255,${boost * 0.5})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 30; i++) {
+        const a = SB.rand(0, Math.PI * 2);
+        const r1 = SB.rand(260, 600);
+        ctx.beginPath();
+        ctx.moveTo(VX + Math.cos(a) * r1, HY + Math.sin(a) * r1 * 0.6);
+        ctx.lineTo(VX + Math.cos(a) * (r1 + 220), HY + Math.sin(a) * (r1 + 220) * 0.6);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ---------- HUD ----------
+  for (let i = 0; i < 20; i++) $('rpm').append(document.createElement('i'));
+  const rpm = [...$('rpm').children];
+  function hud() {
+    $('speed').firstChild.textContent = String(Math.round(speed));
+    const lit = Math.round((speed / 380) * 20);
+    rpm.forEach((el, i) => { el.className = i < lit ? (i >= 15 ? 'on hi' : 'on') : ''; });
+    $('odo').textContent = `ODO ${odo.toFixed(1)} km`;
+  }
+
+  let popTimer;
+  function pop(big, small, ms = 1600) {
+    $('pop').replaceChildren(big);
+    if (small) { const s = document.createElement('small'); s.textContent = small; $('pop').append(s); }
+    $('pop').classList.add('show');
+    clearTimeout(popTimer);
+    popTimer = setTimeout(() => $('pop').classList.remove('show'), ms);
+  }
+
+  function tune(next) {
+    station = next % STATIONS.length;
+    $('station').textContent = STATIONS[station].name;
+    document.documentElement.style.setProperty('--a', STATIONS[station].grid);
+  }
+
+  // ---------- chat ----------
+  let lastLine = '';
+  SB.on('msg', (m) => {
+    if (m.text.startsWith('!')) return;
+    if (m.emotes.length) spawnSign(m.emotes[0], m.nick);
+    lastLine = `${m.nick}: ${m.text}`;
+  });
+  SB.on('purge', (nick) => {
+    for (const s of signs) if (s.nick.toLowerCase() === nick.toLowerCase()) s.z = 0;
+  });
+  SB.on('combo', ({ count }) => { if (count >= 3) boost = Math.min(1, boost + 0.25); });
+  SB.on('comboEnd', ({ emote, count }) => {
+    if (count < 4) return;
+    const e = document.createElement('span');
+    e.append(SB.emoteEl(emote, 110), ` ×${count}`);
+    pop(e, 'COMBO TURBO');
+    boost = 1;
+  });
+  SB.on('names', ({ connections }) => { $('viewers').textContent = connections ? `${connections.toLocaleString()} on air` : ''; });
+
+  SB.command(['boost', 'nitro'], 12_000, ({ nick }) => { boost = 1; pop('NITRO', nick); });
+  SB.command('honk', 6_000, ({ nick }) => {
+    pop('HONK HONK', nick, 1100);
+    $('flash').classList.add('on');
+    requestAnimationFrame(() => requestAnimationFrame(() => $('flash').classList.remove('on')));
+  });
+  SB.command('radio', 10_000, ({ nick }) => { tune(station + 1); pop('📻', `${nick} → ${STATIONS[station].name}`); });
+
+  tune(0);
+  setInterval(() => {
+    const tt = SB.timerText();
+    $('timer').textContent = tt.value;
+    $('timer-label').textContent = tt.label;
+    $('nowline').textContent = lastLine ? `♪ ${lastLine}`.slice(0, 60) : `♪ ${SB.mpm()} messages a minute`;
+    hud();
+  }, 250);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    t += dt;
+    speed += (targetSpeed() - speed) * Math.min(1, dt * (boost > 0.5 ? 3 : 0.8));
+    boost = Math.max(0, boost - dt * 0.22);
+    const dz = (speed / 40) * dt;
+    travel += dz;
+    odo += (speed * dt) / 3600;
+    updateSigns(dz);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  SB.start();
+})();
+</script>
+</body>
+</html>

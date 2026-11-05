@@ -1,0 +1,1 @@
+STATUS: Draft 04 rendered once — [image](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/cinema_draft_04.png), [notes](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/CINEMA-DRAFT-04.md), [layout](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/cinema_layout_04.json). Visual limitations documented; protected files unchanged.

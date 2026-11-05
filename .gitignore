@@ -1,0 +1,30 @@
+# Local-only: installs, caches, backups, builds
+/tools/
+/cache/
+/backup-*/
+/dist/
+node_modules/
+__pycache__/
+*.blend1
+*.log
+*.tar.gz
+*.zip
+*.pre57
+
+# roxy3d: the art working folders (drafts, QA shots, old packs, render caches; about 30 GB) stay local.
+# Kept: briefs, notes, scripts and source .blend files at the top; the live packs out10 + out10mist; memes, tools,
+# ref, research; the cloud render helper and the Brief 57 production bundle.
+# The auditorium art in qa11 is ignored as a folder; only the files auditorium.html loads are tracked
+# (added with: node -e "..." from package/art.js, then git add -f; see README.md).
+/roxy3d/*/
+!/roxy3d/out10/
+!/roxy3d/out10mist/
+!/roxy3d/memes/
+!/roxy3d/tools/
+!/roxy3d/ref/
+!/roxy3d/research/
+!/roxy3d/cloud/
+/roxy3d/cloud/*/
+!/roxy3d/cloud/brief57/
+/roxy3d/cloud/brief57/local-cache/
+/roxy3d/cloud/brief57/upload/bundle/out10/

@@ -1,0 +1,257 @@
+<!doctype html>
+<!--
+  DinkDonk Cinema, hosted edition: a streamer's own page (setup.html?k=ROOMKEY). Connects to OBS's built-in WebSocket
+  server on this PC and creates the scenes (lobby, auditorium with the film pinned onto the screen), sized to their
+  canvas and using whatever source they play the film in. Also lists the plain URLs for setting it up by hand, and
+  links the control panel. The OBS password stays on this PC: it only goes into the auditorium URL's #fragment.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DinkDonk Cinema setup</title>
+<style>
+  :root { color-scheme: dark; --bg: #121318; --panel: #1b1d24; --line: #2c2f39; --text: #e9ebf0; --dim: #8b90a0; --acc: #59aeea; --ok: #5fd38d; --warn: #ff6d6d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px 16px 60px; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, 'Segoe UI', sans-serif; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { margin: 0 0 2px; font-size: 24px; }
+  .sub { color: var(--dim); margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
+  label { color: var(--dim); }
+  input, select { background: #10121a; color: var(--text); border: 1px solid #3a3f4d; border-radius: 7px; padding: 7px 10px; font: inherit; min-width: 0; }
+  input[type=password], select { flex: 1 1 240px; }
+  button { background: #262a35; color: var(--text); border: 1px solid #3a3f4d; border-radius: 7px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--acc); }
+  button.primary { background: var(--acc); color: #06131e; border-color: var(--acc); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: default; }
+  ol { margin: 6px 0; padding-left: 22px; } li { margin: 3px 0; }
+  code, .url { font: 13px/1.4 ui-monospace, Consolas, monospace; }
+  .url { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+  .url input { flex: 1; font: 13px ui-monospace, Consolas, monospace; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .dim { color: var(--dim); }
+  #log { white-space: pre-wrap; font: 13px/1.5 ui-monospace, Consolas, monospace; color: var(--dim); margin-top: 10px; }
+  [hidden] { display: none !important; }
+  a { color: var(--acc); }
+</style>
+</head>
+<body>
+<main>
+  <h1>DinkDonk Cinema</h1>
+  <div class="sub" id="room">Checking your link…</div>
+
+  <div class="card">
+    <h2>1 · Connect to OBS</h2>
+    <ol>
+      <li>In OBS: <b>Tools › WebSocket Server Settings</b> › tick <b>Enable WebSocket server</b>. Click <b>Show Connect Info</b> for the password.</li>
+      <li>For the film on the cinema screen, install the <a href="https://github.com/exeldro/obs-shaderfilter/releases" target="_blank" rel="noopener">obs-shaderfilter</a> plugin. Without it, the screen stays green and you place the film yourself.</li>
+      <li>Open this page on the PC that runs OBS. If your browser asks to allow access to devices on your local network, allow it: that's how this page reaches OBS.</li>
+    </ol>
+    <div class="row">
+      <label for="pw">Password</label><input id="pw" type="password" autocomplete="off" placeholder="OBS WebSocket password (empty if authentication is off)">
+      <label for="port">Port</label><input id="port" type="number" value="4455" style="width:90px">
+      <button class="primary" id="connect">Connect</button>
+    </div>
+    <div id="status" class="dim"></div>
+  </div>
+
+  <div class="card" id="step2" hidden>
+    <h2>2 · Create the scenes</h2>
+    <div class="row"><label for="film">Your film plays in</label><select id="film"></select></div>
+    <div class="row">
+      <label for="who">Who walks in</label>
+      <select id="who"><option value="everyone">Everyone who chats</option><option value="tag">Only chatters who tag…</option></select>
+      <input id="nick" placeholder="your DGG nick" hidden>
+    </div>
+    <p class="dim" style="margin:6px 0">This adds three scenes to your current scene collection: <b>DinkDonk Lobby</b>, <b>DinkDonk Cinema</b> (the auditorium) and <b>Film screen (src)</b>, a helper that holds your film source. Running it again updates them; nothing else is changed.</p>
+    <div class="row"><button class="primary" id="create">Create scenes in OBS</button></div>
+    <div id="log"></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Every stream</h2>
+    <p style="margin:0 0 8px">Switch to the DinkDonk scenes when you're on break or before the film. The <a id="ctl" target="_blank" rel="noopener">control panel</a> moves the camera, runs the auditorium phases (seating › lights down › film › lights up) and the automatic director. It works from your phone too.</p>
+  </div>
+
+  <div class="card">
+    <h2>By hand instead</h2>
+    <p class="dim" style="margin:0 0 6px">Add these as Browser sources at your canvas size (e.g. 1920×1080). Keep this link to yourself: it's your room key.</p>
+    <div class="url"><span style="width:90px">Lobby</span><input readonly id="u-lobby"><button data-copy="u-lobby">Copy</button></div>
+    <div class="url"><span style="width:90px">Auditorium</span><input readonly id="u-aud"><button data-copy="u-aud">Copy</button></div>
+    <div class="url"><span style="width:90px">Control</span><input readonly id="u-ctl"><button data-copy="u-ctl">Copy</button></div>
+    <p class="dim" style="margin:8px 0 0">By hand, the auditorium screen stays green (key your film onto it). For the moving, warped film on the screen, use step 2.</p>
+  </div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const KEY = new URLSearchParams(location.search).get('k') || '';
+  const LOBBY = 'DinkDonk Lobby', CINEMA = 'DinkDonk Cinema', FILM = 'Film screen (src)';
+  const LOBBY_SRC = 'DinkDonk Lobby (browser)', AUD_SRC = 'DinkDonk Auditorium (browser)';
+  const base = `${location.origin}/`;
+
+  function who() { return $('who').value === 'tag' && $('nick').value.trim() ? `tag=${encodeURIComponent($('nick').value.trim().replace(/^@/, ''))}` : 'everyone=1'; }
+  const lobbyUrl = () => `${base}roxy.html?k=${KEY}&${who()}`;
+  const audUrl = (pw, port) => `${base}auditorium.html?k=${KEY}&${who()}` + (pw !== undefined ? `#obs=${encodeURIComponent(pw)}&obsport=${port}` : '');
+  function fillUrls() {
+    $('u-lobby').value = lobbyUrl();
+    $('u-aud').value = audUrl();
+    $('u-ctl').value = `${base}control.html?k=${KEY}`;
+    $('ctl').href = $('u-ctl').value;
+  }
+  document.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { navigator.clipboard.writeText($(b.dataset.copy).value); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); });
+  $('who').onchange = () => { $('nick').hidden = $('who').value !== 'tag'; fillUrls(); };
+  $('nick').oninput = fillUrls;
+  fillUrls();
+
+  fetch(`/api/room?k=${encodeURIComponent(KEY)}`).then((r) => r.json()).then((r) => {
+    $('room').textContent = r.name ? `Room: ${r.name}` : 'This link is not valid any more. Ask for a new invite.';
+  }).catch(() => { $('room').textContent = 'Server not reachable.'; });
+
+  // ---------- obs-websocket v5 ----------
+  const obs = { ws: null, seq: 0, pending: new Map() };
+  const sha256b64 = async (s) => btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))));
+  function connect(pw, port) {
+    return new Promise((resolve, reject) => {
+      if (obs.ws) obs.ws.close();
+      let ws;
+      try { ws = new WebSocket(`ws://127.0.0.1:${port}`, 'obswebsocket.json'); } catch (e) { reject(e); return; }
+      obs.ws = ws;
+      let done = false;
+      ws.onmessage = async (ev) => {
+        const m = JSON.parse(ev.data);
+        if (m.op === 0) {
+          const a = m.d.authentication;
+          const d = { rpcVersion: 1, eventSubscriptions: 0 };
+          if (a) d.authentication = await sha256b64(await sha256b64(pw + a.salt) + a.challenge);
+          ws.send(JSON.stringify({ op: 1, d }));
+        } else if (m.op === 2) { done = true; resolve(); }
+        else if (m.op === 7) {
+          const p = obs.pending.get(m.d.requestId);
+          if (!p) return;
+          obs.pending.delete(m.d.requestId);
+          if (m.d.requestStatus.result) p.resolve(m.d.responseData || {});
+          else p.reject(new Error(`${m.d.requestType}: ${m.d.requestStatus.comment || m.d.requestStatus.code}`));
+        }
+      };
+      ws.onclose = (ev) => {
+        if (!done) reject(new Error(ev.code === 4009 ? 'OBS says the password is wrong.' : 'OBS is not reachable. Is OBS running with the WebSocket server enabled, and did you allow local network access?'));
+        else $('status').innerHTML = '<span class="warn">Disconnected from OBS.</span>';
+      };
+      ws.onerror = () => {};
+    });
+  }
+  function req(requestType, requestData = {}) {
+    return new Promise((resolve, reject) => {
+      if (!obs.ws || obs.ws.readyState !== 1) { reject(new Error('OBS not connected')); return; }
+      const requestId = String(++obs.seq);
+      obs.pending.set(requestId, { resolve, reject });
+      obs.ws.send(JSON.stringify({ op: 6, d: { requestType, requestId, requestData } }));
+    });
+  }
+
+  let canvas = { w: 1920, h: 1080 };
+  let shader = null;   // true / false / null (unknown)
+  const AUDIO_KINDS = /^(wasapi_|pulse_|alsa_|coreaudio_|jack_|sck_audio)/;
+  $('connect').onclick = async () => {
+    $('connect').disabled = true;
+    $('status').textContent = 'Connecting…';
+    try {
+      await connect($('pw').value, Number($('port').value) || 4455);
+      const v = await req('GetVersion');
+      const vs = await req('GetVideoSettings');
+      canvas = { w: vs.baseWidth, h: vs.baseHeight };
+      try { shader = (await req('GetSourceFilterKindList')).sourceFilterKinds.includes('shader_filter'); } catch { shader = null; }
+      const { inputs } = await req('GetInputList');
+      const pick = $('film');
+      pick.innerHTML = '';
+      pick.append(new Option('Nothing yet: I\'ll add my film source to "Film screen (src)" myself', ''));
+      const ours = new Set([LOBBY_SRC, AUD_SRC]);
+      const guess = inputs.filter((i) => !AUDIO_KINDS.test(i.inputKind) && !ours.has(i.inputName));
+      for (const i of guess) pick.append(new Option(`${i.inputName}  (${i.inputKind.replace(/_/g, ' ')})`, i.inputName));
+      // preselect what looks like a film player
+      const film = guess.find((i) => /vlc|mpc|movie|film|media|player/i.test(i.inputName)) || guess.find((i) => /^(vlc_source|ffmpeg_source)$/.test(i.inputKind));
+      if (film) pick.value = film.inputName;
+      $('status').innerHTML = `<span class="ok">Connected</span> to OBS ${v.obsVersion} · canvas ${canvas.w}×${canvas.h} · film warping: ` +
+        (shader === true ? '<span class="ok">obs-shaderfilter found</span>' : shader === false ? '<span class="warn">obs-shaderfilter not installed (the screen will stay green)</span>' : 'unknown (older OBS)');
+      $('step2').hidden = false;
+    } catch (e) {
+      $('status').innerHTML = `<span class="warn">${e.message}</span>`;
+    } finally {
+      $('connect').disabled = false;
+    }
+  };
+
+  const line = (t, cls = '') => { const d = document.createElement('div'); d.className = cls; d.textContent = t; $('log').append(d); };
+  async function ensureScene(name, scenes) {
+    if (!scenes.has(name)) { await req('CreateScene', { sceneName: name }); scenes.add(name); line(`+ scene "${name}"`); }
+  }
+  async function itemId(sceneName, sourceName) {
+    try { return (await req('GetSceneItemId', { sceneName, sourceName })).sceneItemId; } catch { return null; }
+  }
+  async function ensureBrowser(sceneName, inputName, settings, inputs) {
+    if (inputs.has(inputName)) {
+      await req('SetInputSettings', { inputName, inputSettings: settings, overlay: true });
+      if ((await itemId(sceneName, inputName)) == null) await req('CreateSceneItem', { sceneName, sourceName: inputName });
+      line(`~ updated "${inputName}"`);
+    } else {
+      await req('CreateInput', { sceneName, inputName, inputKind: 'browser_source', inputSettings: settings });
+      inputs.add(inputName);
+      line(`+ browser source "${inputName}"`);
+    }
+    const id = await itemId(sceneName, inputName);
+    await req('SetSceneItemTransform', { sceneName, sceneItemId: id, sceneItemTransform: { positionX: 0, positionY: 0, scaleX: 1, scaleY: 1, rotation: 0, boundsType: 'OBS_BOUNDS_NONE', alignment: 5 } });
+  }
+
+  $('create').onclick = async () => {
+    $('create').disabled = true;
+    $('log').textContent = '';
+    try {
+      const scenes = new Set((await req('GetSceneList')).scenes.map((s) => s.sceneName));
+      const inputs = new Set((await req('GetInputList')).inputs.map((i) => i.inputName));
+      const film = $('film').value;
+      const size = { width: canvas.w, height: canvas.h };
+
+      // the lobby: one browser source filling the canvas
+      await ensureScene(LOBBY, scenes);
+      await ensureBrowser(LOBBY, LOBBY_SRC, { url: lobbyUrl(), ...size, shutdown: true, restart_when_active: false, reroute_audio: false }, inputs);
+
+      // the film holder: the streamer's own film source, fitted to the canvas (the corner-pin filter goes on this)
+      await ensureScene(FILM, scenes);
+      if (film) {
+        const { sceneItems } = await req('GetSceneItemList', { sceneName: FILM });
+        for (const it of sceneItems) if (it.sourceName !== film) { await req('RemoveSceneItem', { sceneName: FILM, sceneItemId: it.sceneItemId }); line(`- "${it.sourceName}" from "${FILM}"`); }
+        let id = await itemId(FILM, film);
+        if (id == null) { id = (await req('CreateSceneItem', { sceneName: FILM, sourceName: film })).sceneItemId; line(`+ "${film}" in "${FILM}"`); }
+        await req('SetSceneItemTransform', { sceneName: FILM, sceneItemId: id, sceneItemTransform: {
+          positionX: 0, positionY: 0, alignment: 5, rotation: 0, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: canvas.w, boundsHeight: canvas.h,
+          cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0 } });
+        await req('SetSceneItemEnabled', { sceneName: FILM, sceneItemId: id, sceneItemEnabled: true });
+      }
+
+      // the auditorium: the browser source, with the film holder above it (hidden until the Film phase)
+      await ensureScene(CINEMA, scenes);
+      await ensureBrowser(CINEMA, AUD_SRC, { url: audUrl($('pw').value, Number($('port').value) || 4455), ...size, shutdown: false, restart_when_active: true, reroute_audio: false }, inputs);
+      let fid = await itemId(CINEMA, FILM);
+      if (fid == null) { fid = (await req('CreateSceneItem', { sceneName: CINEMA, sourceName: FILM, sceneItemEnabled: false })).sceneItemId; line(`+ "${FILM}" in "${CINEMA}"`); }
+      const { sceneItems } = await req('GetSceneItemList', { sceneName: CINEMA });
+      const top = Math.max(...sceneItems.map((i) => i.sceneItemIndex));
+      await req('SetSceneItemIndex', { sceneName: CINEMA, sceneItemId: fid, sceneItemIndex: top });
+      await req('SetSceneItemTransform', { sceneName: CINEMA, sceneItemId: fid, sceneItemTransform: { positionX: 0, positionY: 0, scaleX: 1, scaleY: 1, rotation: 0, boundsType: 'OBS_BOUNDS_NONE', alignment: 5 } });
+
+      line('Done. Switch to "DinkDonk Cinema" or "DinkDonk Lobby" to see them.', 'ok');
+      if (!film) line(`Add your film source into the "${FILM}" scene, sized to fill it.`, 'warn');
+      if (shader === false) line('Install obs-shaderfilter and restart OBS for the film on the cinema screen; until then it stays green.', 'warn');
+    } catch (e) {
+      line(`Stopped: ${e.message}`, 'warn');
+    } finally {
+      $('create').disabled = false;
+    }
+  };
+})();
+</script>
+</body>
+</html>

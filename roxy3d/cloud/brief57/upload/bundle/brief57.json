@@ -1,0 +1,39 @@
+{
+  "brief": 57,
+  "production_brief": 56,
+  "scene_sha256": "33090d845e0c10348627b42b24f55a774691eb44b1b47326158099e657987942",
+  "runtime_sha256": "3775276384197ce22a08a9671f2f5491898773e047b52cc6e8538ea006c59586",
+  "driver_sha256": "5d601fa31a3d0f256cf41a89e28a85613c8db8b66460a4f25672fd425fe58c41",
+  "wet_phases": 24,
+  "background_phases": 48,
+  "rain_phases": 48,
+  "bell": "A12/B12",
+  "sampling": {
+    "size": [
+      3840,
+      2160
+    ],
+    "max": 256,
+    "min": 64,
+    "threshold": 0.01,
+    "seed": 1701,
+    "denoiser": "OPTIX",
+    "filter_width": 2.5
+  },
+  "mist": {
+    "maps": [
+      "catch",
+      "height",
+      "rim",
+      "light"
+    ],
+    "scales": [
+      1,
+      2
+    ],
+    "catch_samples": 16,
+    "light_samples": 32
+  },
+  "local_fallback_included": false,
+  "baseline_files": 802
+}

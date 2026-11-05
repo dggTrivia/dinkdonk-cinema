@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "reference_objects_preserved": 7011,
+  "changed_reference_objects": [
+    "P8 record and repair annex",
+    "D13 compact floodlight housing.001",
+    "D13 recessed aluminium reflector.001",
+    "D13 floodlight emitting glass.001",
+    "D13 truss reflector flood 1"
+  ],
+  "new_shield_objects": [
+    "B56 central flood hood bottom",
+    "B56 central flood hood cross louver 0",
+    "B56 central flood hood cross louver 1",
+    "B56 central flood hood cross louver 2",
+    "B56 central flood hood cross louver 3",
+    "B56 central flood hood cross louver 4",
+    "B56 central flood hood cross louver 5",
+    "B56 central flood hood cross louver 6",
+    "B56 central flood hood left",
+    "B56 central flood hood louver 0",
+    "B56 central flood hood louver 1",
+    "B56 central flood hood louver 10",
+    "B56 central flood hood louver 2",
+    "B56 central flood hood louver 3",
+    "B56 central flood hood louver 4",
+    "B56 central flood hood louver 5",
+    "B56 central flood hood louver 6",
+    "B56 central flood hood louver 7",
+    "B56 central flood hood louver 8",
+    "B56 central flood hood louver 9",
+    "B56 central flood hood right",
+    "B56 central flood hood top"
+  ],
+  "camera_exact": true,
+  "all_lamp_energy_color_spread_exact": true,
+  "central_lamp_aim_dot_target": 0.9999999082137947,
+  "source_sha256": "0fa1c86fb297079b0b0b1944cad5d9ae08f6a8babaf2bd558c9a43d35417ef24"
+}

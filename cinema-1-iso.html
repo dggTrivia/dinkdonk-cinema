@@ -1,0 +1,1232 @@
+<!doctype html>
+<!--
+  Cinema 1 - "Isometric Multiplex" (2:1 isometric pixel art, Habbo / Theme Hospital style).
+  GREEN SCREEN (chroma-key insert): x 1388, y 24, w 512, h 288 on the 1920x1080 stage
+  (16:9, pure Cinema.green, default #00ff00, nothing drawn over it). ?green=off shows showtimes there.
+  Every chat message walks that chatter in from the street as their emote; they cross the lobby
+  (sometimes via the popcorn machine or the restroom) and take a seat in one of the 5 screens
+  (the last 5 films on dinkdonk.mov), then fade out after a while.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cinema - Isometric Multiplex</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  :root {
+    --ink: #fff4dc; --gold: #f2c65a; --gold-dim: #9a6b25; --amber: #ffb84a; --night: #0d0a18;
+    --panel: #1a1222; --edge: #3b2a4c; --wine: #8c2238; --green: #00ff00;
+  }
+  #stage { background: var(--night); font-family: 'VT323', monospace; color: var(--ink); }
+  .px { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; image-rendering: pixelated; pointer-events: none; }
+  #bg { z-index: 0; }
+  #mid { z-index: 2000; }
+  #front { z-index: 5000; }
+  #beams { position: absolute; left: 0; top: 0; z-index: 1500; pointer-events: none; }
+  /* Each beam is a clipped div sized to its own bounds, so the opacity loop stays on the compositor. */
+  .beam { position: absolute; background: rgba(255, 236, 190, .12); animation: beam 6s ease-in-out infinite; will-change: opacity; }
+  @keyframes beam { 0%, 100% { opacity: .55; } 30% { opacity: .78; } 50% { opacity: .62; } 75% { opacity: .82; } }
+  #fx, #crowd, #glass { position: absolute; left: 0; top: 0; }
+  .abs { position: absolute; }
+
+  /* ---------- rooftop marquees ---------- */
+  .marq { position: absolute; width: 200px; transform: translate(-50%, -100%); z-index: 2500; padding: 9px 10px 7px;
+    background: #1d0f16; border: 3px solid var(--gold); text-align: center;
+    box-shadow: 0 0 0 3px #1d0f16, 0 0 0 6px var(--gold-dim), 6px 6px 0 6px rgba(0, 0, 0, .35); }
+  .marq .bulbs { position: absolute; left: 4px; right: 4px; height: 6px;
+    background: radial-gradient(circle, #fff1c4 0 1.5px, #ffc85a 2px, transparent 3px) 0 0 / 12px 6px; animation: chase 3s steps(2) infinite; }
+  .marq .bulbs.t { top: 1px; } .marq .bulbs.b { bottom: 1px; animation-delay: -1.5s; }
+  @keyframes chase { 0%, 100% { opacity: 1; } 50% { opacity: .55; background-position: 6px 0; } }
+  .marq .num { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; background: var(--wine);
+    border: 3px solid var(--gold); font: 13px/26px 'Press Start 2P'; color: #fff; box-shadow: 3px 3px 0 rgba(0, 0, 0, .4); }
+  .marq .t { font: 29px/26px 'VT323'; color: #ffeec0; text-shadow: 2px 2px 0 #000; max-height: 52px; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  .marq .m { font: 21px/1 'VT323'; color: var(--gold); margin-top: 5px; display: flex; justify-content: center; gap: 12px; white-space: nowrap; }
+  .marq .m .n { color: #9fe3ff; }
+  .marq .legs { position: absolute; left: 34px; right: 34px; bottom: -22px; height: 16px;
+    border-left: 4px solid #4a3020; border-right: 4px solid #4a3020; }
+  /* Screen number plate hung between the door lamps, slanted with the wall; matches the marquee number. */
+  .plate { position: absolute; left: 0; top: 0; width: 40px; height: 26px; transform-origin: 0 0; z-index: 2001; background: var(--wine);
+    border: 3px solid var(--gold); box-sizing: border-box; font: 12px/20px 'Press Start 2P'; color: #fff; text-align: center;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, .4); }
+
+  /* ---------- props (DOM parts) ---------- */
+  .kern { position: absolute; width: 6px; height: 5px; background: #fff6d4; box-shadow: 2px 1px 0 #f2c65a; }
+  .wcdoor { position: absolute; left: 0; top: 0; width: 32px; height: 68px; transform-origin: 0 0; z-index: 2100;
+    border: 3px solid #5a3a26; border-bottom: 0; background: #2b1a12; }
+  .wcdoor .panel { position: absolute; inset: 0; background: linear-gradient(90deg, #b07a4a, #8e5d35); transform-origin: 0 50%; transition: transform .35s steps(4); }
+  .wcdoor .panel::after { content: ''; position: absolute; right: 4px; top: 32px; width: 4px; height: 4px; background: var(--gold); }
+  .wcdoor.open .panel { transform: scaleX(.18); }
+  .wcsign { position: absolute; z-index: 2100; transform: translate(-50%, -100%); padding: 2px 7px 3px; background: #10151c; border: 2px solid #5b6b7a;
+    font: 20px/1 'VT323'; color: #8ef0a8; white-space: nowrap; }
+  .wcsign.busy { color: #ff8a8a; }
+  .glassdoor { position: absolute; left: 0; top: 0; width: 64px; height: 66px; transform-origin: 0 0; z-index: 5001; overflow: hidden; }
+  .glassdoor .gp { position: absolute; top: 0; bottom: 0; width: 32px; border: 3px solid #c8d4e2; background: rgba(150, 205, 255, .22);
+    transition: transform .4s steps(5); }
+  .glassdoor .gp::after { content: ''; position: absolute; left: 5px; top: 6px; width: 3px; height: 30px; background: rgba(255, 255, 255, .45); }
+  .glassdoor .gp.l { left: 0; } .glassdoor .gp.r { left: 32px; }
+  .glassdoor.open .gp.l { transform: translateX(-27px); } .glassdoor.open .gp.r { transform: translateX(27px); }
+  .arcscr { position: absolute; left: 0; top: 0; width: 18px; height: 16px; transform-origin: 0 0; z-index: 2001;
+    background: linear-gradient(#6af0ff, #b06aff); animation: arc 7s steps(6) infinite; }
+  @keyframes arc { 50% { filter: hue-rotate(160deg); } }
+  .sprite { position: absolute; left: 0; top: 0; image-rendering: pixelated; pointer-events: none; }
+  .npc { position: absolute; left: 0; top: 0; will-change: transform; }
+  .npc .spr { position: absolute; bottom: 0; transform-origin: 50% 100%; }
+  .mop { position: absolute; bottom: 0; left: 10px; width: 4px; height: 46px; background: #8a5a30; transform-origin: 50% 100%; }
+  .mop::after { content: ''; position: absolute; left: -7px; bottom: -4px; width: 18px; height: 8px; background: #d8d8c8; }
+  .npc.mopping .mop { animation: mop .5s steps(2) infinite alternate; }
+  @keyframes mop { from { transform: rotate(-24deg); } to { transform: rotate(10deg); } }
+  .zz { position: absolute; font: 22px/1 'VT323'; color: #cfe3ff; animation: zz 3.2s steps(8) infinite; text-shadow: 1px 1px 0 #000; }
+  @keyframes zz { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(14px, -26px); opacity: 0; } }
+  .spill { position: absolute; width: 34px; height: 14px; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, #fff6d4 0 2px, transparent 3px) 0 0 / 9px 7px, radial-gradient(circle, #f2c65a 0 2px, transparent 3px) 4px 3px / 11px 7px; }
+  .wet { position: absolute; width: 40px; height: 50px; transform: translate(-50%, -100%); background: #1a1410; box-sizing: border-box;
+    clip-path: polygon(25% 0, 75% 0, 100% 100%, 0 100%); padding-top: 25px; font: 20px/1 'VT323'; color: #1a1410; text-align: center; }
+  .wet::before { content: ''; position: absolute; inset: 3px 3px 2px; z-index: -1; background: #ffd23a; clip-path: polygon(25% 0, 75% 0, 100% 100%, 0 100%); }
+  .wet::after { content: '!'; position: absolute; left: 0; right: 0; top: 9px; font: 15px/1 'VT323'; }
+
+  /* ---------- cinema-goers ---------- */
+  .w { position: absolute; left: 0; top: 0; will-change: transform; pointer-events: none; }
+  .w .sh { position: absolute; left: -18px; top: -6px; width: 36px; height: 12px; border-radius: 50%; background: rgba(0, 0, 0, .42); }
+  .w .bod { position: absolute; left: 0; bottom: 0; transform-origin: 50% 100%; }
+  .w .bod .sb-emote { position: absolute; bottom: 0; }
+  .w .nm { position: absolute; left: 0; top: 5px; transform: translateX(-50%); white-space: nowrap; font: 21px/1 'VT323';
+    padding: 1px 6px 2px; background: rgba(12, 8, 20, .78); box-shadow: 2px 2px 0 rgba(0, 0, 0, .35); }
+  /* Seat back in front of a seated emote: an iso slab (skewed per room side in sit()), canvas seatBack palette. */
+  .w .seat { display: none; position: absolute; bottom: -2px; height: 22px; background: #b3243a;
+    border-top: 4px solid #d84a5c; box-shadow: inset 0 -5px 0 #8a1a2e, 3px 3px 0 rgba(0, 0, 0, .35); }
+  .w.seated .seat { display: block; }
+  .w.seated .nm, .w.seated .sh { display: none; }
+  /* Bubbles live in their own layer above the scene (below HUD, chat and green); frame() moves the wrapper. */
+  #bubbles { position: absolute; left: 0; top: 0; z-index: 7500; pointer-events: none; }
+  .bubw { position: absolute; left: 0; top: 0; will-change: transform; }
+  .bub { position: absolute; left: 0; bottom: 0; width: max-content; max-width: 290px; padding: 5px 10px 6px; transform-origin: 50% 100%;
+    background: #fff8e6; color: #24142a; font: 23px/1.05 'VT323'; border: 3px solid #24142a; box-shadow: 4px 4px 0 rgba(0, 0, 0, .35);
+    overflow-wrap: anywhere; animation: bub-in .2s steps(3); }
+  .bub .tail { position: absolute; left: 0; bottom: -12px; width: 12px; height: 9px; background: #24142a;
+    clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  .bub .sb-emote { margin: 0 2px; }
+  @keyframes bub-in { from { transform: scale(.4); } }
+  .w .carry { position: absolute; bottom: 4px; width: 16px; height: 20px; }
+  .w .carry::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 14px;
+    background: repeating-linear-gradient(90deg, #d8283c 0 4px, #fff4e8 4px 8px); clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%); }
+  .w .carry::after { content: ''; position: absolute; left: -1px; right: -1px; top: 0; height: 8px;
+    background: radial-gradient(circle, #fff6d4 0 3px, transparent 3.5px) 0 0 / 6px 6px; }
+  .floattxt { position: absolute; transform: translateX(-50%); font: 13px 'Press Start 2P'; color: var(--gold); text-shadow: 2px 2px 0 #000; white-space: nowrap; z-index: 7000; }
+
+  /* ---------- HUD ---------- */
+  .win { position: absolute; background: var(--panel); border: 3px solid #0b0710;
+    box-shadow: inset 0 0 0 3px var(--edge), inset 0 0 0 6px #0b0710, 6px 6px 0 rgba(0, 0, 0, .4); }
+  #hud { left: 24px; top: 852px; width: 500px; height: 204px; z-index: 8000; padding: 16px 20px; overflow: hidden; }
+  #hud .h1 { font: 21px/1.2 'Press Start 2P'; color: var(--gold); text-shadow: 3px 3px 0 #000; }
+  #hud .h2 { font: 27px/1.05 'VT323'; color: var(--ink); margin-top: 8px; height: 56px; overflow: hidden; }
+  #hud .row { display: flex; justify-content: space-between; gap: 12px; font: 25px/1 'VT323'; color: var(--amber); margin-top: 8px; white-space: nowrap; }
+  #hud .row b { color: #fff; font-weight: 400; }
+  #gsframe { left: 1376px; top: 12px; width: 536px; height: 312px; z-index: 8000; background: #262033; }
+  #green { position: absolute; left: 1388px; top: 24px; width: 512px; height: 288px; background: var(--green); z-index: 9000; }
+  #green.off { background: #07090d; padding: 18px 24px; font: 30px/1.15 'VT323'; color: var(--amber); }
+  #green.off .hd { font: 15px/1.6 'Press Start 2P'; color: var(--gold); margin-bottom: 6px; }
+  #green.off .r { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
+  #green.off .r span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  #chatbox { left: 1376px; top: 340px; width: 536px; height: 728px; z-index: 8000; }
+  #chatbox .cap { position: absolute; left: 6px; right: 6px; top: 6px; height: 44px; padding: 14px 16px 0; font: 14px/1 'Press Start 2P';
+    color: var(--gold); background: #22182e; border-bottom: 3px solid #0b0710; }
+  #chat { left: 9px; right: 9px; top: 53px; bottom: 9px; }
+  #chat .sb-chat-line { font-size: 22px; }
+  #prog { position: absolute; left: 9px; right: 9px; top: 53px; bottom: 9px; padding: 14px 18px; display: none; }
+  #prog .p { margin-bottom: 18px; }
+  #prog .p .a { font: 13px/1.6 'Press Start 2P'; color: var(--gold); }
+  #prog .p .b { font: 30px/1 'VT323'; color: var(--ink); }
+  #prog .p .c { font: 23px/1 'VT323'; color: #9fe3ff; margin-top: 2px; }
+  #combo { position: absolute; left: 680px; top: 540px; z-index: 7000; transform: translate(-50%, -50%) scale(.3); opacity: 0; pointer-events: none;
+    display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: #1d0f16; border: 4px solid var(--gold); white-space: nowrap;
+    font: 26px/1 'Press Start 2P'; color: var(--gold); text-shadow: 3px 3px 0 #000; box-shadow: 6px 6px 0 rgba(0, 0, 0, .4);
+    transition: transform .25s steps(4), opacity .25s steps(4); }
+  #combo.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" class="px" width="960" height="540"></canvas>
+  <div id="beams"></div>
+  <canvas id="mid" class="px" width="960" height="540"></canvas>
+  <div id="fx"></div>
+  <div id="crowd"></div>
+  <canvas id="front" class="px" width="960" height="540"></canvas>
+  <div id="glass"></div>
+  <div id="bubbles"></div>
+  <div id="hud" class="win">
+    <div class="h1" id="h1">DGG MULTIPLEX</div>
+    <div class="h2" id="h2"></div>
+    <div class="row"><span id="clock"></span><span id="timer"></span></div>
+    <div class="row"><span id="lobbyN"></span><span id="seatN"></span></div>
+  </div>
+  <div id="gsframe" class="win"></div>
+  <div id="chatbox" class="win"><div class="cap">LOBBY CHAT</div><div id="chat" class="abs"></div><div id="prog"></div></div>
+  <div id="green"></div>
+  <div id="combo"></div>
+</div>
+
+<script src="shared/core.js"></script>
+<script src="shared/cinema.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const { rand, pick } = SB;
+  const now = () => performance.now();
+  const h = (tag, cls, ...kids) => { const el = document.createElement(tag); if (cls) el.className = cls; el.append(...kids); return el; };
+
+  SB.mountStage($('stage'));
+  if (!q.has('f')) SB.cfg.f = '3'; // the chat panel is ~520px wide
+  SB.mountChat($('chat'), { emoteHeight: 26, max: 30 });
+
+  // ---------- iso grid ----------
+  // Tile (i, j) has its top corner at sx/sy: 64x32 stage px per tile. Scenery is pixel art drawn at
+  // half size (960x540) and shown 2x with image-rendering: pixelated.
+  const OX = 680;
+  const OY = 250;
+  const sx = (i, j) => OX + (i - j) * 32;
+  const sy = (i, j) => OY + (i + j) * 16;
+  const L = (i, j, z = 0) => [sx(i, j) / 2, sy(i, j) / 2 - z];
+  const WALL = 76;   // back wall height (low-res px)
+  const LOW = 11;    // cut-away wall height
+
+  // Rooms: 'R' rooms sit along the back-right wall (u = i, v = j), 'L' rooms along the back-left wall (u = j, v = i).
+  // Screens hang on the back wall (v = 0), seats face it in rows v = 2..4, the door is column u = door.
+  const ROOMS = [
+    { side: 'R', a: 0, b: 7, door: 6 },
+    { side: 'R', a: 7, b: 14, door: 12 },
+    { side: 'R', a: 14, b: 20, door: 18 },
+    { side: 'L', a: 6, b: 12, door: 10, nudge: 0 },
+    { side: 'L', a: 12, b: 18, door: 16, nudge: -12 },
+  ];
+  const at = (r, u, v) => (r.side === 'R' ? [u, v] : [v, u]);
+  ROOMS.forEach((r, k) => {
+    const c = r.door + 0.5;
+    Object.assign(r, { k, F: at(r, c, 6.75), D: at(r, c, 6.0), I: at(r, c, 5.3), seats: [], entries: [], img: null, poster: null });
+    for (const v of [2, 3, 4]) {
+      for (let u = r.a; u < r.b; u++) if (u !== r.door) r.seats.push({ u, v, p: at(r, u + 0.5, v + 0.5), who: null });
+    }
+  });
+  const HUB = [12.5, 12.5];
+  const ENTRY = { out: [17, 21.1], line: [17, 20.1], in: [17, 18.7] };
+  const POPCORN = { stand: [9.5, 7.6] };
+  const WC = { front: [6.9, 18.5], inside: [5.3, 18.5], busy: null };
+  const BAND = [8, 15, 8.5, 16]; // open lobby floor for the janitor and spills: i0, i1, j0, j1
+
+  // ---------- pixel drawing ----------
+  // Convex polygon filled row by row, so edges stay crisp pixel stairs instead of anti-aliased.
+  function fillPoly(ctx, pts, color) {
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (const p of pts) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    ctx.fillStyle = color;
+    for (let y = Math.floor(y0); y < Math.ceil(y1); y++) {
+      const yc = y + 0.5;
+      let a = Infinity;
+      let b = -Infinity;
+      for (let k = 0; k < pts.length; k++) {
+        const [xA, yA] = pts[k];
+        const [xB, yB] = pts[(k + 1) % pts.length];
+        if ((yc < yA) === (yc < yB)) continue;
+        const x = xA + ((yc - yA) / (yB - yA)) * (xB - xA);
+        a = Math.min(a, x);
+        b = Math.max(b, x);
+      }
+      if (b > a) ctx.fillRect(Math.round(a), y, Math.round(b) - Math.round(a), 1);
+    }
+  }
+  const tile = (ctx, i, j, color, d = 1) => fillPoly(ctx, [L(i, j), L(i + d, j), L(i + d, j + d), L(i, j + d)], color);
+  // Box over grid rect [i0,i1]x[j0,j1], height z..z+hg; draws the three faces the camera sees.
+  function box(ctx, i0, j0, i1, j1, z, hg, [top, left, right]) {
+    const t = z + hg;
+    fillPoly(ctx, [L(i0, j1, t), L(i1, j1, t), L(i1, j1, z), L(i0, j1, z)], left);
+    fillPoly(ctx, [L(i1, j0, t), L(i1, j1, t), L(i1, j1, z), L(i1, j0, z)], right);
+    fillPoly(ctx, [L(i0, j0, t), L(i1, j0, t), L(i1, j1, t), L(i0, j1, t)], top);
+  }
+  function glow(ctx, x, y, r, color, alpha) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.restore();
+  }
+  const canvas2d = (w = 960, hgt = 540) => { const c = document.createElement('canvas'); c.width = w; c.height = hgt; return c; };
+
+  const C = {
+    seat: ['#c23a4e', '#9a2236', '#7c1a2c'], seatBack: ['#d84a5c', '#b3243a', '#8a1a2e'],
+    curtain: ['#c99a45', '#4a1428', '#3a0f20'], tiles: ['#c99a45', '#c9d2d8', '#a8b4bc'],
+    low: ['#e0b860', '#7a2a3a', '#5e1e2c'], brick: ['#d7b46a', '#6a3440', '#4f2632'],
+  };
+
+  // ---------- static scenery ----------
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+
+  function drawOutside(ctx) {
+    const sky = ctx.createLinearGradient(0, 0, 0, 540);
+    sky.addColorStop(0, '#0b0818');
+    sky.addColorStop(1, '#1a1230');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, 960, 540);
+    for (let k = 0; k < 140; k++) {
+      ctx.fillStyle = rnd() < 0.2 ? '#fff3c8' : '#7d74a8';
+      ctx.fillRect(Math.floor(rnd() * 960), Math.floor(rnd() * 330), 1, 1);
+    }
+    for (let i = -14; i < 44; i++) {
+      for (let j = -14; j < 44; j++) {
+        if (i < 20 && j < 20) continue;
+        const [x, y] = L(i, j);
+        if (x < -20 || x > 980 || y < -20 || y > 545) continue;
+        const ring = Math.min(Math.max(i, j), 40);
+        const alt = (i + j) % 2 === 0;
+        let col;
+        if (ring < 22) col = alt ? '#5f5b72' : '#57536a';
+        else if (ring < 26) col = alt ? '#262439' : '#232136';
+        else col = alt ? '#1b2a2c' : '#192628';
+        tile(ctx, i, j, col);
+        if (ring === 22) fillPoly(ctx, [L(i, j), L(i + 1, j), L(i + 1, j + 0.15), L(i, j + 0.15)], '#3a3850');
+        if (ring === 24 && (i + j) % 2 === 0 && (i === 24 || j === 24)) tile(ctx, i + 0.35, j + 0.35, '#b89a4a', 0.3);
+      }
+    }
+  }
+
+  function drawFloors(ctx) {
+    for (let i = 0; i < 20; i++) {
+      for (let j = 0; j < 20; j++) {
+        const alt = (i + j) % 2 === 0;
+        const room = ROOMS.find((r) => { const [u, v] = r.side === 'R' ? [i, j] : [j, i]; return v < 6 && u >= r.a && u < r.b; });
+        if (room) {
+          const aisle = (room.side === 'R' ? i : j) === room.door;
+          tile(ctx, i, j, aisle ? '#3a2b52' : alt ? '#2b2140' : '#271d3a');
+        } else if (i < 6 && j >= 18) {
+          tile(ctx, i, j, alt ? '#d6dde2' : '#a9b8c0');
+        } else {
+          const edge = i === 6 || j === 6 || i === 19 || j === 19;
+          tile(ctx, i, j, edge ? (alt ? '#4f1528' : '#491325') : alt ? '#6d1d34' : '#661a30');
+          if (!edge && (i * 3 + j * 5) % 4 === 0) tile(ctx, i + 0.4, j + 0.4, '#c9963c', 0.2);
+        }
+      }
+    }
+  }
+
+  function stripes(ctx, face, c, from, to, z0, hg, step, color) {
+    // Vertical pixel stripes on a wall face along i (face 'i', at j = c) or along j (face 'j', at i = c).
+    const xa = face === 'i' ? L(from, c)[0] : L(c, to)[0];
+    const xb = face === 'i' ? L(to, c)[0] : L(c, from)[0];
+    ctx.fillStyle = color;
+    for (let x = Math.ceil(xa) + 2; x < xb - 1; x += step) {
+      const t = (x - 340) / 16;
+      const base = face === 'i' ? 125 + (t + 2 * c) * 8 : 125 + (2 * c - t) * 8;
+      ctx.fillRect(x, Math.round(base - z0 - hg), 1, hg);
+    }
+  }
+
+  function drawBackWalls(ctx) {
+    box(ctx, -0.3, -0.3, 0, 18, 0, WALL, C.curtain);
+    box(ctx, -0.3, 18, 0, 20, 0, WALL, C.tiles);
+    box(ctx, 0, -0.3, 20, 0, 0, WALL, C.curtain);
+    stripes(ctx, 'j', 0, 0, 18, 6, WALL - 10, 4, '#3a0e1f');
+    stripes(ctx, 'i', 0, 0, 20, 6, WALL - 10, 4, '#3a0e1f');
+    stripes(ctx, 'j', 0, 18, 20, 0, WALL, 6, '#93a2ab');
+    // Wainscot and a gold picture rail.
+    for (const [face, a, b] of [['j', 0, 18], ['i', 0, 20]]) {
+      if (face === 'j') { fillPoly(ctx, [L(0, b, 7), L(0, a, 7), L(0, a), L(0, b)], '#2a0b16'); fillPoly(ctx, [L(0, b, WALL - 4), L(0, a, WALL - 4), L(0, a, WALL - 6), L(0, b, WALL - 6)], '#b8862f'); }
+      else { fillPoly(ctx, [L(a, 0, 7), L(b, 0, 7), L(b, 0), L(a, 0)], '#2a0b16'); fillPoly(ctx, [L(a, 0, WALL - 4), L(b, 0, WALL - 4), L(b, 0, WALL - 6), L(a, 0, WALL - 6)], '#b8862f'); }
+    }
+  }
+
+  function drawRoomInsides(ctx) {
+    for (const r of ROOMS) {
+      // A low stage under the screen, aisle lights, then the seats back to front.
+      const st = r.side === 'R' ? [r.a, 0, r.b, 0.6] : [0, r.a, 0.6, r.b];
+      box(ctx, st[0], st[1], st[2], st[3], 0, 3, ['#241a35', '#1a1228', '#160f22']);
+      for (let v = 1; v < 6; v++) { const [x, y] = L(...at(r, r.door + 0.12, v + 0.5)); ctx.fillStyle = '#ffb84a'; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); }
+      const seats = [...r.seats].sort((m, n) => (m.u + m.v) - (n.u + n.v));
+      for (const s of seats) {
+        if (r.side === 'R') {
+          box(ctx, s.u + 0.15, s.v + 0.2, s.u + 0.85, s.v + 0.8, 0, 5, C.seat);
+          box(ctx, s.u + 0.15, s.v + 0.62, s.u + 0.85, s.v + 0.84, 5, 7, C.seatBack);
+        } else {
+          box(ctx, s.v + 0.2, s.u + 0.15, s.v + 0.8, s.u + 0.85, 0, 5, C.seat);
+          box(ctx, s.v + 0.62, s.u + 0.15, s.v + 0.84, s.u + 0.85, 5, 7, C.seatBack);
+        }
+      }
+    }
+    // Restroom: toilet and sink behind the door.
+    box(ctx, 1, 18.3, 1.7, 18.9, 0, 6, ['#f4f7f9', '#cfd8de', '#b7c3ca']);
+    box(ctx, 0.05, 18.3, 0.35, 18.9, 6, 9, ['#f4f7f9', '#cfd8de', '#b7c3ca']);
+    box(ctx, 0.05, 19.2, 0.6, 19.8, 10, 4, ['#f4f7f9', '#cfd8de', '#b7c3ca']);
+  }
+
+  // Lobby light pools and street lamps (soft light on top of the pixel floor).
+  function drawLights(ctx) {
+    for (const [i, j] of [[9, 9], [13, 13], [16, 9], [9, 16], [16, 16]]) glow(ctx, ...L(i, j), 70, '#ffb070', 0.16);
+    for (const r of ROOMS) glow(ctx, ...L(...at(r, (r.a + r.b) / 2, 1.5)), 46, '#9fb8ff', 0.14);
+    for (const [i, j] of [[14.5, 21.7], [21.7, 14.5], [5, 21.7]]) glow(ctx, ...L(i, j), 50, '#ffd48a', 0.22);
+  }
+
+  // Low walls between neighbouring rooms (and room 4 / restroom). They go into the base canvas, under
+  // the seats of the room in front of them: on #mid they would cut across that room's first seat column.
+  // Nobody in the room behind a divider stands close enough to it to overlap it on screen.
+  function drawDividers(ctx) {
+    box(ctx, 6.9, 0, 7.1, 5.9, 0, LOW, C.low);
+    box(ctx, 13.9, 0, 14.1, 5.9, 0, LOW, C.low);
+    box(ctx, 0, 5.9, 6, 6.1, 0, LOW, C.low);
+    box(ctx, 0, 11.9, 5.9, 12.1, 0, LOW, C.low);
+    box(ctx, 0, 17.9, 5.9, 18.1, 0, LOW, C.tiles);
+  }
+
+  // Lobby-facing low walls and the lobby furniture (drawn above room-goers).
+  function drawMid(ctx) {
+    for (const [a, b] of [[7, 12], [13, 18], [19, 20]]) box(ctx, a, 5.9, b, 6.1, 0, LOW, C.low);
+    for (const [a, b] of [[6.1, 10], [11, 16], [17, 18]]) box(ctx, 5.9, a, 6.1, b, 0, LOW, C.low);
+    box(ctx, 5.9, 19, 6.1, 20, 0, LOW, C.tiles);
+    // Door frames: rooms get little lamps, the restroom a full frame for its door.
+    for (const r of ROOMS) {
+      const p = r.side === 'R' ? [[r.door - 0.05, 5.9, r.door + 0.1, 6.1], [r.door + 0.9, 5.9, r.door + 1.05, 6.1]]
+        : [[5.9, r.door - 0.05, 6.1, r.door + 0.1], [5.9, r.door + 0.9, 6.1, r.door + 1.05]];
+      for (const b of p) { box(ctx, ...b, 0, 18, C.low); box(ctx, ...b, 18, 2, ['#ffe08a', '#ffb84a', '#e09a30']); }
+    }
+    box(ctx, 5.9, 17.9, 6.1, 18.05, 0, 36, C.tiles);
+    box(ctx, 5.9, 18.95, 6.1, 19.1, 0, 36, C.tiles);
+    box(ctx, 5.9, 17.9, 6.1, 19.1, 34, 3, C.tiles);
+
+    // Popcorn machine against the screen-room wall.
+    box(ctx, 9.1, 6.2, 9.9, 7.0, 0, 13, ['#e8c46a', '#c8283c', '#a01e30']);
+    box(ctx, 9.15, 6.25, 9.85, 6.95, 13, 22, ['#fff4c8', '#f2dfa0', '#e0c880']);
+    box(ctx, 9.15, 6.25, 9.85, 6.95, 13, 6, ['#fff8dc', '#fff0bc', '#f4dc9a']);
+    box(ctx, 9.05, 6.15, 9.95, 7.05, 35, 4, ['#e8c46a', '#c8283c', '#a01e30']);
+    // Arcade cabinets.
+    for (const j of [13.1, 14.1]) {
+      box(ctx, 6.15, j, 6.85, j + 0.8, 0, 34, ['#4b3a8a', '#2a1f50', '#3a2a6a']);
+      box(ctx, 6.15, j, 6.6, j + 0.8, 34, 6, ['#ff6aa8', '#c23a7a', '#e04a8e']);
+    }
+    // Ticket counter.
+    box(ctx, 16, 12, 19, 13.2, 0, 16, ['#e8c46a', '#8c2238', '#6e1a2c']);
+    box(ctx, 16, 12, 19, 13.2, 16, 2, ['#f6dc8a', '#c99a45', '#a87a30']);
+    // Potted plants.
+    for (const [i, j] of [[19.2, 15.2], [10, 19.2], [19.2, 8.6]]) {
+      box(ctx, i - 0.25, j - 0.25, i + 0.25, j + 0.25, 0, 7, ['#6a3a22', '#8a4e2c', '#6a3a22']);
+      for (let k = 0; k < 4; k++) box(ctx, i - 0.3 + k * 0.05, j - 0.3 + k * 0.05, i + 0.3 - k * 0.1, j + 0.3 - k * 0.1, 7 + k * 6, 6, ['#5fae5a', '#3f8a46', '#2f6e3a']);
+    }
+  }
+
+  // Front of the building and the street furniture (drawn above lobby-goers, below street-goers).
+  function drawFront(ctx) {
+    box(ctx, 19.9, 0, 20.1, 20.1, 0, LOW + 3, C.brick);
+    box(ctx, 0, 19.9, 16, 20.1, 0, LOW + 3, C.brick);
+    box(ctx, 18, 19.9, 20.1, 20.1, 0, LOW + 3, C.brick);
+    box(ctx, 15.85, 19.85, 16.1, 20.15, 0, 35, C.brick);
+    box(ctx, 17.9, 19.85, 18.15, 20.15, 0, 35, C.brick);
+    box(ctx, 15.85, 19.85, 18.15, 20.15, 33, 4, C.brick);
+    box(ctx, 15.6, 20.15, 18.4, 21.1, 36, 3, ['#c8283c', '#e8c46a', '#a01e30']);
+    // Lamps and a bench on the sidewalk.
+    for (const [i, j] of [[14.5, 21.7], [21.7, 14.5], [5, 21.7]]) {
+      box(ctx, i - 0.08, j - 0.08, i + 0.08, j + 0.08, 0, 44, ['#3a3850', '#2a2840', '#22203a']);
+      box(ctx, i - 0.2, j - 0.2, i + 0.2, j + 0.2, 44, 5, ['#fff2c0', '#ffd48a', '#e8b860']);
+    }
+    box(ctx, 9, 20.55, 11.5, 21.0, 0, 5, ['#8a5a30', '#6a4224', '#553418']);
+    box(ctx, 9, 20.55, 11.5, 20.68, 5, 7, ['#8a5a30', '#6a4224', '#553418']);
+  }
+
+  const base = canvas2d();
+  {
+    const ctx = base.getContext('2d');
+    drawOutside(ctx);
+    drawFloors(ctx);
+    drawBackWalls(ctx);
+    drawDividers(ctx);
+    drawRoomInsides(ctx);
+    drawLights(ctx);
+    const mid = $('mid').getContext('2d');
+    drawMid(mid);
+    drawFront($('front').getContext('2d'));
+  }
+
+  // Room screens on the back walls: the film poster in pixel form, or a pixel placeholder.
+  function screenRect(r) {
+    const u0 = r.a + 0.8;
+    const u1 = r.b - 0.8;
+    const [x0, y0] = r.side === 'R' ? L(u0, 0, 66) : L(0, u1, 66);
+    return { u0, u1, x0: Math.round(x0), y0: Math.round(y0), w: Math.round((u1 - u0) * 16), hg: 52 };
+  }
+  // Drawn flat into a scratch canvas, then sheared onto the wall one 1-px column at a time with integer
+  // offsets, so the screen edges are pixel stairs like the rest of the scenery (no anti-aliased skew).
+  function drawScreen(ctx, r) {
+    const s = screenRect(r);
+    const flat = canvas2d(s.w + 4, s.hg + 4);
+    const fc = flat.getContext('2d');
+    fc.fillStyle = '#0b0710';
+    fc.fillRect(0, 0, s.w + 4, s.hg + 4);
+    fc.translate(2, 2);
+    paintScreen(fc, r, s);
+    const k = r.side === 'R' ? 0.5 : -0.5;
+    for (let x = 0; x < s.w + 4; x++) ctx.drawImage(flat, x, 0, 1, s.hg + 4, s.x0 - 2 + x, s.y0 - 2 + Math.round((x - 2) * k), 1, s.hg + 4);
+  }
+  function paintScreen(ctx, r, s) {
+    ctx.fillStyle = '#e9dcc0';
+    ctx.fillRect(0, 0, s.w, s.hg);
+    const ph = s.hg - 4;
+    const pw = Math.round((ph * 2) / 3);
+    const px = Math.round((s.w - pw) / 2);
+    if (r.img) {
+      const tiny = canvas2d(pw, ph);
+      const tc = tiny.getContext('2d');
+      tc.imageSmoothingQuality = 'high';
+      tc.drawImage(r.img, 0, 0, pw, ph);
+      ctx.drawImage(tiny, px, 2);
+    } else {
+      ctx.fillStyle = '#1d2b4a';
+      ctx.fillRect(px, 2, pw, ph);
+      ctx.fillStyle = '#f2c65a';
+      for (let y = 6; y < ph - 2; y += 6) { ctx.fillRect(px + 2, y, 3, 3); ctx.fillRect(px + pw - 5, y, 3, 3); }
+      ctx.fillStyle = '#e9dcc0';
+      ctx.fillRect(px + 9, 14, pw - 18, 8);
+      ctx.fillStyle = '#c8283c';
+      for (let x = px + 9; x < px + pw - 9; x += 6) ctx.fillRect(x, 14, 3, 8);
+      ctx.fillStyle = '#e9dcc0';
+      ctx.fillRect(px + 9, 24, pw - 18, ph - 32);
+    }
+  }
+  const bg = $('bg').getContext('2d');
+  bg.imageSmoothingEnabled = false;
+  function renderBG() {
+    bg.drawImage(base, 0, 0);
+    for (const r of ROOMS) drawScreen(bg, r);
+  }
+  renderBG();
+
+  // Projector beams: soft light from the back of each room to its screen.
+  function hull(pts) {
+    const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [];
+    const up = [];
+    for (const v of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], v) <= 0) lo.pop(); lo.push(v); }
+    for (const v of p.reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], v) <= 0) up.pop(); up.push(v); }
+    return lo.slice(0, -1).concat(up.slice(0, -1));
+  }
+  ROOMS.forEach((r, k) => {
+    const s = screenRect(r);
+    const mid = (r.a + r.b) / 2;
+    const o = [sx(...at(r, mid, 5.9)), sy(...at(r, mid, 5.9)) - 64];
+    const corner = (u, z) => [sx(...at(r, u, 0)), sy(...at(r, u, 0)) - z * 2];
+    const pts = hull([o, corner(s.u0, 66), corner(s.u1, 66), corner(s.u0, 14), corner(s.u1, 14)]);
+    const x0 = Math.floor(Math.min(...pts.map((p) => p[0])));
+    const y0 = Math.floor(Math.min(...pts.map((p) => p[1])));
+    const x1 = Math.ceil(Math.max(...pts.map((p) => p[0])));
+    const y1 = Math.ceil(Math.max(...pts.map((p) => p[1])));
+    const beam = h('div', 'beam');
+    Object.assign(beam.style, {
+      left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px`, animationDelay: `${-k * 1.3}s`,
+      clipPath: `polygon(${pts.map((p) => `${p[0] - x0}px ${p[1] - y0}px`).join(', ')})`,
+    });
+    $('beams').append(beam);
+  });
+
+  // ---------- rooftop marquees ----------
+  const fx = $('fx');
+  const place = (el, x, y, z) => { el.style.left = `${x}px`; el.style.top = `${y}px`; if (z != null) el.style.zIndex = String(z); fx.append(el); return el; };
+  for (const r of ROOMS) {
+    const mid = (r.a + r.b) / 2;
+    const [x, y] = L(...at(r, mid, 0), WALL);
+    r.title = h('div', 't', '');
+    r.year = h('span', '', '');
+    r.stars = h('span', '', '');
+    r.count = h('span', 'n', '');
+    r.sign = h('div', 'marq', h('div', 'bulbs t'), h('div', 'num', String(r.k + 1)), r.title, h('div', 'm', r.year, r.stars, r.count), h('div', 'bulbs b'), h('div', 'legs'));
+    place(r.sign, x * 2 + (r.nudge || 0), y * 2 - 24);
+    // Matching number plate between the door lamps, so each door reads as "its" film.
+    const [ci, cj] = at(r, r.door + 0.5, 6);
+    const kk = r.side === 'R' ? 0.5 : -0.5;
+    const plate = h('div', 'plate', String(r.k + 1));
+    plate.style.transform = `matrix(1, ${kk}, 0, 1, ${sx(ci, cj) - 20}, ${sy(ci, cj) - 34 - 26 - 20 * kk})`;
+    fx.append(plate);
+  }
+
+  function renderCounts() {
+    const cut = Date.now() - 600_000;
+    for (const r of ROOMS) {
+      while (r.entries.length && r.entries[0] < cut) r.entries.shift();
+      r.count.textContent = `${r.entries.length} in`;
+    }
+  }
+
+  // Registered at the end of the script, since onRooms fires immediately.
+  function applyRooms(rooms) {
+    rooms.forEach((info, k) => {
+      const r = ROOMS[k];
+      if (!r) return;
+      r.info = info;
+      r.title.textContent = info.title;
+      r.year.textContent = info.year ? String(info.year) : 'NOW';
+      r.stars.textContent = info.rating != null ? `★${Number(info.rating).toFixed(1)}` : '';
+      r.stars.hidden = info.rating == null;
+      if (info.poster !== r.poster) {
+        r.poster = info.poster;
+        r.img = null;
+        if (info.poster) {
+          const img = new Image();
+          img.onload = () => { if (r.poster === info.poster) { r.img = img; renderBG(); } };
+          img.src = info.poster;
+        }
+        renderBG();
+      }
+    });
+    renderCounts();
+    renderInfo();
+    renderProgramme();
+  }
+  setInterval(renderCounts, 5_000);
+
+  // ---------- lobby props with life ----------
+  // Popcorn machine: kernels pop inside the glass (a small reused pool, no per-frame DOM work).
+  const kettle = place(h('div', 'abs'), sx(9.5, 6.6) - 22, sy(9.5, 6.6) - 70, 2001);
+  Object.assign(kettle.style, { width: '44px', height: '40px', overflow: 'hidden' });
+  const kernels = Array.from({ length: 6 }, () => { const k = h('div', 'kern'); kettle.append(k); k.style.opacity = '0'; return k; });
+  let kn = 0;
+  setInterval(() => {
+    const k = kernels[kn++ % kernels.length];
+    const x = rand(6, 34);
+    k.animate([
+      { transform: `translate(${x}px, 34px)`, opacity: 1 },
+      { transform: `translate(${x + rand(-10, 10)}px, ${rand(2, 12)}px)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(${x + rand(-16, 16)}px, 36px)`, opacity: 1 },
+    ], { duration: 900, easing: 'ease-out' });
+  }, 300);
+
+  // Restroom door (on the i = 6 wall, j 18..19) with its vacant/occupied sign.
+  const wcDoor = h('div', 'wcdoor', h('div', 'panel'));
+  wcDoor.style.transform = `matrix(1, -0.5, 0, 1, ${sx(6, 19)}, ${sy(6, 19) - 68})`;
+  fx.append(wcDoor);
+  const wcSign = place(h('div', 'wcsign', 'WC'), sx(6, 18.5), sy(6, 18.5) - 80, 2100);
+  function wcDoorOpen(ms = 800) { wcDoor.classList.add('open'); setTimeout(() => wcDoor.classList.remove('open'), ms); }
+  function wcState(busy) { wcSign.classList.toggle('busy', busy); wcSign.textContent = busy ? 'WC · OCCUPIED' : 'WC · VACANT'; }
+  wcState(false);
+
+  // Glass entrance doors (on the j = 20 wall, i 16..18).
+  const glass = h('div', 'glassdoor', h('div', 'gp l'), h('div', 'gp r'));
+  glass.style.transform = `matrix(1, 0.5, 0, 1, ${sx(16, 20)}, ${sy(16, 20) - 66})`;
+  $('glass').append(glass);
+  let glassTimer;
+  function openGlass() { glass.classList.add('open'); clearTimeout(glassTimer); glassTimer = setTimeout(() => glass.classList.remove('open'), 1400); }
+
+  // Arcade screens on the cabinets' fronts.
+  for (const j of [13.1, 14.1]) {
+    const scr = h('div', 'arcscr');
+    scr.style.transform = `matrix(1, -0.5, 0, 1, ${sx(6.85, j + 0.7)}, ${sy(6.85, j + 0.7) - 56})`;
+    scr.style.animationDelay = `${-j * 2}s`;
+    fx.append(scr);
+  }
+  const tix = place(h('div', 'wcsign', 'TICKETS'), sx(17.5, 12.6), sy(17.5, 12.6) - 112, 3000);
+  tix.style.color = 'var(--gold)';
+
+  // Pixel sprites from strings (one char per pixel).
+  function sprite(rows, pal, scale = 3) {
+    const c = canvas2d(rows[0].length, rows.length);
+    const ctx = c.getContext('2d');
+    rows.forEach((row, y) => [...row].forEach((ch, x) => { if (pal[ch]) { ctx.fillStyle = pal[ch]; ctx.fillRect(x, y, 1, 1); } }));
+    c.className = 'sprite';
+    c.style.width = `${c.width * scale}px`;
+    c.style.height = `${c.height * scale}px`;
+    return c;
+  }
+
+  // Ticket clerk behind the counter, and the counter cat.
+  const clerk = h('div', 'npc');
+  clerk.style.zIndex = String(3000 + Math.round((17.6 + 11.7) * 10));
+  fx.append(clerk);
+  const counterTop = (i, j) => [sx(i, j), sy(i, j) - 36];
+  function setClerk() {
+    const want = q.get('clerk');
+    const name = want && SB.emotes.names.has(want) ? want : SB.emotes.names.has('DinkDonk') ? 'DinkDonk' : Cinema.defaultEmote('clerk');
+    const e = SB.emoteEl(name, 60);
+    e.style.position = 'absolute';
+    e.style.bottom = '0';
+    e.style.left = `${-(Number(e.dataset.w) || 60) / 2}px`;
+    clerk.replaceChildren(e);
+    const [x, y] = counterTop(17.6, 12.1);
+    clerk.style.transform = `translate(${x}px, ${y + 6}px)`;
+  }
+  SB.on('emotes', setClerk);
+  function clerkSell() {
+    clerk.firstChild?.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-12px)' }, { transform: 'translateY(0)' }], { duration: 380, easing: 'steps(3)' });
+  }
+
+  const cat = sprite([
+    '..o...o.........',
+    '..oo.ooo........',
+    '.oooooooooooo...',
+    '.oKoooooooooooo.',
+    '.oooooooooooooot',
+    '..oowoooooowooot',
+    '...ooo....ooo...',
+  ], { o: '#e89a4a', K: '#3a2418', w: '#fff1dc', t: '#c8763a' });
+  {
+    const [x, y] = counterTop(16.5, 13.0);
+    const catBox = place(h('div', 'npc'), x - 24, y - 21, 3000 + Math.round(29.5 * 10));
+    catBox.append(cat);
+    cat.animate([{ transform: 'scaleY(1)' }, { transform: 'scaleY(1.06)' }], { duration: 2200, iterations: Infinity, direction: 'alternate', easing: 'steps(2)' });
+    cat.style.transformOrigin = '50% 100%';
+    const z = h('div', 'zz', 'z');
+    z.style.left = '34px';
+    z.style.top = '-14px';
+    catBox.append(z);
+  }
+
+  // ---------- janitor, spilled popcorn, wet floor signs ----------
+  const janitor = { i: 11, j: 12, waitUntil: 0, el: h('div', 'npc'), mop: h('div', 'mop'), facing: 1, job: null };
+  const janSpr = sprite([
+    '...tttt...',
+    '..tttttt..',
+    '..ssssss..',
+    '..sKssKs..',
+    '..ssssss..',
+    '...ssss...',
+    '.bbbbbbbb.',
+    'sbbbybbbbs',
+    'sbbbbbbbbs',
+    'sbbbbbbbbs',
+    '.bbbbbbbb.',
+    '.bbbbbbbb.',
+    '..pp..pp..',
+    '..pp..pp..',
+    '.kkk..kkk.',
+  ], { t: '#2f8f9f', s: '#f0c090', K: '#222', b: '#3a5aa8', y: '#ffd23a', p: '#2a3f78', k: '#1a1a22' });
+  const janBody = h('div', 'spr', janitor.mop, janSpr);
+  Object.assign(janBody.style, { left: '-15px', width: '30px', height: '45px' });
+  janitor.el.append(janBody);
+  fx.append(janitor.el);
+  const spills = [];
+  const wets = [];
+  const inBand = (i, j) => i > BAND[0] && i < BAND[1] && j > BAND[2] && j < BAND[3];
+
+  function dropSpill(i, j) {
+    if (spills.length >= 4 || !inBand(i, j)) return false;
+    const el = place(h('div', 'spill'), sx(i, j), sy(i, j), 3000 + Math.round((i + j) * 10) - 5);
+    spills.push({ i, j, el });
+    return true;
+  }
+  function wetSign(i, j) {
+    if (wets.length >= 2) return;
+    const el = place(h('div', 'wet', 'WET'), sx(i, j), sy(i, j), 3000 + Math.round((i + j) * 10));
+    const w = { el };
+    wets.push(w);
+    setTimeout(() => { el.remove(); wets.splice(wets.indexOf(w), 1); }, 16_000);
+  }
+  function janitorNext() {
+    const sp = spills[0];
+    if (sp) { janitor.job = sp; janitor.target = [sp.i - 0.4, sp.j]; return; }
+    janitor.job = null;
+    janitor.target = [rand(BAND[0] + 0.5, BAND[1] - 0.5), rand(BAND[2] + 0.5, BAND[3] - 0.5)];
+  }
+  function janitorArrive(t) {
+    janitor.el.classList.add('mopping');
+    const sp = janitor.job;
+    janitor.waitUntil = t + (sp ? 3200 : rand(2500, 6000));
+    setTimeout(() => {
+      janitor.el.classList.remove('mopping');
+      if (sp && spills.includes(sp)) {
+        sp.el.remove();
+        spills.splice(spills.indexOf(sp), 1);
+        wetSign(sp.i + 0.6, sp.j + 0.5);
+      }
+      janitorNext();
+    }, janitor.waitUntil - t);
+  }
+  janitorNext();
+  function stepJanitor(dt, t) {
+    if (t < janitor.waitUntil || !janitor.target) return;
+    const [ti, tj] = janitor.target;
+    const di = ti - janitor.i;
+    const dj = tj - janitor.j;
+    const d = Math.hypot(di, dj);
+    const step = 0.9 * dt;
+    if (d <= step) { janitor.i = ti; janitor.j = tj; janitor.target = null; janitorArrive(t); }
+    else {
+      janitor.i += (di / d) * step;
+      janitor.j += (dj / d) * step;
+      if (Math.abs(di - dj) > 0.05) janitor.facing = Math.sign(di - dj);
+    }
+    const bob = Math.abs(Math.sin(t / 140)) * 3;
+    janitor.el.style.transform = `translate(${sx(janitor.i, janitor.j)}px, ${sy(janitor.i, janitor.j) - bob}px)`;
+    janBody.style.transform = `scaleX(${janitor.facing})`;
+    janitor.el.style.zIndex = String(3000 + Math.round((janitor.i + janitor.j) * 10));
+  }
+  janitor.el.style.transform = `translate(${sx(11, 12)}px, ${sy(11, 12)}px)`;
+
+  // ---------- cinema-goers ----------
+  // A walker follows a list of steps: [i, j] points, { fn } actions and { wait } pauses.
+  // Tiers keep the depth layering right against the canvases: inside a room < low walls (2000)
+  // < lobby (3000) < building front (5000) < street (6000).
+  const TIER = { room: 100, lobby: 3000, out: 6000 };
+  const EMOTE_H = 52;
+  const MAX_WALKING = 45;
+  const MAX_SEATED = 80;
+  const MAX_NODES = 60;      // hard cap on walking walkers (bursts, or rAF paused while chat keeps coming)
+  const STREET_SPEED = 1.7;  // people hurry along the sidewalk, so the street leg stays short
+  const walkers = new Map(); // nick -> walker
+  const fading = new Set();  // vanished walkers still fading out (purge must reach them too)
+  const crowd = $('crowd');
+  const bubbles = $('bubbles');
+  // Bubbles stay clear of the chat column and the HUD (both sit above the bubble layer).
+  const BUB_MAX_X = 1376 - 8;
+  const HUD_BOX = { right: 24 + 500 + 10, top: 852 - 6 };
+  // Lobby furniture walkers route around (tile rects, already padded).
+  const OBSTACLES = [
+    [8.7, 10.3, 5.8, 7.4],    // popcorn machine
+    [5.8, 7.2, 12.75, 15.25], // arcade cabinets
+    [15.65, 19.35, 11.65, 13.55], // ticket counter
+    ...[[19.2, 15.2], [10, 19.2], [19.2, 8.6]].map(([i, j]) => [i - 0.6, i + 0.6, j - 0.6, j + 0.6]), // plants
+  ];
+  const act = (fn) => ({ fn });
+  const wait = (ms) => ({ wait: ms });
+  const jitter = ([i, j], d = 0.6) => [i + rand(-d, d), j + rand(-d, d)];
+
+  function makeEl(g) {
+    g.el = h('div', 'w');
+    g.bod = h('div', 'bod');
+    g.seatEl = h('div', 'seat');
+    const nm = h('div', 'nm', g.sub ? `★ ${g.nick}` : g.nick);
+    nm.style.color = g.color;
+    g.el.append(h('div', 'sh'), g.bod, g.seatEl, nm);
+    crowd.append(g.el);
+    setEmote(g, g.emote, false);
+  }
+
+  function setEmote(g, name, poof = true) {
+    g.emote = name;
+    const e = SB.emoteEl(name, EMOTE_H);
+    const w = Number(e.dataset.w) || EMOTE_H;
+    e.style.left = `${-w / 2}px`;
+    g.halfW = w / 2;
+    g.bod.replaceChildren(e);
+    if (g.carry) { g.carry.style.left = `${g.halfW - 6}px`; g.bod.append(g.carry); }
+    const sw = Math.max(40, w + 6);
+    g.seatEl.style.width = `${sw}px`;
+    g.seatEl.style.left = `${-sw / 2}px`;
+    // Poof on the new emote itself, so the walker's own hop/facing transform on .bod is left alone.
+    if (poof) e.animate([{ filter: 'brightness(2.6)', transform: 'scale(1.35)' }, {}], { duration: 350, easing: 'steps(4)' });
+  }
+
+  function floatText(g, text) {
+    if (!g.el) return;
+    const t = h('div', 'floattxt', text);
+    t.style.bottom = `${EMOTE_H + 8}px`;
+    t.style.left = '0';
+    g.el.append(t);
+    t.animate([{ transform: 'translateX(-50%)', opacity: 1 }, { transform: 'translate(-50%, -40px)', opacity: 0 }], { duration: 1400, easing: 'steps(8)' })
+      .onfinish = () => t.remove();
+  }
+
+  // One size read per message (not per frame); frame() then only writes transforms.
+  function bubble(g, tokens) {
+    dropBubble(g);
+    const b = h('div', 'bub');
+    SB.renderTokens(b, tokens, 24, 80);
+    g.tail = h('div', 'tail');
+    b.append(g.tail);
+    g.bub = h('div', 'bubw', b);
+    bubbles.append(g.bub);
+    g.bubW = b.offsetWidth;
+    g.bubX = null;
+    g.bubTokens = tokens;
+    g.bubUntil = now() + 5000;
+    placeBubble(g, sx(g.i, g.j), sy(g.i, g.j));
+  }
+  function dropBubble(g) {
+    g.bub?.remove();
+    g.bub = null;
+    g.tail = null;
+  }
+  function placeBubble(g, x, y) {
+    const bottom = y - EMOTE_H - 34;
+    const hw = g.bubW / 2;
+    let left = Math.min(Math.max(x - hw, 8), BUB_MAX_X - g.bubW);
+    if (bottom > HUD_BOX.top) left = Math.max(left, HUD_BOX.right);
+    left = Math.round(left);
+    g.bub.style.transform = `translate(${left}px, ${Math.round(bottom)}px)`;
+    const tx = Math.round(Math.min(Math.max(x - left - 6, 6), g.bubW - 18));
+    if (tx !== g.bubX) { g.bubX = tx; g.tail.style.transform = `translateX(${tx}px)`; }
+  }
+
+  function setTier(g, tier) { g.tier = tier; g.z = -1; }
+
+  function roomSteps(g) {
+    const r = ROOMS[g.room];
+    const free = r.seats.filter((s) => !s.who);
+    const seat = free.length && seatedCount() < MAX_SEATED ? pick(free) : null;
+    if (seat) seat.who = g.nick;
+    g.seat = seat;
+    const s = [jitter(r.F, 0.2), r.D, act(() => { setTier(g, 'room'); r.entries.push(Date.now()); renderCounts(); }), r.I];
+    if (seat) {
+      s.push(at(r, r.door + 0.5, seat.v + 0.5), seat.p, act(() => sit(g)));
+    } else {
+      s.push(at(r, r.door + 0.5, rand(1.5, 4.5)), act(() => vanish(g)));
+    }
+    return s;
+  }
+
+  // Queue slots along the corridor in front of the restroom, so waiters stand in a line.
+  function wcSlot() {
+    const used = new Set();
+    for (const o of walkers.values()) if (o.qSlot != null) used.add(o.qSlot);
+    let n = 0;
+    while (used.has(n) && n < 2) n += 1; // three spots before the potted plant; later ones share the last
+    return n;
+  }
+  function wcEnter(g) {
+    if (WC.busy && WC.busy !== g) {
+      if (g.qSlot == null) {
+        g.qSlot = wcSlot();
+        g.steps.unshift([WC.front[0] + 0.65 * (g.qSlot + 1), WC.front[1] + rand(-0.12, 0.12)]);
+        g.steps.splice(1, 0, wait(1200), act(() => wcEnter(g)));
+      } else {
+        g.steps.unshift(wait(1200), act(() => wcEnter(g)));
+      }
+      return;
+    }
+    WC.busy = g;
+    g.qSlot = null;
+    wcDoorOpen(900);
+    // Through the doorway on the lobby tier, then behind the door (room tier) and out of sight.
+    // The stay is a fixed wait: hurrying does not cut it short.
+    g.steps.unshift(
+      [6.25, 18.5],
+      act(() => setTier(g, 'room')),
+      WC.inside,
+      act(() => {
+        g.hidden = true;
+        g.el.style.opacity = '0';
+        if (g.bub) { g.pendingTokens = g.bubTokens; dropBubble(g); }
+        wcState(true);
+      }),
+      { wait: rand(3000, 6000), fixed: true },
+      act(() => {
+        wcDoorOpen(1100);
+        g.hidden = false;
+        g.el.style.opacity = '1';
+        if (g.pendingTokens) { bubble(g, g.pendingTokens); g.pendingTokens = null; }
+      }),
+      [6.25, 18.5],
+      act(() => { setTier(g, 'lobby'); WC.busy = null; wcState(false); floatText(g, 'ahh'); }),
+      WC.front,
+    );
+  }
+
+  function grabPopcorn(g) {
+    clerkSell();
+    if (!g.carry) { g.carry = h('div', 'carry'); g.carry.style.left = `${g.halfW - 6}px`; g.bod.append(g.carry); }
+    floatText(g, '+POPCORN');
+    // Now and then someone fumbles their bucket on the way; the janitor will come for it.
+    if (Math.random() < 0.25) g.steps.splice(1, 0, act(() => { if (dropSpill(g.i, g.j)) floatText(g, 'oops'); }));
+  }
+
+  function enterLobby(g) {
+    setTier(g, 'lobby');
+    // Whatever they said on the street stays readable for a while inside, too.
+    if (g.bub) g.bubUntil = Math.max(g.bubUntil, now() + 3000);
+  }
+
+  function plan(g) {
+    const s = [[17 + g.lane, ENTRY.out[1]], ENTRY.out, act(openGlass), ENTRY.line, act(() => enterLobby(g)), ENTRY.in, jitter(HUB, 0.9)];
+    if (g.detour === 'popcorn') s.push(jitter(POPCORN.stand, 0.15), wait(1300), act(() => grabPopcorn(g)), jitter(HUB, 0.9));
+    else if (g.detour === 'bathroom') s.push(WC.front, act(() => wcEnter(g)), jitter(HUB, 0.9));
+    s.push(act(() => { g.steps.push(...roomSteps(g)); }));
+    return s;
+  }
+
+  function spawn(w) {
+    const lane = rand(0, 4);
+    // Just below the bottom edge (i + j = 55.5), spread over ~380 px right of the HUD instead of one column.
+    const d = rand(-3, 9);
+    const g = {
+      nick: w.nick, emote: w.emote, color: w.color, sub: w.sub, room: w.roomIndex, detour: w.detour, lane,
+      i: (55.5 + d) / 2, j: (55.5 - d) / 2, tier: 'out', state: 'walk', speed: rand(2.5, 3.1), phase: rand(0, 6), facing: 1,
+      born: now(), waitUntil: 0, hopUntil: 0, bubUntil: 0, z: -1, halfW: 26, carry: null, seat: null, hidden: false, hurry: false,
+      qSlot: null, pendingTokens: null,
+    };
+    makeEl(g);
+    g.steps = plan(g);
+    walkers.set(w.nick, g);
+    return g;
+  }
+
+  function freeSeat(g) { if (g.seat && g.seat.who === g.nick) g.seat.who = null; g.seat = null; }
+  function remove(g) {
+    freeSeat(g);
+    if (WC.busy === g) { WC.busy = null; wcState(false); }
+    dropBubble(g);
+    g.cheer?.cancel();
+    g.el?.remove();
+    g.el = null;
+    g.state = 'gone';
+    fading.delete(g);
+    if (walkers.get(g.nick) === g) walkers.delete(g.nick);
+  }
+  function vanish(g, ms = 600) {
+    if (g.state === 'gone') return;
+    g.state = 'gone';
+    dropBubble(g);
+    fading.add(g);
+    g.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, fill: 'forwards', easing: 'steps(5)' }).onfinish = () => remove(g);
+    if (walkers.get(g.nick) === g) walkers.delete(g.nick);
+  }
+
+  function sit(g) {
+    g.state = 'seated';
+    g.el.classList.add('seated');
+    g.carry?.remove();
+    dropBubble(g);
+    g.seatEl.style.transform = `skewY(${ROOMS[g.room].side === 'R' ? 26.565 : -26.565}deg)`;
+    const [i, j] = g.seat.p;
+    g.el.style.transform = `translate(${sx(i, j)}px, ${sy(i, j) - 8}px) scale(.82)`;
+    g.el.style.zIndex = String(TIER.room + Math.round((i + j) * 10));
+    g.bod.style.transform = '';
+    g.sitUntil = now() + rand(30_000, 55_000);
+  }
+
+  const seatedCount = () => { let n = 0; for (const g of walkers.values()) if (g.state === 'seated') n += 1; return n; };
+
+  // Hard cap: if bursts outrun the walk (or frames are paused while chat keeps coming), the oldest
+  // walker on the floor slips away so DOM nodes cannot pile up.
+  function capWalking() {
+    let n = 0;
+    let oldest = null;
+    for (const g of walkers.values()) {
+      if (g.state !== 'walk') continue;
+      n += 1;
+      if (!oldest || g.born < oldest.born) oldest = g;
+    }
+    if (n < MAX_NODES || !oldest) return;
+    if (oldest.hidden) remove(oldest);
+    else vanish(oldest, 300);
+  }
+
+  Cinema.onWalkIn((w) => {
+    let g = walkers.get(w.nick);
+    // Already seated: they get up and come back in through the front door.
+    if (g && g.state === 'seated') { vanish(g, 300); g = null; }
+    if (!g) {
+      capWalking();
+      g = spawn(w);
+    } else if (w.emote !== g.emote) {
+      setEmote(g, w.emote);
+    }
+    // In the restroom: the message waits and shows when they come back out.
+    if (g.hidden) g.pendingTokens = w.tokens;
+    else bubble(g, w.tokens);
+  });
+
+  Cinema.onPurge((nick) => {
+    const n = nick.toLowerCase();
+    for (const g of [...walkers.values(), ...fading]) if (g.nick.toLowerCase() === n) remove(g);
+  });
+
+  // Combos: everyone wearing that emote hops together; a banner from 3 on.
+  let comboTimer;
+  Cinema.onCombo(({ emote, count }) => {
+    const t = now();
+    for (const g of walkers.values()) {
+      if (g.emote !== emote || !g.el) continue;
+      if (g.state === 'seated') {
+        // WAAPI instead of re-triggering a class: no forced reflow per seated walker.
+        g.cheer?.cancel();
+        g.cheer = g.bod.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-12px)' }],
+          { duration: 320, iterations: 8, direction: 'alternate', easing: 'steps(3)' });
+      } else {
+        g.hopUntil = t + 2600;
+      }
+    }
+    if (count < 3) return;
+    $('combo').replaceChildren(SB.emoteEl(emote, 56), `×${count} COMBO`);
+    $('combo').classList.add('show');
+    clearTimeout(comboTimer);
+    comboTimer = setTimeout(() => $('combo').classList.remove('show'), 2000);
+  });
+
+  // ---------- simulation ----------
+  // Walkers move along the grid axes like in Habbo / Theme Hospital: each diagonal leg becomes two
+  // straight legs (i then j, or j then i), whichever corner keeps clear of the lobby furniture.
+  const blocked = (a, b) => {
+    for (const [i0, i1, j0, j1] of OBSTACLES) {
+      if (a[0] === b[0] && a[0] > i0 && a[0] < i1 && Math.max(a[1], b[1]) > j0 && Math.min(a[1], b[1]) < j1) return true;
+      if (a[1] === b[1] && a[1] > j0 && a[1] < j1 && Math.max(a[0], b[0]) > i0 && Math.min(a[0], b[0]) < i1) return true;
+    }
+    return false;
+  };
+  function gridLeg(g, s) {
+    const p = [s[0], s[1]];
+    p.grid = true;
+    const here = [g.i, g.j];
+    if (Math.abs(s[0] - g.i) < 0.02 || Math.abs(s[1] - g.j) < 0.02) { g.steps[0] = p; return; }
+    // On the street: along the sidewalk (j first). Inside: i-first, j-first, or a detour along the open
+    // row j = 8.1 (in front of the popcorn stand); straight only if all of them are blocked.
+    const routes = g.tier === 'out' ? [[[g.i, s[1]]]]
+      : [[[s[0], g.j]], [[g.i, s[1]]], [[g.i, 8.1], [s[0], 8.1]]];
+    const route = routes.find((r) => [here, ...r, p].every((a, k, all) => k === 0 || !blocked(all[k - 1], a)));
+    if (!route) { g.steps[0] = p; return; }
+    for (const c of route) c.grid = true;
+    g.steps.splice(0, 1, ...route, p);
+  }
+
+  function advance(g, dt, t) {
+    while (g.steps.length) {
+      const s = g.steps[0];
+      if (s.fn) { g.steps.shift(); s.fn(); if (g.state !== 'walk') return false; continue; }
+      if (s.wait != null) { g.steps.shift(); g.waitUntil = t + (g.hurry && !s.fixed ? s.wait / 4 : s.wait); return false; }
+      if (!s.grid) { gridLeg(g, s); continue; }
+      const di = s[0] - g.i;
+      const dj = s[1] - g.j;
+      const d = Math.hypot(di, dj);
+      const step = g.speed * dt * (g.hurry ? 2.2 : 1) * (g.tier === 'out' ? STREET_SPEED : 1);
+      if (d <= step) { g.i = s[0]; g.j = s[1]; g.steps.shift(); continue; }
+      g.i += (di / d) * step;
+      g.j += (dj / d) * step;
+      if (Math.abs(di - dj) > 0.02) g.facing = Math.sign(di - dj);
+      return true;
+    }
+    if (g.state === 'walk') vanish(g);
+    return false;
+  }
+
+  let last = now();
+  let lastSort = 0;
+  function frame(t) {
+    const dt = Math.max(0, Math.min(0.05, (t - last) / 1000));
+    last = t;
+    const syncHop = Math.abs(Math.sin(t / 150));
+    let walking = 0;
+    let hurried = 0;
+    let inLobby = 0;
+    for (const g of walkers.values()) {
+      if (g.state === 'seated') {
+        if (t > g.sitUntil) vanish(g, 900);
+        continue;
+      }
+      if (g.state !== 'walk') continue;
+      if (!g.hidden) {
+        walking += 1;
+        if (g.hurry) hurried += 1;
+      }
+      const moving = t >= g.waitUntil && advance(g, dt, t);
+      if (g.state !== 'walk' || g.hidden) continue;
+      if (g.tier === 'lobby') inLobby += 1;
+      let lift = 0;
+      let squash = 1;
+      if (t < g.hopUntil) {
+        // Combo: everyone wearing the emote shares one hop phase, walking or not.
+        lift = syncHop * 22;
+        squash = syncHop < 0.22 ? 0.84 : 1;
+        if (moving) g.phase += dt * (g.hurry ? 18 : 11);
+      } else if (moving) {
+        g.phase += dt * (g.hurry ? 18 : 11);
+        const s = Math.abs(Math.sin(g.phase));
+        lift = s * 16;
+        squash = s < 0.22 ? 0.84 : 1;
+      }
+      const x = sx(g.i, g.j);
+      const y = sy(g.i, g.j);
+      g.el.style.transform = `translate(${x}px, ${y}px)`;
+      g.bod.style.transform = `translateY(${-lift}px) scale(${g.facing * (2 - squash)}, ${squash})`;
+      const z = TIER[g.tier] + Math.round((g.i + g.j) * 10);
+      if (z !== g.z) { g.z = z; g.el.style.zIndex = String(z); }
+      if (g.bub) {
+        if (t > g.bubUntil) dropBubble(g);
+        else placeBubble(g, x, y);
+      }
+    }
+    // Too many on the floor: the oldest not-yet-hurried hurry to their seats (checked a few times a second).
+    // Waits in the restroom are left alone; other waits are shortened, not skipped.
+    if (t - lastSort > 300) {
+      lastSort = t;
+      const excess = walking - MAX_WALKING - hurried;
+      if (excess > 0) {
+        const list = [...walkers.values()].filter((g) => g.state === 'walk' && !g.hurry && !g.hidden).sort((a, b) => a.born - b.born);
+        for (const g of list.slice(0, excess)) {
+          g.hurry = true;
+          if (WC.busy !== g) g.waitUntil = Math.min(g.waitUntil, t + 400);
+        }
+      }
+      updateHud(inLobby);
+    }
+    stepJanitor(dt, t);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- HUD ----------
+  $('h1').textContent = SB.cfg.title ? SB.cfg.title.toUpperCase() : 'DGG MULTIPLEX';
+  $('h2').textContent = SB.cfg.sub || 'Standby · every chatter walks in and grabs a seat. Back soon.';
+  let hudLast = '';
+  function updateHud(inLobby) {
+    const seated = seatedCount();
+    const key = `${inLobby}|${seated}`;
+    if (key === hudLast) return;
+    hudLast = key;
+    $('lobbyN').textContent = `${inLobby} in the lobby`;
+    $('seatN').textContent = `${seated} watching`;
+  }
+  function tickClock() {
+    const tm = SB.timerText();
+    $('clock').textContent = SB.clockText();
+    $('timer').textContent = `${tm.label} ${tm.value}`;
+  }
+  tickClock();
+  updateHud(0);
+  setInterval(tickClock, 1_000);
+
+  // ---------- green screen / info ----------
+  const green = $('green');
+  if (Cinema.green === 'off') green.classList.add('off');
+  else green.style.background = Cinema.green;
+  const infoRow = (a, b) => h('div', 'r', h('span', '', a), h('span', '', b));
+  function renderInfo() {
+    if (Cinema.green !== 'off') return;
+    const rows = [h('div', 'hd', 'NEXT SHOWTIMES')];
+    const st = Cinema.showtimes().slice(0, 3);
+    for (const s of st) {
+      rows.push(s.live ? infoRow('MOVIE NIGHT · NOW', `UNTIL ${Cinema.timeLocal(s.end)}`)
+        : infoRow(`MOVIE NIGHT · ${Cinema.dayShort(s.start).toUpperCase()}`, Cinema.timeLocal(s.start)));
+    }
+    if (!st.length) rows.push(infoRow('PROGRAMME COMING SOON', ''));
+    const lastFilm = Cinema.rooms[0];
+    if (lastFilm) {
+      rows.push(h('div', 'hd', 'LAST FILM'));
+      rows.push(infoRow(lastFilm.title.toUpperCase(), lastFilm.rating != null ? `★${Number(lastFilm.rating).toFixed(2)}` : ''));
+    }
+    green.replaceChildren(...rows);
+  }
+  setInterval(renderInfo, 15_000);
+
+  // ---------- chat=off: the panel lists the programme instead ----------
+  const chatOff = SB.cfg.chat === 'off';
+  if (chatOff) {
+    $('prog').style.display = 'block';
+    $('chatbox').querySelector('.cap').textContent = 'NOW SHOWING';
+  }
+  function renderProgramme() {
+    if (!chatOff) return;
+    $('prog').replaceChildren(...ROOMS.map((r) => {
+      const info = r.info || {};
+      const meta = [info.year, info.rating != null ? `★${Number(info.rating).toFixed(1)}` : '', `${r.entries.length} went in`].filter(Boolean).join(' · ');
+      return h('div', 'p', h('div', 'a', `SCREEN ${r.k + 1}`), h('div', 'b', info.title || ''), h('div', 'c', meta));
+    }));
+  }
+  setInterval(renderProgramme, 15_000);
+
+  Cinema.onRooms(applyRooms);
+  SB.start();
+})();
+</script>
+</body>
+</html>

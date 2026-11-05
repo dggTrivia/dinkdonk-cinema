@@ -1,0 +1,3738 @@
+<!doctype html>
+<!--
+  DINK DONK CINEMA LOBBY (lobby.html, was roxy.html) - split-wings layout (BLOCKOUT: layout and flow first, final art later)
+
+  Street strip in front -> glass doors -> lobby with the box office (queue) and the snack
+  island -> usher gate at the back corner -> the corridor forks: left wing = screens 1-2 (+ WC),
+  right wing = screens 3-5. Each door is in an outer wall; its auditorium is behind it.
+  Screens 1-5 = the last five films on dinkdonk.mov (shared/cinema.js).
+
+  Everything lives inside the world: no HUD, no green screen, no floating signs (owner, 02 Nov).
+  No chat panel: every chatter talks in a bubble over their emote.
+  Zoom director: now and then the camera follows one arriving chatter to their door (control.html,
+  keys F/R/W/D). Options: demo=1, live=1 (auto-reload on file change), wet2x=1 (4K wet loops, heavy), crowd=<n> (people outside/in line before new chatters are skipped, 14; 0 = never), mist=1-4 (splash spray samples, off by default), morerain=0 (no extra rain/weather; 1-4 = one fixed style), weather=<x> (weather clock x times faster, testing), rainfps=<n> (extra rain steps per second, 24 like the baked loops; 0 = smooth), tag= / everyone=1 (who walks in,
+  see shared/cinema.js), director=0|<seconds>, zoom=<1.2-3>, ctl=0 (no control panel link), maxres=<height> (cap the art
+  resolution, e.g. 1080: no 4K art or loops even at 1440p; off by default), fit=cover (fill a squarer or wider source:
+  crop the sides instead of black bars; the wide shot centres on fitx=<stage x>, 1040), rainspeed=<x> / raintune=1.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lobby</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600&family=Yellowtail&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage { background: #0b0a12; font-family: Oswald, 'Arial Narrow', Arial, sans-serif; color: #fff; }
+  .layer { position: absolute; left: 0; top: 0; pointer-events: none; }
+  #world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  .prop { position: absolute; pointer-events: none; }
+
+  .w { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+  .w .sh { position: absolute; left: -19px; top: -7px; width: 38px; height: 14px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0,0,0,.55), rgba(0,0,0,0)); }
+  .w .bod { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+  .w .em { position: absolute; bottom: 0; }
+  .w .nm { position: absolute; left: 0; top: 7px; transform: translateX(-50%); white-space: nowrap;
+    font: 500 14px/1 Oswald, 'Arial Narrow', sans-serif; letter-spacing: .02em;
+    text-shadow: 0 1px 2px #000, 0 0 4px #000, 0 0 2px #000; }
+  .w .nm { transition: opacity .4s; padding: 0 4px 1px; border-radius: 2px; background: rgba(8, 6, 18, .5); }
+  .w.staff .nm { display: none; }
+  /* DGG tier 5 subs: the moving rainbow name of DGG chat (same gradient as the DSA script) */
+  .rbt { background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bff95, #67d8ff, #b28dff, #ff78c6, #ff6b6b);
+    background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-fill-color: transparent; animation: rbt 4s linear infinite; }
+  @keyframes rbt { to { background-position: -220% 0; } }
+  /* staff wear a little uniform cap so they don't read as customers */
+  /* shaded like the render: lit from the top-left, darker underside */
+  .hat { position: absolute; left: -14px; bottom: 44px; width: 28px; height: 11px; border-radius: 4px 4px 1px 1px;
+    background: linear-gradient(170deg, #c8394a, #8c1724 70%); box-shadow: inset 0 -3px 0 #b8933f, 0 2px 3px rgba(0,0,0,.6); }
+  .hat.usher { background: linear-gradient(170deg, #6a2036, #34101c 70%); box-shadow: inset 0 -3px 0 #b8933f, 0 2px 3px rgba(0,0,0,.6); }
+  .hat.usher::after { content: ''; position: absolute; left: 11px; top: -4px; width: 6px; height: 6px; border-radius: 50%; background: #f0c85a; }
+  .ticket.torn { width: 9px; }
+  .item { position: absolute; pointer-events: none; }
+  .stub { position: absolute; bottom: 12px; width: 11px; height: 7px; background: linear-gradient(160deg, #f0d48a, #b8933f);
+    border-radius: 1px; box-shadow: 0 1px 2px rgba(0,0,0,.6); transform: rotate(-14deg); }
+  .umb { position: absolute; left: -30px; bottom: 54px; width: 60px; height: 22px; display: none;
+    border-radius: 60px 60px 6px 6px / 44px 44px 6px 6px; background: var(--c);
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,.25), inset 10px 4px 0 rgba(255,255,255,.12), 0 2px 4px rgba(0,0,0,.5); }
+  .umb::after { content: ''; position: absolute; left: 29px; top: 20px; width: 2px; height: 30px; background: #222; }
+  .w.out .umb { display: block; }
+  .w.out .em { filter: brightness(.84) saturate(.9); }   /* night street: dimmer than the lobby */
+  .umbs { position: absolute; display: none; pointer-events: none; }
+  .w.out .umbs { display: block; }
+  .doorglow { position: absolute; left: 0; top: 0; width: 150px; height: 96px; margin: -48px 0 0 -75px; pointer-events: none;
+    border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 196, 120, .55), rgba(255, 150, 80, .18) 55%, rgba(0,0,0,0));
+    mix-blend-mode: plus-lighter; }
+  .doorglow.arcadeglow { width: 70px; height: 56px; margin: -28px 0 0 -35px;
+    background: radial-gradient(closest-side, rgba(120, 170, 255, .8), rgba(80, 120, 255, 0)); }
+  .sheet { position: absolute; left: 0; top: 0; pointer-events: none; background-repeat: no-repeat; }
+  .fxsheet { mix-blend-mode: plus-lighter; }
+  .proploop { position: absolute; pointer-events: none; mix-blend-mode: plus-lighter; background-repeat: no-repeat; }
+  .veh { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+  .vehlight { z-index: 4; mix-blend-mode: plus-lighter; }
+  .vehrain { mix-blend-mode: plus-lighter; }   /* rendered roof rain, tyre spray and wake (additive loops) */
+  .wetprint { position: absolute; left: 0; top: 0; width: 10px; height: 5px; margin: -2.5px 0 0 -5px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(170, 195, 235, .32), rgba(120, 150, 200, .12) 70%, rgba(0,0,0,0)); }
+  .splash { position: absolute; left: 0; top: 0; width: 34px; height: 12px; margin: -6px 0 0 -17px; border-radius: 50%;
+    border: 1px solid rgba(200, 225, 255, .35); }
+  .carry { position: absolute; bottom: 4px; width: 16px; height: 19px; border-radius: 2px 2px 4px 4px;
+    background: repeating-linear-gradient(90deg, #e8283c 0 3px, #fff 3px 6px); box-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .carry::before { content: ''; position: absolute; left: -2px; right: -2px; top: -7px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 50%, #fff6c8 0 3px, transparent 4px), radial-gradient(circle at 70% 40%, #ffe28a 0 3px, transparent 4px), #ffd75a; }
+
+  #stage { overflow: hidden; }
+  #cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  #hang, #fx, #bubbles { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+  #rain { z-index: 70000; width: 1920px; height: 1080px; }
+  #rain2 { z-index: 70002; width: 1920px; height: 1080px; display: none; mix-blend-mode: plus-lighter; }
+  #mist { z-index: 69990; width: 1920px; height: 1080px; display: none; mix-blend-mode: plus-lighter; }
+  #hang { z-index: 80000; }
+  #fx { z-index: 85000; }
+  #bubbles { z-index: 86000; }   /* speech always above announcements */
+
+  /* square, plain 90s game dialog box (not a web widget): big readable sans, no bloom */
+  .bub { position: absolute; left: 0; top: 0; max-width: 330px; padding: 5px 10px 6px; border-radius: 3px;
+    background: rgba(10, 9, 22, .9); border: 1px solid rgba(200, 220, 255, .6); color: #f4f4ff;
+    font: 700 18px/1.28 Verdana, Tahoma, 'Segoe UI', sans-serif; white-space: normal; overflow-wrap: anywhere;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, .55); }
+  .bub .bn { font: 700 13px/1.2 Verdana, Tahoma, sans-serif; margin-bottom: 1px; letter-spacing: .02em; }
+  .bub .bt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .bub::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -8px; margin-left: -7px; border: 7px solid transparent;
+    border-top-color: rgba(200, 220, 255, .6); border-bottom: 0; }
+  .bub .sb-emote { vertical-align: middle; margin: 0 2px; }
+
+  .fl { position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 16px/1 Oswald, sans-serif; letter-spacing: .04em;
+    color: #ffe08a; text-shadow: 0 0 6px rgba(255, 140, 200, .8), 0 1px 2px #000; }
+  .ticket { position: absolute; left: -9px; top: -6px; width: 18px; height: 11px; background: #ffd75a; border-radius: 2px;
+    box-shadow: 0 0 8px rgba(255, 215, 90, .9); }
+
+  .sign { position: absolute; left: 0; top: 0; width: 176px; transform: translate(-50%, -100%); text-align: center;
+    background: linear-gradient(#1a1430, #120e22); border: 2px solid #ff5fb0; border-radius: 6px; padding: 4px 6px 5px;
+    box-shadow: 0 0 14px rgba(255, 95, 176, .45), inset 0 0 10px rgba(255, 95, 176, .2); }
+  .sign .no { font: 400 22px/1 'Bebas Neue', Oswald, sans-serif; color: #7ff7f0; text-shadow: 0 0 6px #19e6dc; }
+  .sign .ti { font: 400 21px/1.05 'Bebas Neue', Oswald, sans-serif; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sign .me { font: 500 13px/1.2 Oswald, sans-serif; color: #ffd27a; }
+  .sign .in { font: 500 13px/1.2 Oswald, sans-serif; color: #9fd8ff; }
+
+  .poster { position: absolute; left: 0; top: 0; width: 100px; height: 150px; transform-origin: 0 0; overflow: hidden;
+    background: #241c3a; border: 3px solid #0e0b18; box-sizing: border-box; }
+  .poster img { width: 100%; height: 100%; object-fit: cover; display: block; position: relative; z-index: 1; }
+  .poster .ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 6px;
+    text-align: center; font: 400 20px/1 'Bebas Neue', sans-serif; color: #ffb3cf; }
+
+  .hsign { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); white-space: nowrap; text-align: center; }
+  .neon { font: 400 34px/1 'Bebas Neue', Oswald, sans-serif; letter-spacing: .12em; color: #eaffff;
+    text-shadow: 0 0 4px #7ff7f0, 0 0 12px #19e6dc, 0 0 24px #19e6dc; }
+  .menu { background: #f4f1ff; color: #1a1430; border: 3px solid #2a2340; border-radius: 4px; padding: 5px 12px 6px;
+    box-shadow: 0 0 22px rgba(255, 255, 255, .35); font: 600 14px/1.25 Oswald, sans-serif; text-align: left; }
+  .menu b { display: block; font: 400 22px/1 'Bebas Neue', sans-serif; color: #e8285c; letter-spacing: .08em; text-align: center; }
+  .menu span { display: inline-block; min-width: 92px; }
+  .gate { font: 400 20px/1 'Bebas Neue', sans-serif; letter-spacing: .1em; background: #120e22; border: 2px solid #7ff7f0;
+    border-radius: 4px; padding: 4px 10px 3px; color: #eaffff; box-shadow: 0 0 12px rgba(127,247,240,.4); }
+  .wcsign { font: 600 13px/1 Oswald, sans-serif; padding: 3px 7px; border-radius: 3px; background: #10301c; color: #6dff9b;
+    border: 1px solid #6dff9b; letter-spacing: .08em; }
+  .wcsign.busy { background: #3a1010; color: #ff6d6d; border-color: #ff6d6d; }
+
+  /* pre-rendered art (roxy3d/out): the marquee boxes and poster frames are in the render */
+  #bgimg, #glow { width: 1920px; height: 1080px; display: none; }
+  #glow { z-index: 1; mix-blend-mode: screen; }   /* over the background, under posters, signs and chatters */
+  #loop { width: 1920px; height: 1080px; display: none; z-index: 2; mix-blend-mode: plus-lighter; object-fit: fill; }
+  /* above walkers and vehicles, below hanging signs, bubbles and the HUD */
+  #rainfg { width: 1920px; height: 1080px; display: none; z-index: 70001; mix-blend-mode: plus-lighter; object-fit: fill; }
+  /* inset inside the rendered marquee box so its bevel and lighting stay visible around the text */
+  .art .sign { width: 150px; height: 78px; margin-top: -7px; box-sizing: border-box; padding: 4px 7px 0;
+    background: linear-gradient(rgba(16, 20, 44, .6), rgba(16, 20, 44, .34));
+    border-color: transparent; box-shadow: none; border-radius: 2px; }
+  .art .sign .no { font-size: 17px; line-height: 1; }
+  .art .sign .ti { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    font-size: 19px; line-height: 1; }
+  .art .sign .me { font-size: 12px; opacity: .9; white-space: nowrap; }
+  .art .sign .in { display: none; }   /* the count shares the secondary row (.me) */
+  .art .sign.compact .ti { -webkit-line-clamp: 1; }
+  .art .sign .ti { text-shadow: 0 0 8px rgba(255, 95, 176, .7); }
+  .art .poster { border-width: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- the camera: everything in the world zooms/pans together (zoom director); speech bubbles stay screen-sized -->
+  <div id="cam">
+    <canvas id="bg" class="layer"></canvas>
+    <img id="bgimg" class="layer" alt="">
+    <div id="world"></div>
+    <img id="glow" class="layer" alt="">
+    <video id="loop" class="layer" muted loop autoplay playsinline></video>
+    <canvas id="mist" class="layer" width="960" height="540"></canvas>
+    <canvas id="rain" class="layer" width="960" height="540"></canvas>
+    <video id="rainfg" class="layer" muted loop autoplay playsinline></video>
+    <canvas id="rain2" class="layer" width="960" height="540"></canvas>
+    <div id="hang"></div>
+    <div id="fx"></div>
+  </div>
+  <div id="bubbles"></div>
+</div>
+<script src="shared/core.js"></script>
+<script src="shared/cinema.js"></script>
+<script src="shared/live.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const h = (tag, cls, text) => {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text != null) el.textContent = text;
+    return el;
+  };
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const q = new URLSearchParams(location.search);
+  // out = pass 1 (islands), out2 = counters on the walls + light loop, out3 = out2 + vehicles + lit_bg,
+  // out4 = out3 + calmer carpet, warm light at the service points, prop loops,
+  // out5 = out4 + vehicle depth slices, brake/indicator lights, lobby cat, tyre spray,
+  // out6 = out5 + separated marquees/posters, wear, door animations, umbrella sprites, janitor, shelter drip,
+  // out7 = out6 + rendered carried items / staff caps, indicator-only lights,
+  // out8 = out7 + the city around the cinema, heavy rain (6 s loop + foreground rain), glass water, arcade play/hiscore, wet prints,
+  // out8b = out8 polished: denser rain, wetter glass, broken reflections, textured alley, no carpet outlines, dry fallback still
+  // out10 = final render of approved draft 13 (layout 3, cloud run 03 Nov 2026); ?artdir=out8b for the previous pack
+  const ART = `roxy3d/${(q.get('artdir') || 'out10').replace(/[^a-z0-9_-]/gi, '')}/`;
+
+  // ---------- iso projection: u runs down-right, v runs down-left, z is up (px) ----------
+  const OX = 900;
+  const OY = 350;
+  const WALL = 170;
+  const LOW = 34;
+  const P = (u, v, z = 0) => [OX + (u - v) * 60, OY + (u + v) * 30 - z];
+  const depth = (u, v) => 1000 + Math.round((u + v) * 100);
+  const EH = 50;              // emote height
+
+  // floor plan (tiles)
+  const G = [3.7, 3.7];       // usher gate (lobby back corner)
+  const J = [1.4, 1.4];       // corridor junction behind the gate
+  // through the gap between the restroom corner (u 3.1, v 3.1) and the snack partition (u 4.4) before turning to J:
+  // the straight line G -> J ran over the corner, so walkers clipped through the restroom wall (owner, 05 Nov)
+  const GATE_OUT = [3.75, 2.45];
+  const DOORS = [             // screens 1-5 -> room index 0-4
+    { wall: 'u', at: 6.4 },   // left wing, wall u = 0, at v (screen 1 is the left-most)
+    { wall: 'u', at: 4.0 },
+    { wall: 'v', at: 4.8 },   // right wing, wall v = 0, at u
+    { wall: 'v', at: 8.2 },
+    { wall: 'v', at: 11.2 },
+  ];
+  const WC_V = 8.3;
+  const QMAX = 6;
+  // Where people queue, buy and get served. The art's manifest says which layout it was rendered for.
+  const LAYOUTS = {
+    1: { // pass-1 art: box office and snack bar as islands in the lobby
+      windows: [{ at: [5.5, 8.38], cashier: 'cashier' }],
+      slot: (i) => [6.1 + i * 0.6, 8.38],
+      snack: [{ at: [9.0, 6.45], clerk: 'clerk' }, { at: [10.0, 6.45], clerk: 'clerk' }, { at: [11.0, 6.45], clerk: 'clerk' }],
+      staff: { cashier: [5.5, 6.55], clerk: [10.0, 4.15], usher: [5.5, 3.75] },
+      toSnack: [[7.6, 8.25], [7.6, 6.6]],
+      fromSnack: [[7.4, 5.4]],
+      toGate: [[7.6, 8.25], [6.6, 5.7]],
+      gateIn: [4.4, 4.4],
+    },
+    2: { // counters against the walls: box office on the u = 3 wall, snack bar on the v = 3 wall
+      windows: [{ at: [4.85, 7.4], cashier: 'cashier' }, { at: [4.85, 6.0], cashier: 'cashier2', opensAt: 3 }],
+      slot: (i) => [5.5 + i * 0.62, 7.4],
+      snack: [{ at: [6.6, 5.05], clerk: 'clerk1' }, { at: [8.2, 5.05], clerk: 'clerk2' }, { at: [9.8, 5.05], clerk: 'clerk3' }],
+      staff: { cashier: [3.45, 7.4], cashier2: [3.45, 6.0], clerk1: [6.6, 3.75], clerk2: [8.2, 3.75], clerk3: [9.8, 3.75], usher: [5.3, 3.8] },
+      toSnack: [[5.8, 5.7]],
+      fromSnack: [[5.4, 5.2]],
+      toGate: [[5.2, 5.4]],
+      gateIn: [4.5, 4.6],
+      // holding spots while the usher checks the one in front: two side by side on the free floor between the
+      // podium and the box office, then by the end of the snack counter (clear of window 2, the usher and the
+      // snack lines; every spot has a straight clear path to the gate)
+      gateSlots: [[4.9, 4.6], [4.55, 4.95], [5.6, 5.0], [5.9, 5.45]],
+      // the lobby bench (footprint u 11.2-12.6, v 6-6.4): its seat faces the street, reached round the arcade
+      bench: { route: [[11.0, 7.0]], seat: [11.9, 6.66] },
+    },
+  };
+  // pass 10: three screens on the right, restroom on the left, red-rope queue lane entered at its far end
+  // Everyone lines up now, so the line snakes: 7 in the lane, then a second row back along the free floor between
+  // the ropes and the glass front (v 8.25), whose head steps in at the lane's open end as places free up.
+  LAYOUTS[3] = { ...LAYOUTS[2], queueEntry: [9.3, 7.4], lane: [5.2, 7.15, 9.25, 7.65], qmax: 14,
+    slot: (i) => (i < 7 ? [5.47 + i * 0.62, 7.4] : [9.0 - (i - 7) * 0.62, 8.25]) };
+  let L = LAYOUTS[1];
+  let windows = [];
+  let snackSpots = [];
+  function useLayout(n) {
+    L = LAYOUTS[n] || LAYOUTS[1];
+    windows = L.windows.map((w) => ({ ...w, cur: null, t: 0 }));
+    snackSpots = L.snack.map((s) => ({ ...s, line: [], t: 0 }));
+  }
+  useLayout(1);
+  const CAP = 40;
+  const HARD_CAP = 55;
+  const JAYWALK = 0.06;   // share of arrivals on foot who walk along the road (and may get run over)
+
+  // ---------- drawing helpers (ctx in stage px) ----------
+  function poly(ctx, pts, fill, stroke, lw = 1.5) {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+  }
+  const quad = (ctx, u0, v0, u1, v1, fill, z = 0, stroke) => poly(ctx, [P(u0, v0, z), P(u1, v0, z), P(u1, v1, z), P(u0, v1, z)], fill, stroke);
+  const faceU = (ctx, v, u0, u1, z0, z1, fill, stroke) => poly(ctx, [P(u0, v, z0), P(u1, v, z0), P(u1, v, z1), P(u0, v, z1)], fill, stroke);
+  const faceV = (ctx, u, v0, v1, z0, z1, fill, stroke) => poly(ctx, [P(u, v0, z0), P(u, v1, z0), P(u, v1, z1), P(u, v0, z1)], fill, stroke);
+  function box(ctx, u0, v0, u1, v1, z0, z1, top, front, side, stroke) {
+    faceU(ctx, v1, u0, u1, z0, z1, front, stroke);
+    faceV(ctx, u1, v0, v1, z0, z1, side, stroke);
+    quad(ctx, u0, v0, u1, v1, top, z1, stroke);
+  }
+  const line = (ctx, a, b, color, w = 2) => {
+    ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+  };
+  function glow(ctx, x, y, r, color) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  function rng(seed) {
+    return () => {
+      seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- static background ----------
+  const bg = $('bg');
+  let scale = 1;
+  // the zoom director magnifies the world up to ZOOM x, so the art resolution is chosen with that headroom
+  const ZOOM = clamp(Number(q.get('zoom')) || 1.85, 1.2, 3);
+  // ?fit=cover: a squarer OBS source (owner, 05 Nov) is filled to its height and the sides are cropped; the wide
+  // shot then centres on the lobby (stage x WIDE_X) as far as the art reaches
+  const FIT_COVER = q.get('fit') === 'cover';
+  const WIDE_X = clamp(Number(q.get('fitx')) || (FIT_COVER ? 1040 : 960), 0, 1920);
+  const view = () => SB.view;   // the part of the stage on screen [x0, y0, x1, y1]
+  const DIRECTOR_ON = q.get('director') !== '0';
+  // ?maxres=<px height> (off by default): never pick art sharper than this output height needs, zoom included
+  // (maxres=1080: the 1080p art and light loop even at 1440p and in zoom-ins; less memory and video decode, softer zooms)
+  const MAXK = q.has('maxres') ? clamp((Number(q.get('maxres')) || 1080) / 1080, 0.5, 4) : Infinity;
+  const dpr = () => Math.min(MAXK, scale * (devicePixelRatio || 1) * (DIRECTOR_ON ? ZOOM : 1));
+
+  function drawSky(ctx) {
+    const g = ctx.createLinearGradient(0, 0, 0, 760);
+    g.addColorStop(0, '#120e2a'); g.addColorStop(0.6, '#2a1c4a'); g.addColorStop(1, '#3a2050');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 1920, 1080);
+    const r = rng(7);
+    for (let i = 0; i < 70; i++) { ctx.fillStyle = `rgba(255,255,255,${0.2 + r() * 0.5})`; ctx.fillRect(r() * 1920, r() * 300, 1.5, 1.5); }
+    // skyline
+    let x = -20;
+    while (x < 1300) {
+      const w = 60 + r() * 120;
+      const top = 120 + r() * 230;
+      ctx.fillStyle = r() < 0.5 ? '#171329' : '#1c1733';
+      ctx.fillRect(x, top, w, 900);
+      for (let wy = top + 14; wy < 640; wy += 22) {
+        for (let wx = x + 10; wx < x + w - 12; wx += 18) {
+          if (r() < 0.16) { ctx.fillStyle = r() < 0.7 ? 'rgba(255,214,140,.55)' : 'rgba(140,220,255,.5)'; ctx.fillRect(wx, wy, 8, 11); }
+        }
+      }
+      x += w + 6 + r() * 20;
+    }
+    // the tower behind the cinema, carrying the video billboard
+    const tg = ctx.createLinearGradient(1250, 0, 1920, 0);
+    tg.addColorStop(0, '#1d1834'); tg.addColorStop(1, '#141026');
+    ctx.fillStyle = tg; ctx.fillRect(1250, 0, 670, 1080);
+    for (let wy = 420; wy < 1080; wy += 26) {
+      for (let wx = 1270; wx < 1910; wx += 22) {
+        if (r() < 0.12) { ctx.fillStyle = 'rgba(255,214,140,.4)'; ctx.fillRect(wx, wy, 9, 12); }
+      }
+    }
+    // billboard frame (the green rect itself is a DOM element on top)
+    ctx.fillStyle = '#0a0812'; ctx.fillRect(1280, 26, 608, 356);
+    ctx.strokeStyle = '#ff5fb0'; ctx.lineWidth = 3; ctx.shadowColor = '#ff2a95'; ctx.shadowBlur = 14;
+    ctx.strokeRect(1284, 30, 600, 348);
+    ctx.strokeStyle = '#7ff7f0'; ctx.shadowColor = '#19e6dc'; ctx.strokeRect(1290, 36, 588, 336);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawStreet(ctx) {
+    // asphalt, wet
+    quad(ctx, -9, 10.6, 19, 13.5, '#1b1d26');
+    const r = rng(11);
+    for (let i = 0; i < 26; i++) {
+      const u = -6 + r() * 22;
+      const v = 10.9 + r() * 2.2;
+      const [x, y] = P(u, v);
+      ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.5);
+      glow(ctx, 0, 0, 30 + r() * 40, 'rgba(120,160,255,.10)');
+      ctx.restore();
+    }
+    for (let u = -8; u < 19; u += 1.4) quad(ctx, u, 11.95, u + 0.7, 12.05, 'rgba(240,220,140,.55)');
+    // curb + sidewalk
+    quad(ctx, -9, 10.5, 19, 10.62, '#6c6f7c');
+    quad(ctx, -9, 9.15, 19, 10.5, '#3f414d');
+    for (let u = -9; u < 19; u += 1) line(ctx, P(u, 9.15), P(u, 10.5), 'rgba(0,0,0,.25)', 1);
+    line(ctx, P(-9, 9.82), P(19, 9.82), 'rgba(0,0,0,.18)', 1);
+    // neon spill from the lobby onto the wet sidewalk
+    for (const u of [5, 9.5, 12]) {
+      const [x, y] = P(u, 9.9);
+      ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.45);
+      glow(ctx, 0, 0, 120, 'rgba(255,95,176,.16)');
+      ctx.restore();
+    }
+  }
+
+  function drawBuilding(ctx) {
+    // floor slab edge (front)
+    poly(ctx, [P(0, 9), P(13, 9), P(13, 9, -10), P(0, 9, -10)], '#0d0b16');
+    poly(ctx, [P(13, 0), P(13, 9), P(13, 9, -10), P(13, 0, -10)], '#120f1e');
+    // corridors: navy carpet
+    quad(ctx, 0, 0, 3, 9, '#262c4c');
+    quad(ctx, 3, 0, 13, 3, '#262c4c');
+    line(ctx, P(1.4, 1.4), P(1.4, 9), 'rgba(127,247,240,.10)', 14);
+    line(ctx, P(1.4, 1.4), P(13, 1.4), 'rgba(127,247,240,.10)', 14);
+    // lobby: purple confetti carpet
+    quad(ctx, 3, 3, 13, 9, '#3b2452');
+    const r = rng(3);
+    const cols = ['#ff5fb0', '#7ff7f0', '#ffd75a', '#9b7bff'];
+    for (let i = 0; i < 520; i++) {
+      const u = 3.1 + r() * 9.8;
+      const v = 3.1 + r() * 5.8;
+      const [x, y] = P(u, v);
+      ctx.fillStyle = cols[i % 4];
+      ctx.globalAlpha = 0.35;
+      if (i % 3 === 0) { ctx.fillRect(x - 3, y - 1, 6, 2); } else if (i % 3 === 1) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill(); } else { ctx.fillRect(x - 1, y - 3, 2, 6); }
+    }
+    ctx.globalAlpha = 1;
+    // back walls
+    const wl = ctx.createLinearGradient(0, 130, 0, 640);
+    wl.addColorStop(0, '#2c1d47'); wl.addColorStop(1, '#3d2860');
+    faceV(ctx, 0, 0, 9, 0, WALL, wl);
+    const wr = ctx.createLinearGradient(0, 180, 0, 740);
+    wr.addColorStop(0, '#35225a'); wr.addColorStop(1, '#4a3070');
+    faceU(ctx, 0, 0, 13, 0, WALL, wr);
+    // wainscot + neon stripes
+    faceV(ctx, 0, 0, 9, 0, 44, '#1a1228');
+    faceU(ctx, 0, 0, 13, 0, 44, '#1d142e');
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#ff2a95'; line(ctx, P(0, 9, 150), P(0, 0, 150), '#ff7cc0', 3); line(ctx, P(0, 0, 150), P(13, 0, 150), '#ff7cc0', 3);
+    ctx.shadowColor = '#19e6dc'; line(ctx, P(0, 9, 46), P(0, 0, 46), '#7ff7f0', 2); line(ctx, P(0, 0, 46), P(13, 0, 46), '#7ff7f0', 2);
+    ctx.shadowBlur = 0;
+    // wall tops
+    poly(ctx, [P(0, 9, WALL), P(0, 0, WALL), P(-0.25, -0.25, WALL), P(-0.25, 9, WALL)], '#140f22');
+    poly(ctx, [P(0, 0, WALL), P(13, 0, WALL), P(13, -0.25, WALL), P(-0.25, -0.25, WALL)], '#140f22');
+    // screen doors
+    DOORS.forEach((d) => drawDoor(ctx, d.wall, d.at));
+    // WC door
+    faceV(ctx, 0, WC_V - 0.4, WC_V + 0.4, 0, 104, '#5d6a8c', 'rgba(0,0,0,.5)');
+    faceV(ctx, 0, WC_V - 0.32, WC_V + 0.32, 0, 98, '#7584a8');
+    const [kx, ky] = P(0, WC_V - 0.2, 50);
+    ctx.fillStyle = '#d8deea'; ctx.fillRect(kx - 2, ky - 2, 4, 4);
+  }
+
+  function drawDoor(ctx, wall, at) {
+    const f = wall === 'u' ? (a, b, z0, z1, fill, s) => faceV(ctx, 0, a, b, z0, z1, fill, s) : (a, b, z0, z1, fill, s) => faceU(ctx, 0, a, b, z0, z1, fill, s);
+    const pt = wall === 'u' ? (o, z) => P(0, at + o, z) : (o, z) => P(at + o, 0, z);
+    f(at - 0.55, at + 0.55, 0, 114, '#8b9099', 'rgba(0,0,0,.6)');
+    f(at - 0.47, at - 0.01, 0, 108, '#7a1c2c', 'rgba(0,0,0,.5)');
+    f(at + 0.01, at + 0.47, 0, 108, '#7a1c2c', 'rgba(0,0,0,.5)');
+    // padded diamond stitching + portholes
+    for (const s of [-1, 1]) {
+      const [x, y] = pt(s * 0.24, 78);
+      ctx.beginPath(); ctx.ellipse(x, y, 8, 9, 0, 0, 7); ctx.fillStyle = '#ffd98a'; ctx.fill();
+      ctx.strokeStyle = '#c0c4cc'; ctx.lineWidth = 2; ctx.stroke();
+      glow(ctx, x, y, 22, 'rgba(255,200,120,.25)');
+      const [hx, hy] = pt(s * 0.06, 50);
+      ctx.fillStyle = '#d6d9e0'; ctx.fillRect(hx - 1.5, hy - 8, 3, 16);
+    }
+    // light leaking under the door
+    const [lx, ly] = pt(0, 0);
+    ctx.save(); ctx.translate(lx, ly + 4); ctx.scale(1, 0.35); glow(ctx, 0, 0, 60, 'rgba(255,190,120,.30)'); ctx.restore();
+  }
+
+  function redrawBg() {
+    const k = dpr();
+    bg.width = Math.round(1920 * k);
+    bg.height = Math.round(1080 * k);
+    bg.style.width = '1920px';
+    bg.style.height = '1080px';
+    const ctx = bg.getContext('2d');
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    drawSky(ctx);
+    drawStreet(ctx);
+    drawBuilding(ctx);
+  }
+
+  // ---------- props: depth-sorted pieces of scenery that walkers can pass behind ----------
+  // Each prop paints its whole art; it is cut into <= 1x1 tile chunks, each its own canvas clipped
+  // to its chunk and z-sorted on its own, so walkers sort correctly against long props.
+  const world = $('world');
+  const props = [];
+  function addProp(u0, v0, u1, v1, hgt, paint) {
+    const nu = Math.max(1, Math.ceil((u1 - u0) - 0.01));
+    const nv = Math.max(1, Math.ceil((v1 - v0) - 0.01));
+    for (let i = 0; i < nu; i++) {
+      for (let j = 0; j < nv; j++) {
+        const a = u0 + ((u1 - u0) * i) / nu;
+        const b = u0 + ((u1 - u0) * (i + 1)) / nu;
+        const c = v0 + ((v1 - v0) * j) / nv;
+        const d = v0 + ((v1 - v0) * (j + 1)) / nv;
+        const hull = [P(a, c, hgt), P(b, c, hgt), P(b, c, 0), P(b, d, 0), P(a, d, 0), P(a, d, hgt)];
+        const cx = hull.reduce((s, p) => s + p[0], 0) / 6;
+        const cy = hull.reduce((s, p) => s + p[1], 0) / 6;
+        const grown = hull.map(([x, y]) => { const l = Math.hypot(x - cx, y - cy) || 1; return [x + ((x - cx) / l) * 0.8, y + ((y - cy) / l) * 0.8]; });
+        const xs = grown.map((p) => p[0]);
+        const ys = grown.map((p) => p[1]);
+        const bx = Math.floor(Math.min(...xs)) - 1;
+        const by = Math.floor(Math.min(...ys)) - 1;
+        const bw = Math.ceil(Math.max(...xs)) + 1 - bx;
+        const bh = Math.ceil(Math.max(...ys)) + 1 - by;
+        const cv = h('canvas', 'prop');
+        Object.assign(cv.style, { left: `${bx}px`, top: `${by}px`, width: `${bw}px`, height: `${bh}px`, zIndex: String(depth((a + b) / 2, (c + d) / 2)) });
+        world.append(cv);
+        props.push({ cv, hull: grown, bx, by, bw, bh, paint });
+      }
+    }
+  }
+  function redrawProps() {
+    const k = dpr();
+    for (const p of props) {
+      p.cv.width = Math.max(1, Math.round(p.bw * k));
+      p.cv.height = Math.max(1, Math.round(p.bh * k));
+      const ctx = p.cv.getContext('2d');
+      ctx.setTransform(k, 0, 0, k, -p.bx * k, -p.by * k);
+      ctx.save();
+      poly(ctx, p.hull);
+      ctx.clip();
+      p.paint(ctx);
+      ctx.restore();
+    }
+  }
+
+  function buildProps() {
+    // partition between lobby and corridors (cut down low), opening at the back corner
+    const part = (ctx, u0, v0, u1, v1) => box(ctx, u0, v0, u1, v1, 0, LOW, '#ff7cc0', '#2a1c40', '#24183a');
+    addProp(2.9, 4.4, 3.1, 9, LOW, (ctx) => part(ctx, 2.9, 4.4, 3.1, 9));
+    addProp(4.4, 2.9, 13, 3.1, LOW, (ctx) => part(ctx, 4.4, 2.9, 13, 3.1));
+    // building front: left wing end wall + glass storefront (low) with the door gap
+    addProp(0, 8.9, 3, 9.05, LOW, (ctx) => box(ctx, 0, 8.9, 3, 9.05, 0, LOW, '#ff7cc0', '#24183a', '#20162f'));
+    const glass = (ctx, u0, u1) => {
+      box(ctx, u0, 8.95, u1, 9.05, 0, 30, 'rgba(190,240,255,.55)', 'rgba(127,247,240,.18)', 'rgba(127,247,240,.22)');
+      line(ctx, P(u0, 9.05, 30), P(u1, 9.05, 30), '#bfefff', 2);
+    };
+    addProp(3, 8.95, 8.4, 9.05, 30, (ctx) => glass(ctx, 3, 8.4));
+    addProp(10.6, 8.95, 13, 9.05, 30, (ctx) => glass(ctx, 10.6, 13));
+    for (const u of [8.4, 10.6]) addProp(u - 0.07, 8.93, u + 0.07, 9.07, 60, (ctx) => box(ctx, u - 0.07, 8.93, u + 0.07, 9.07, 0, 60, '#dfe6f0', '#9aa3b4', '#c0c8d6'));
+
+    // box office counter + cashier glass
+    addProp(4, 7, 7, 7.8, 84, (ctx) => {
+      box(ctx, 4, 7, 7, 7.8, 0, 42, '#7d7896', '#141022', '#1b1530');
+      line(ctx, P(4, 7.8, 30), P(7, 7.8, 30), '#7ff7f0', 3);
+      line(ctx, P(7, 7, 30), P(7, 7.8, 30), '#7ff7f0', 3);
+      box(ctx, 4.05, 7.02, 6.95, 7.12, 42, 84, 'rgba(200,245,255,.6)', 'rgba(127,247,240,.16)', 'rgba(127,247,240,.2)');
+      for (const u of [4.8, 6.2]) { const [x, y] = P(u, 7.12, 50); ctx.fillStyle = 'rgba(10,8,20,.75)'; ctx.fillRect(x - 12, y - 4, 24, 8); }
+    });
+    // snack island + popcorn machine
+    addProp(8.2, 4.6, 11.8, 6.0, 100, (ctx) => {
+      box(ctx, 8.2, 4.6, 11.8, 6.0, 0, 42, '#8a84a6', '#1b1530', '#211938');
+      line(ctx, P(8.2, 6.0, 30), P(11.8, 6.0, 30), '#ff5fb0', 3);
+      line(ctx, P(11.8, 4.6, 30), P(11.8, 6.0, 30), '#ff5fb0', 3);
+      box(ctx, 9.6, 4.9, 10.4, 5.5, 42, 100, 'rgba(255,240,170,.9)', 'rgba(255,214,90,.55)', 'rgba(255,200,70,.45)', '#c21a3a');
+      quad(ctx, 9.62, 4.92, 10.38, 5.48, '#ffd75a', 64);
+      box(ctx, 9.6, 4.9, 10.4, 5.5, 100, 108, '#c21a3a', '#9a1430', '#b0183a');
+      const [gx, gy] = P(10, 5.5, 70); glow(ctx, gx, gy, 50, 'rgba(255,214,90,.35)');
+      box(ctx, 8.5, 4.9, 9.1, 5.4, 42, 66, '#3a3a50', '#26263a', '#30304a');   // soda fountain
+      box(ctx, 10.9, 4.9, 11.5, 5.4, 42, 56, '#ffb3cf', '#e07aa6', '#f090b8'); // candy case
+    });
+    // usher podium
+    addProp(4.6, 3.5, 5.1, 4.0, 46, (ctx) => {
+      box(ctx, 4.6, 3.5, 5.1, 4.0, 0, 40, '#7ff7f0', '#1b1530', '#211938');
+      const [x, y] = P(4.85, 3.75, 46); glow(ctx, x, y, 18, 'rgba(127,247,240,.6)');
+    });
+    // bench against the partition
+    addProp(6.4, 3.25, 7.9, 3.75, 18, (ctx) => box(ctx, 6.4, 3.25, 7.9, 3.75, 0, 16, '#5a4a7a', '#2a2040', '#33284d'));
+    // arcade cabinet
+    addProp(12.0, 7.5, 12.7, 8.2, 82, (ctx) => {
+      box(ctx, 12.0, 7.5, 12.7, 8.2, 0, 82, '#2b2b4a', '#1c1c33', '#23233e');
+      faceV(ctx, 12.7, 7.6, 8.1, 44, 70, '#4b6bff');
+      const [x, y] = P(12.7, 7.85, 57); glow(ctx, x, y, 34, 'rgba(90,120,255,.5)');
+    });
+    // cardboard standees
+    const standee = (u, v, a, b2) => addProp(u, v, u + 0.42, v + 0.06, 92, (ctx) => {
+      const g = ctx.createLinearGradient(...P(u, v + 0.06, 0), ...P(u, v + 0.06, 92));
+      g.addColorStop(0, a); g.addColorStop(1, b2);
+      faceU(ctx, v + 0.06, u, u + 0.42, 0, 92, g, '#0b0812');
+      box(ctx, u - 0.05, v - 0.08, u + 0.47, v + 0.14, 0, 6, '#222', '#111', '#181818');
+    });
+    standee(12.2, 5.0, '#141a3a', '#e84a8a');
+    standee(6.0, 6.3, '#1a1030', '#4ae0d8');
+    // bus stop shelter on the sidewalk
+    addProp(0.4, 9.3, 2.0, 9.55, 86, (ctx) => {
+      faceU(ctx, 9.42, 0.45, 1.95, 4, 80, 'rgba(160,210,255,.18)', 'rgba(220,240,255,.6)');
+      box(ctx, 0.35, 9.25, 2.05, 9.6, 80, 86, '#4a5a7a', '#2c3850', '#36445f');
+      for (const u of [0.45, 1.95]) line(ctx, P(u, 9.5, 0), P(u, 9.5, 80), '#9aa3b4', 3);
+      ctx.fillStyle = '#ffd75a'; ctx.font = "400 16px 'Bebas Neue', sans-serif"; ctx.textAlign = 'center';
+      const [x, y] = P(1.2, 9.6, 90); ctx.fillText('BUS 95', x, y);
+    });
+    // street lamp
+    addProp(5.0, 10.3, 5.15, 10.45, 190, (ctx) => {
+      line(ctx, P(5.07, 10.37, 0), P(5.07, 10.37, 180), '#2a2d36', 5);
+      const [x, y] = P(5.07, 10.37, 182);
+      glow(ctx, x, y, 60, 'rgba(255,214,150,.45)');
+      ctx.fillStyle = '#ffe9b8'; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill();
+    });
+    // ROXY blade sign on the front corner
+    addProp(-0.75, 9.1, -0.05, 9.3, 310, (ctx) => {
+      box(ctx, -0.75, 9.1, -0.05, 9.3, 110, 300, '#1a1228', '#140e20', '#1d1430', 'rgba(255,124,192,.8)');
+      ctx.save();
+      ctx.font = "400 40px 'Bebas Neue', sans-serif"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffe6f4';
+      ctx.shadowColor = '#ff2a95'; ctx.shadowBlur = 16;
+      'ROXY'.split('').forEach((ch, i) => { const [x, y] = P(-0.4, 9.3, 270 - i * 44); ctx.fillText(ch, x, y + 6); });
+      ctx.restore();
+    });
+  }
+
+  // ---------- door signs, posters, hanging signs ----------
+  const hang = $('hang');
+  const signs = DOORS.map((d, i) => {
+    const el = h('div', 'sign');
+    const no = h('div', 'no', `SCREEN ${i + 1}`);
+    const ti = h('div', 'ti', '...');
+    const me = h('div', 'me', '');
+    const inn = h('div', 'in', '');
+    el.append(no, ti, me, inn);
+    const [x, y] = d.wall === 'u' ? P(0, d.at, 124) : P(d.at, 0, 124);
+    el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+    // overlapping signs: the one nearer the camera (screen 1 over screen 2) is on top
+    el.style.zIndex = String(600 + Math.round(d.at * 10));
+    world.append(el);
+    // poster beside the door, flat on the wall plane
+    const po = h('div', 'poster');
+    const ph = h('div', 'ph', '');
+    const img = h('img');
+    img.alt = '';
+    img.onerror = () => { img.style.display = 'none'; img.dataset.failed = '1'; };
+    po.append(ph, img);
+    po.style.zIndex = '500';
+    const W = 0.8;
+    if (d.wall === 'u') {
+      const [x0, y0] = P(0, d.at - 0.75, 128);
+      po.style.transform = `matrix(${(W * 60) / 100}, ${(-W * 30) / 100}, 0, ${105 / 150}, ${x0}, ${y0})`;
+    } else {
+      const [x0, y0] = P(d.at + 0.75, 0, 128);
+      po.style.transform = `matrix(${(W * 60) / 100}, ${(W * 30) / 100}, 0, ${105 / 150}, ${x0}, ${y0})`;
+    }
+    world.append(po);
+    return { el, ti, me, inn, img, ph, count: 0 };
+  });
+  function hangSign(u, v, z, el) {
+    const wrap = h('div', 'hsign');
+    wrap.append(el);
+    const [x, y] = P(u, v, z);
+    wrap.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+    hang.append(wrap);
+    return wrap;
+  }
+  // signs the pre-rendered art already has baked in (hidden when it loads)
+  const menu = h('div', 'menu');
+  menu.innerHTML = '<b>SNACK BAR</b><span>Popcorn</span>$4.50<br><span>Soda</span>$2.75<br><span>Nachos</span>$3.25';
+  const flatSigns = [
+    hangSign(5.5, 7.4, 112, h('div', 'neon', 'TICKETS')),
+    hangSign(10.0, 5.3, 150, menu),
+    hangSign(3.2, 3.2, 178, h('div', 'gate', '◀ 1-2   ·   3-5 ▶')),
+  ];
+  const wcSign = h('div', 'wcsign', 'RESTROOM · VACANT');
+  const wcWrap = hangSign(0, WC_V, 132, wcSign);
+  let wcLabel = 'RESTROOM · ';
+
+  function signMeta(s) {
+    s.me.textContent = [s.detail, s.count ? `${s.count} in` : ''].filter(Boolean).join('  ·  ');
+  }
+
+  // ---------- LED dot-matrix door signs (art manifest led_signs): film title in amber, score in red ----------
+  // The housings and their unlit dots are in the render; the page lights the dots, on the wall plane, and
+  // scrolls a title that is wider than the sign (with a short pause at the start of every pass).
+  const FONT = {
+    A: '.###.|#...#|#...#|#####|#...#|#...#|#...#', B: '####.|#...#|#...#|####.|#...#|#...#|####.',
+    C: '.###.|#...#|#....|#....|#....|#...#|.###.', D: '####.|#...#|#...#|#...#|#...#|#...#|####.',
+    E: '#####|#....|#....|####.|#....|#....|#####', F: '#####|#....|#....|####.|#....|#....|#....',
+    G: '.###.|#...#|#....|#.###|#...#|#...#|.####', H: '#...#|#...#|#...#|#####|#...#|#...#|#...#',
+    I: '.###.|..#..|..#..|..#..|..#..|..#..|.###.', J: '..###|...#.|...#.|...#.|...#.|#..#.|.##..',
+    K: '#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#', L: '#....|#....|#....|#....|#....|#....|#####',
+    M: '#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#', N: '#...#|#...#|##..#|#.#.#|#..##|#...#|#...#',
+    O: '.###.|#...#|#...#|#...#|#...#|#...#|.###.', P: '####.|#...#|#...#|####.|#....|#....|#....',
+    Q: '.###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#', R: '####.|#...#|#...#|####.|#.#..|#..#.|#...#',
+    S: '.####|#....|#....|.###.|....#|....#|####.', T: '#####|..#..|..#..|..#..|..#..|..#..|..#..',
+    U: '#...#|#...#|#...#|#...#|#...#|#...#|.###.', V: '#...#|#...#|#...#|#...#|#...#|.#.#.|..#..',
+    W: '#...#|#...#|#...#|#.#.#|#.#.#|#.#.#|.#.#.', X: '#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#',
+    Y: '#...#|#...#|.#.#.|..#..|..#..|..#..|..#..', Z: '#####|....#|...#.|..#..|.#...|#....|#####',
+    0: '.###.|#...#|#..##|#.#.#|##..#|#...#|.###.', 1: '..#..|.##..|..#..|..#..|..#..|..#..|.###.',
+    2: '.###.|#...#|....#|...#.|..#..|.#...|#####', 3: '####.|....#|....#|.###.|....#|....#|####.',
+    4: '...#.|..##.|.#.#.|#..#.|#####|...#.|...#.', 5: '#####|#....|####.|....#|....#|#...#|.###.',
+    6: '..##.|.#...|#....|####.|#...#|#...#|.###.', 7: '#####|....#|...#.|..#..|.#...|.#...|.#...',
+    8: '.###.|#...#|#...#|.###.|#...#|#...#|.###.', 9: '.###.|#...#|#...#|.####|....#|...#.|.##..',
+    ' ': '...|...|...|...|...|...|...', '.': '..|..|..|..|..|##|##', ',': '..|..|..|..|##|.#|#.',
+    ':': '..|##|##|..|##|##|..', '!': '#|#|#|#|#|.|#', "'": '#|#|.|.|.|.|.', '"': '#.#|#.#|...|...|...|...|...',
+    '?': '.###.|#...#|....#|...#.|..#..|.....|..#..', '-': '....|....|....|####|....|....|....',
+    '&': '.##..|#..#.|#.#..|.#...|#.#.#|#..#.|.##.#', '/': '....#|....#|...#.|..#..|.#...|#....|#....',
+    '(': '..#|.#.|#..|#..|#..|.#.|..#', ')': '#..|.#.|..#|..#|..#|.#.|#..', '+': '.....|..#..|..#..|#####|..#..|..#..|.....',
+    '★': '..#..|..#..|#####|.###.|.#.#.|#...#|.....', '·': '...|...|...|.#.|...|...|...',
+  };
+  const glyphs = {};
+  for (const [ch, rows] of Object.entries(FONT)) {
+    const r = rows.split('|');
+    glyphs[ch] = Array.from({ length: r[0].length }, (_, x) => r.reduce((m, row, y) => m | (row[x] === '#' ? 1 << y : 0), 0));
+  }
+  // text -> column bitmasks (bit y = dot row y of 7), one dark column between characters
+  function textCols(text) {
+    const out = [];
+    const up = String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+    for (const ch of up) {
+      const g = glyphs[ch] || glyphs[ch === '*' ? '★' : '?'];
+      if (out.length) out.push(0);
+      out.push(...g);
+    }
+    return out;
+  }
+  const LED_S = 6;   // canvas px per dot: crisp at 4K and when the camera zooms in
+  const dotSprite = (core, glow) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = LED_S * 3;
+    const g = c.getContext('2d');
+    const r = g.createRadialGradient(LED_S * 1.5, LED_S * 1.5, 0, LED_S * 1.5, LED_S * 1.5, LED_S * 1.5);
+    r.addColorStop(0, core); r.addColorStop(0.22, glow); r.addColorStop(0.36, glow.replace(/[\d.]+\)$/, '.35)')); r.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, LED_S * 3, LED_S * 3);
+    return c;
+  };
+  const LED_AMBER = dotSprite('#fff4cf', 'rgba(255, 168, 40, 1)');
+  const LED_RED = dotSprite('#ffd9cc', 'rgba(255, 52, 30, 1)');
+  const leds = [];
+  function makeLed(spec) {
+    const [a0, a1] = spec.along;
+    const [z0, z1] = spec.z_px;
+    const len = a1 - a0;
+    const pitch = Number(spec.dot_pitch_px) || 3;
+    const cols = Math.max(8, Math.round(Number(spec.cols) || (len * 67.08) / pitch));
+    const rows = Math.max(16, Math.round((z1 - z0) / pitch));
+    const cv = h('canvas', 'led');
+    cv.width = cols * LED_S;
+    cv.height = rows * LED_S;
+    const off = Number(spec.offset) || 0;
+    const [x0, y0] = spec.wall === 'u0' ? P(off, a1, z1) : P(a0, off, z1);
+    const b = (spec.wall === 'u0' ? -1 : 1) * (len * 30) / cv.width;
+    Object.assign(cv.style, { position: 'absolute', left: '0', top: '0', transformOrigin: '0 0', zIndex: '901', mixBlendMode: 'plus-lighter',
+      transform: `matrix(${(len * 60) / cv.width}, ${b}, 0, ${(z1 - z0) / cv.height}, ${x0}, ${y0})` });
+    world.append(cv);
+    // first dot row of each text line: from the rendered dot field (rows_px, top edge in px) when given
+    const top = Math.floor((rows - 15) / 2);
+    const rowTop = Array.isArray(spec.rows_px) && spec.rows_px.length >= 2 && spec.rows_px.every((r) => Number.isFinite(r?.[0]))
+      ? spec.rows_px.map((r) => Math.round((z1 - r[0]) / pitch)) : [top, top + 8];
+    return { door: spec.door, cv, g: cv.getContext('2d'), cols, rows, rowTop, key: '', lines: ['', ''], data: [[], []] };
+  }
+  function stepLeds(t) {
+    for (const l of leds) {
+      const s = signs[l.door - 1];
+      if (!s) continue;
+      const lines = [s.ti.textContent, s.me.textContent.replace(/\s*·\s*/g, ' · ')];
+      if (lines[0] !== l.lines[0] || lines[1] !== l.lines[1]) { l.lines = lines; l.data = lines.map(textCols); }
+      // each row: centred when it fits, else scrolling right-to-left with a pause at the start
+      const offs = l.data.map((d) => {
+        if (d.length <= l.cols) return -Math.floor((l.cols - d.length) / 2);
+        const loop = d.length + 10;
+        const phase = Math.floor(t / 75) % (loop + 18);
+        return Math.max(0, phase - 18);
+      });
+      const key = `${l.lines.join('|')}|${offs.join(',')}`;
+      if (key === l.key) continue;
+      l.key = key;
+      const g = l.g;
+      g.clearRect(0, 0, l.cv.width, l.cv.height);
+      l.data.forEach((d, row) => {
+        const sprite = row ? LED_RED : LED_AMBER;
+        const y0 = l.rowTop[row];
+        const loop = d.length + 10;
+        for (let c = 0; c < l.cols; c++) {
+          let i = c + offs[row];
+          if (d.length > l.cols) i %= loop;
+          const bits = i >= 0 && i < d.length ? d[i] : 0;
+          if (!bits) continue;
+          for (let y = 0; y < 7; y++) if (bits & (1 << y)) g.drawImage(sprite, (c - 1) * LED_S, (y0 + y - 1) * LED_S);
+        }
+      });
+    }
+  }
+
+  // restroom occupancy light (art manifest wc_indicator): red OCCUPIED / green VACANT beside the door
+  let wcLights = null;
+  function makeWcLights(spec) {
+    const mk = (s) => {
+      const im = h('img', 'prop');
+      im.alt = '';
+      Object.assign(im.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${s.w}px`, height: `${s.h}px`, zIndex: String(s.z_index ?? 902) });
+      if (s.blend === 'plus-lighter' || spec.blend === 'plus-lighter') im.style.mixBlendMode = 'plus-lighter';
+      setImg(im, s.file, s.file_2x, dpr() > 1.3, () => { im.style.display = 'none'; });
+      world.append(im);
+      return im;
+    };
+    wcLights = { vacant: mk(spec.vacant), occupied: mk(spec.occupied) };
+  }
+
+  // chasing bulbs round the posters: idle most of the time, a chase when someone goes into that screen
+  // and now and then on its own
+  const chaseUntil = {};
+  let nextChase = performance.now() + rand(15000, 30000);
+  const bulbKind = (name) => /poster_bulbs_(\d+)_(idle|chase)/i.exec(name || '');
+
+  // ---------- rooms (dinkdonk) ----------
+  let rooms = [];
+  function applyRooms(list) {
+    list.forEach((r, i) => {
+      const s = signs[i];
+      if (!s) return;
+      const title = r.title || `Screen ${i + 1}`;
+      // a different film on this screen starts its own count
+      if (s.ti.textContent !== title) s.count = 0;
+      s.ti.textContent = title;
+      // number + title carry the sign; one secondary row: the DinkDonk rating (else the year) + the count
+      s.detail = r.rating != null ? `★ ${Number(r.rating).toFixed(1)}` : String(r.year || '');
+      signMeta(s);
+      s.ph.textContent = r.title || '';
+      // a failed poster is retried on the next data refresh (every 2 min); an unchanged good one stays
+      if (r.poster) {
+        if (s.img.dataset.src !== r.poster || s.img.dataset.failed) { s.img.dataset.failed = ''; s.img.dataset.src = r.poster; s.img.src = r.poster; }
+        s.img.style.display = s.img.dataset.failed ? 'none' : '';
+      } else {
+        s.img.style.display = 'none';
+      }
+    });
+  }
+  Cinema.onRooms((list) => {
+    rooms = list;
+    applyRooms(list);
+  });
+
+  // ---------- walkers ----------
+  const walkers = new Map();   // lowercase nick -> their current walker
+  const figures = new Set();   // every walker on screen, incl. ones finishing a door/purge (insertion order = age)
+  const queue = [];
+  const bubOrder = [];
+  const bubLayer = $('bubbles');
+  const fx = $('fx');
+  let wcBusy = null;
+  let arcadeBusy = null;
+  let arcadeHiUntil = 0;
+  const arrivals = {};               // side -> recent arrival times (staggering)
+  const ARCADE = [12.95, 7.85];      // player spot in front of the cabinet's screen
+
+  function splash(u, v) {
+    const el = h('div', 'splash');
+    const [x, y] = P(u, v);
+    el.style.zIndex = String(depth(u, v) - 1);
+    world.append(el);
+    el.animate([
+      { transform: `translate(${x}px, ${y}px) scale(.25)`, opacity: 1 },
+      { transform: `translate(${x}px, ${y}px) scale(1.1)`, opacity: 0 },
+    ], { duration: 480, easing: 'ease-out' }).onfinish = () => el.remove();
+  }
+  // wet prints on the lobby floor behind people who just came in out of the rain; they dry in ~7 s
+  const prints = [];
+  function wetPrint(u, v) {
+    const it = ITEMS?.wet_print;
+    let el;
+    if (it?.file && Array.isArray(it.anchor)) {
+      el = h('img', 'item');
+      el.alt = '';
+      setImg(el, it.file, it.file_2x, dpr() > 1.3, () => el.remove());
+      Object.assign(el.style, { width: `${it.w}px`, height: `${it.h}px`, marginLeft: `${-it.anchor[0]}px`, marginTop: `${-it.anchor[1]}px` });
+    } else el = h('div', 'wetprint');
+    const [x, y] = P(u + rand(-0.06, 0.06), v + rand(-0.06, 0.06));
+    el.style.left = `${x.toFixed(1)}px`;
+    el.style.top = `${y.toFixed(1)}px`;
+    el.style.zIndex = String(depth(u, v) - 2);
+    world.append(el);
+    prints.push(el);
+    while (prints.length > 30) prints.shift().remove();   // never pile up, even if animations stall
+    el.animate([{ opacity: 0.95 }, { opacity: 0.95, offset: 0.3 }, { opacity: 0 }], { duration: 7000, easing: 'ease-in' }).onfinish = () => {
+      el.remove();
+      const i = prints.indexOf(el);
+      if (i >= 0) prints.splice(i, 1);
+    };
+  }
+  let combo = { emote: null, until: 0, start: 0 };
+
+  // A cdn.destiny.gg emote image that fails to load (a burst of arrivals can make some time out) left the chatter
+  // blank for good: Chrome keeps a failed CSS background broken for every element of that emote. As in the
+  // auditorium: check the image, show "?" meanwhile, retry after 5-300 s, never remember a failure, and once it
+  // loads set an inline copy of the same url, which Chrome fetches afresh.
+  const emoteChecks = new Map();
+  const failedEmotes = new Set();
+  function emoteLoads(src) {
+    if (!emoteChecks.has(src)) {
+      if (emoteChecks.size >= 256) emoteChecks.delete(emoteChecks.keys().next().value);
+      const p = new Promise((resolve) => {
+        const im = new Image();
+        const done = (ok) => { clearTimeout(timer); im.onload = im.onerror = null; resolve(ok); };
+        const timer = setTimeout(() => done(false), 12000);
+        im.onload = () => done(true);
+        im.onerror = () => done(false);
+        im.src = src;
+      });
+      p.then((ok) => { if (!ok && emoteChecks.get(src) === p) emoteChecks.delete(src); });
+      emoteChecks.set(src, p);
+    }
+    return emoteChecks.get(src);
+  }
+  function checkEmote(box, tries = 0, sprite = box.firstElementChild,
+    src = sprite && getComputedStyle(sprite).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1]) {
+    if (!src) return;   // no emote CSS: core already shows the name as text
+    emoteLoads(src).then((ok) => {
+      if (!box.isConnected) return;   // emote changed or the chatter left
+      if (ok) {
+        if (failedEmotes.has(src)) sprite.style.backgroundImage = `url("${src}")`;
+        if (box.firstElementChild !== sprite) box.replaceChildren(sprite);
+        return;
+      }
+      failedEmotes.add(src);
+      if (box.firstElementChild === sprite) {
+        const q = h('span', 'sb-emote-text', '?');
+        Object.assign(q.style, { width: box.style.width, height: box.style.height, lineHeight: box.style.height,
+          fontSize: `${parseFloat(box.style.height) * 0.55}px`, textAlign: 'center', padding: '0' });
+        box.replaceChildren(q);
+      }
+      if (tries < 6) setTimeout(() => checkEmote(box, tries + 1, sprite, src), [5, 15, 30, 60, 120, 300][tries] * 1000);
+    });
+  }
+  function setEmote(w, name) {
+    if (w.emName === name) return;
+    w.emName = name;
+    w.em?.remove();
+    // wide emotes (wings, banners) are fitted into a max width so they don't dwarf everyone else
+    const MAXW = 74;
+    const { w: ew, h: eh } = SB.emoteSize(name);
+    const e = SB.emoteEl(name, Math.min(EH, MAXW * eh / ew));   // fits both max height and max width
+    e.classList.add('em');
+    e.style.left = `${-Number(e.dataset.w) / 2}px`;
+    w.bod.prepend(e);
+    w.em = e;
+    checkEmote(e);
+    // contact shadow sized to the emote's footprint
+    const sw = clamp(Number(e.dataset.w) * 0.8, 24, 52);
+    if (w.sh) Object.assign(w.sh.style, { width: `${sw}px`, left: `${-sw / 2}px` });
+    if (w.carry) placeItem(w, w.carry, 'carry');
+    if (w.stub) placeItem(w, w.stub, 'stub');
+    if (w.cap) placeItem(w, w.cap, 'cap');
+  }
+
+  function makeFigure(nick, emote, color, staff) {
+    const el = h('div', `w${staff ? ' staff' : ''}`);
+    const sh = h('div', 'sh');
+    const bod = h('div', 'bod');
+    const nm = h('div', 'nm', nick);
+    nm.style.color = color || SB.nickColor(nick);
+    el.append(sh, bod, nm);
+    world.append(el);
+    const w = { nick, el, sh, bod, nm, em: null, emName: null, u: 0, v: 0, alpha: 1, alphaT: 1, phase: Math.random() * 6, hopN: 0,
+      idle: 0, plan: [], room: 0, detour: null, hurry: false, inQueue: false, qi: -1, entering: false, removing: false,
+      bub: null, bubT: 0, carry: null, bounce: 0, staff: !!staff, x: 0, y: 0, lift: 0, z: -1, vis: -1 };
+    setEmote(w, emote);
+    return w;
+  }
+
+  const staff = {};
+  const STAFF_STEP = 18;   // px the counter staff stand higher
+  const STAFF_CHAIR = { BINGQILIN: 14 };   // extra px for staff emotes the counter hides too much (owner, 05 Nov)
+  // staff look at the people they serve: cashiers at their window's line, clerks at their register's line, the
+  // usher at the way in to the gate (screen x = u - v)
+  function faceStaff(role, w) {
+    const at = L.windows.find((x) => x.cashier === role)?.at || L.snack.find((x) => x.clerk === role)?.at
+      || (role === 'usher' ? L.gateIn || G : null);
+    if (at) SB.faceEmote(w.em, w.emName, (at[0] - w.u) - (at[1] - w.v));
+  }
+  function placeStaff() {
+    for (const [role, [u, v]] of Object.entries(L.staff)) {
+      const name = Cinema.defaultEmote(`roxy-${role}`);
+      // cashiers and snack clerks stand on a raised step behind their counters (or the counter hides them); a few
+      // emotes whose face sits low in the frame get a chair on top of that
+      const stand = role === 'usher' ? 0 : STAFF_STEP + (STAFF_CHAIR[name] || 0);
+      if (staff[role]) { setEmote(staff[role], name); staff[role].stand = stand; faceStaff(role, staff[role]); continue; }
+      const w = makeFigure(role, name, '#fff', true);
+      w.cap = itemEl(role === 'usher' ? 'cap_usher' : 'cap_cashier', `hat${role === 'usher' ? ' usher' : ''}`);
+      w.bod.append(w.cap);
+      if (w.cap.dataset.item) placeItem(w, w.cap, 'cap');
+      w.u = u; w.v = v;
+      w.stand = stand;
+      staff[role] = w;
+      faceStaff(role, w);
+    }
+  }
+  SB.on('emotes', placeStaff);
+
+  function screenOf(w) { return P(w.u, w.v); }
+
+  const recentFloats = [];   // [x, y, time] - floats close together stack upwards instead of overlapping
+  function floatText(x, y, text, color) {
+    const now = performance.now();
+    while (recentFloats.length && now - recentFloats[0][2] > 1500) recentFloats.shift();   // = animation length
+    for (const [fx0, fy0] of recentFloats) if (Math.abs(fx0 - x) < 90 && Math.abs(fy0 - y) < 18) y = fy0 - 20;
+    recentFloats.push([x, y, now]);
+    const el = h('div', 'fl', text);
+    if (color) el.style.color = color;
+    fx.append(el);
+    el.animate([
+      { transform: `translate(${x}px, ${y}px) translate(-50%, 0)`, opacity: 0 },
+      { transform: `translate(${x}px, ${y - 10}px) translate(-50%, 0)`, opacity: 1, offset: 0.15 },
+      { transform: `translate(${x}px, ${y - 38}px) translate(-50%, 0)`, opacity: 0 },
+    ], { duration: 1500, easing: 'ease-out' }).onfinish = () => el.remove();
+  }
+  const floatAt = (w, text, color) => { const [x, y] = screenOf(w); floatText(x, y - EH - 26, text, color); };
+
+  function flyTicket(from, to, torn) {
+    const el = itemEl(torn ? 'stub' : 'ticket', torn ? 'ticket torn' : 'ticket');
+    const it = ITEMS?.[el.dataset.item];
+    if (it) { el.style.position = 'absolute'; el.style.left = `${-it.anchor[0]}px`; el.style.top = `${-it.anchor[1]}px`; }
+    fx.append(el);
+    const [x0, y0] = P(from.u, from.v, EH * 0.6);
+    const [x1, y1] = P(to.u, to.v, EH * 0.5);
+    el.animate([
+      { transform: `translate(${x0}px, ${y0}px) rotate(0deg)` },
+      { transform: `translate(${(x0 + x1) / 2}px, ${Math.min(y0, y1) - 40}px) rotate(200deg)`, offset: 0.5 },
+      { transform: `translate(${x1}px, ${y1}px) rotate(380deg)`, opacity: 0.2 },
+    ], { duration: 650, easing: 'ease-in-out' }).onfinish = () => el.remove();
+  }
+
+  // carried things and staff caps: pre-rendered item sprites when the art has them, CSS shapes otherwise
+  let ITEMS = null;
+  const ATTACH = {   // attach point relative to the walker's feet, from the emote's width
+    carry: (ew) => [ew / 2 - 2, -4],
+    stub: (ew) => [-ew / 2 + 1, -14],
+    cap: (ew, eh) => [0, -eh + 6],   // sits on the emote's actual top (wide emotes are shorter)
+  };
+  const HELD = { carry: 2, stub: 2 };   // sodas, popcorn and ticket stubs in a chatter's hand: twice the sprite size (owner, 05 Nov)
+  function itemEl(name, fallbackCls, scale = 1) {
+    const it = ITEMS?.[name];
+    if (!it?.file || !Array.isArray(it.anchor)) {
+      const d = h('div', fallbackCls);
+      if (scale !== 1) { d.style.transform = `scale(${scale})`; d.style.transformOrigin = '50% 100%'; }
+      return d;
+    }
+    const im = h('img', 'item');
+    im.alt = '';
+    im.dataset.item = name;
+    setImg(im, it.file, it.file_2x, dpr() * scale > 1.3, () => { im.style.display = 'none'; });
+    im.style.width = `${it.w * scale}px`;
+    im.style.height = `${it.h * scale}px`;
+    return im;
+  }
+  function placeItem(w, el, slot) {
+    const ew = Number(w.em?.dataset.w || 40);
+    const eh = parseFloat(w.em?.style.height) || EH;
+    const it = ITEMS?.[el.dataset.item];
+    const s = HELD[slot] || 1;
+    if (it) {
+      const [px, py] = ATTACH[slot](ew, eh);
+      el.style.left = `${px - it.anchor[0] * s}px`;
+      el.style.top = `${py - it.anchor[1] * s}px`;
+    } else if (slot === 'carry') el.style.left = `${ew / 2 - 8}px`;
+    else if (slot === 'stub') el.style.left = `${-ew / 2 - 6}px`;
+  }
+  function giveCarry(w) {
+    if (w.carry) return;
+    w.carry = itemEl(Math.random() < 0.3 ? 'soda' : 'popcorn', 'carry', HELD.carry);
+    w.bod.append(w.carry);
+    placeItem(w, w.carry, 'carry');
+  }
+
+  const onScreen = (w) => {
+    const [x, y] = toScreen(w.x, w.y);
+    const [x0, y0, x1, y1] = view();
+    return w.alpha > 0.6 && x > x0 + 20 && x < x1 - 20 && y > y0 && y < y1 - 5;
+  };
+  // speech of someone not visible yet (still off screen, in the restroom) waits, so it can't push a
+  // readable bubble out of the allowance (MAX_BUB on screen, ?bubbles=N; the oldest fades out for a new one)
+  const MAX_BUB = clamp(Number(q.get('bubbles')) || 8, 2, 14);
+  function fadeOut(el) {
+    const a = el.animate([{ opacity: el.style.opacity || 1 }, { opacity: 0 }], { duration: 280, easing: 'ease-out' });
+    a.onfinish = () => el.remove();
+  }
+  function say(w, tokens) {
+    if (!tokens?.length) return;
+    if (!onScreen(w)) { w.pending = tokens; return; }
+    w.pending = null;
+    dropBubble(w);
+    const b = h('div', 'bub');
+    // the speaker's name heads the bubble (their floor label hides while they talk)
+    const who = b.appendChild(h('div', 'bn', w.nick));
+    who.style.color = w.nm.style.color;
+    if (w.nm.querySelector('.rbt')) { who.textContent = ''; who.append(h('span', 'rbt', w.nick)); }
+    SB.renderTokens(b.appendChild(h('div', 'bt')), tokens, 24, 64);
+    bubLayer.append(b);
+    w.bub = b;
+    w.bubW = 0;      // measured on its first placement
+    w.bubH = 0;
+    w.bubTail = null;
+    w.bubT = 5.5;
+    w.bubAge = 0;          // fades in over its first 0.25 s
+    w.bubShown = false;    // first placement snaps; later moves glide (layoutBubbles)
+    bubOrder.push(w);
+    while (bubOrder.length > MAX_BUB) dropBubble(bubOrder[0]);
+  }
+  function dropBubble(w) {
+    if (!w.bub) return;
+    fadeOut(w.bub); w.bub = null;
+    const i = bubOrder.indexOf(w);
+    if (i >= 0) bubOrder.splice(i, 1);
+  }
+
+  // --- routes ---
+  function doorSteps(w) {
+    // the destination is locked (at the usher at the latest): later messages can't change door or count
+    lockDoor(w);
+    const d = DOORS[w.doorRoom];
+    const steps = [];
+    if (d.wall === 'u') steps.push({ to: [J[0], d.at] }, { to: [0.55, d.at] }, { call: startEnter }, { to: [0.1, d.at], slow: true }, { alpha: 0 }, { call: finishEnter });
+    else steps.push({ to: J }, { to: [d.at, J[1]] }, { to: [d.at, 0.55] }, { call: startEnter }, { to: [d.at, 0.1], slow: true }, { alpha: 0 }, { call: finishEnter });
+    return steps;
+  }
+  function startEnter(w) { w.entering = true; w.alphaT = 0; dropBubble(w); playDoor(w.doorRoom + 1); }
+  function finishEnter(w) {
+    const s = signs[w.doorRoom];
+    if (s) {
+      s.count++;
+      s.pulse = 1;
+      signMeta(s);
+    }
+    doorGlow(w.doorRoom);
+    chaseUntil[w.doorRoom + 1] = performance.now() + 4000;   // the poster's bulbs chase as they go in
+    removeWalker(w);
+  }
+
+  // --- snack bar: each register serves its own short line (max 3), head first ---
+  const SNACK_MAX = 3;
+  function shortestSnack() {
+    const min = Math.min(...snackSpots.map((s) => s.line.length));
+    if (min >= SNACK_MAX) return null;
+    const free = snackSpots.filter((s) => s.line.length === min);
+    return free[Math.floor(Math.random() * free.length)];
+  }
+  // the place in line is reserved when the register is chosen; the slot is walked to on arrival
+  function reserveSnack(w, spot) { spot.line.push(w); w.snack = spot; w.approaching = true; w.si = -1; }
+  function joinSnack(w) { w.approaching = false; w.si = -1; w.plan = []; }
+  function leaveSnack(w) {
+    if (!w.snack) return;
+    w.snack.line = w.snack.line.filter((x) => x !== w);
+    w.snack = null;
+    w.approaching = false;
+    w.plan = w.afterSnack || [];
+    w.afterSnack = null;
+  }
+  function serveSnacks(dt) {
+    for (const s of snackSpots) {
+      s.line = s.line.filter((w) => !w.gone);
+      s.line.forEach((w, i) => {
+        if (!w.approaching && w.si !== i) { w.si = i; w.plan = [{ to: [s.at[0] + (i ? (i % 2 ? 0.18 : -0.18) : 0), s.at[1] + 0.6 * i] }]; }
+      });
+      const head = s.line[0];
+      if (!head || head.approaching || head.plan.length) { s.t = 0; continue; }
+      if (!s.t) bounceStaff(s.clerk);
+      s.t += dt;
+      if (s.t < 2.2) continue;
+      s.t = 0;
+      leaveSnack(head);
+      giveCarry(head);
+      floatAt(head, '+1 POPCORN', '#ffd75a');
+    }
+  }
+
+  function afterTicket(w) {
+    // past the usher: maybe a chat in the corridor first, then the restroom, then their door
+    const past = [{ to: GATE_OUT }, { to: J }, { call: hangHall }];
+    if (w.detour === 'bathroom') past.push(...(RESTROOM ? [{ call: tryRestroom }] : [{ to: [J[0], WC_V - 0.8] }, { call: tryWC }]));
+    past.push({ call: (x) => { x.plan.unshift(...doorSteps(x)); } });
+    let rest;
+    if (L.gateSlots) {
+      // a line at the gate: the usher checks one at a time, the others hold at spaced spots (serveGate)
+      rest = [{ call: hangOut }, { call: (x) => { x.afterGate = past; joinGate(x); } }];
+    } else {
+      // small personal offsets at the gate so a group doesn't stack on one spot
+      const jg = () => rand(-0.22, 0.22);
+      rest = [{ call: hangOut }, { to: [L.gateIn[0] + jg(), L.gateIn[1] + jg()] }, { to: [G[0] + jg(), G[1] + jg()] },
+        // the usher tears the stub and points them to their wing
+        { wait: w.hurry ? 0.2 : 0.7, start: () => { bounceStaff('usher'); takeStub(w); usherPoints(w); } },
+        ...past];
+    }
+    const spot = w.detour === 'popcorn' && !w.hurry ? shortestSnack() : null;
+    if (spot) {
+      reserveSnack(w, spot);
+      w.afterSnack = [...L.fromSnack.map((to) => ({ to })), ...rest];
+      w.plan = [...L.toSnack.map((to) => ({ to })), { call: joinSnack }];
+      return;
+    }
+    let pre;
+    if (w.detour === 'arcade' && !arcadeBusy && !w.hurry) {
+      // a quick round on the cabinet before the film, routed behind the cabinet with clearance
+      arcadeBusy = w;
+      // (with the rope lane: out past its west end and along below the back rope)
+      const there = L.lane ? [[5.2, 6.6], [8.2, 6.6], [12.95, 7.0]] : [[8.2, 7.0], [12.95, 7.0]];
+      pre = [...there.map((to) => ({ to })), { to: ARCADE },
+        { wait: rand(3, 6), end: () => {
+          if (arcadeBusy === w) arcadeBusy = null;
+          arcadeFlash();
+          const r = Math.random();
+          // a new high score stays on the cabinet's screen for a moment (when the art has that screen)
+          if (r < 0.15) { floatAt(w, '★ NEW HIGH SCORE ★', '#9fd8ff'); arcadeHiUntil = performance.now() + 3500; } else if (r < 0.5) floatAt(w, 'GAME OVER', '#9fd8ff');
+        } },
+        { to: [12.95, 7.0] }, { to: [8.0, 6.6] }];
+    } else {
+      pre = L.toGate.map((to) => ({ to }));
+    }
+    w.plan = [...pre, ...rest];
+  }
+
+  // usher gate: the head of the line steps up, gets the stub torn and a point to their wing, then goes on
+  const gateLine = [];
+  let gateT = 0;
+  function joinGate(w) { gateLine.push(w); w.gi = -1; w.plan = []; }
+  function serveGate(dt) {
+    for (let i = gateLine.length - 1; i >= 0; i--) if (gateLine[i].gone) gateLine.splice(i, 1);
+    const slots = L.gateSlots || [];
+    gateLine.forEach((w, i) => {
+      if (w.gi === i || w.removing) return;
+      if (i > slots.length) return;   // all holding spots taken: wait where they are (inside the lobby) for one
+      // the gate from the east goes round the usher's podium, not through it
+      const via = i === 0 && w.gi === -1 && L.gateIn && w.u > L.gateIn[0] + 0.3 ? [{ to: L.gateIn }] : [];
+      w.gi = i;
+      w.plan = [...via, { to: i === 0 ? G : slots[i - 1] }];
+    });
+    const head = gateLine[0];
+    if (!head || head.plan.length || head.removing) { gateT = 0; return; }
+    if (!gateT) { bounceStaff('usher'); takeStub(head); usherPoints(head); }
+    gateT += dt;
+    if (gateT < (head.hurry ? 0.2 : 0.7)) return;
+    gateT = 0;
+    gateLine.shift();
+    head.gi = -1;
+    head.plan = head.afterGate || [{ to: GATE_OUT }, { to: J }, { call: (x) => { x.plan.unshift(...doorSteps(x)); } }];
+    head.afterGate = null;
+  }
+
+  // restroom: one inside, at most one waiting beside the door; anyone else holds it for later
+  let wcWait = null;
+  function tryWC(w) {
+    if (wcWait?.gone) wcWait = null;
+    if (!wcBusy && (!wcWait || wcWait === w)) {
+      if (wcWait === w) wcWait = null;
+      wcBusy = w;
+      w.plan.unshift(
+        { to: [0.55, WC_V] },
+        { call: () => { w.alphaT = 0; setWC(true); dropBubble(w); playDoor('wc'); } }, { alpha: 0 },
+        { wait: rand(2.5, 5) },
+        { call: () => { w.alphaT = 1; setWC(false); playDoor('wc'); floatAt(w, 'much better', '#9fd8ff'); } }, { alpha: 1 },
+        { to: [J[0], WC_V - 0.6] },
+        { call: () => { if (wcBusy === w) wcBusy = null; } },   // next one goes in once the doorway is clear
+      );
+    } else if ((!wcWait || wcWait === w) && (w.wcTries = (w.wcTries || 0) + 1) < 20) {
+      wcWait = w;
+      w.plan.unshift({ to: [J[0] + 0.45, WC_V - 1.25] }, { wait: 0.5 }, { call: tryWC });
+    } else if (wcWait === w) {
+      wcWait = null;
+    }
+  }
+  function setWC(busy) {
+    wcSign.classList.toggle('busy', busy);
+    if (wcLights) { wcLights.vacant.style.opacity = busy ? '0' : ''; wcLights.occupied.style.opacity = busy ? '' : '0'; }
+    wcSign.textContent = `${wcLabel}${busy ? 'OCCUPIED' : 'VACANT'}`;
+  }
+
+  // now and then someone waits on the bench for a friend: the next person to come in, or 16 s at most
+  let benchBusy = null;
+  function tryBench(w) {
+    if (benchBusy?.gone) benchBusy = null;
+    if (benchBusy && benchBusy !== w && benchBusy.seated && !benchBusy.friend) benchBusy.friend = w;   // here they are
+    if (!L.bench || benchBusy || w.hurry || w.benched || queue.length > 3 || Math.random() >= 0.1) return false;
+    benchBusy = w;
+    w.benched = true;
+    const t0 = performance.now();
+    w.plan = [...L.bench.route.map((to) => ({ to })), { to: L.bench.seat }, { call: () => { w.seated = true; } },
+      { until: () => !!w.friend || w.hurry || performance.now() - t0 > 16000 },
+      { call: () => {
+        if (w.friend && !w.friend.gone) floatAt(w, 'there you are!', '#ffe08a');
+        if (benchBusy === w) benchBusy = null;
+        w.seated = false;
+      } },
+      { wait: 0.4 }, ...L.bench.route.map((to) => ({ to })), { call: joinQueue }];
+    return true;
+  }
+
+  function joinQueue(w) {
+    if (tryBench(w)) return;
+    // everyone lines up for a ticket (owner, 05 Nov); only at a full house (CAP) or a line past its last row do they
+    // come with one already
+    if (queue.length >= (L.qmax || QMAX) || w.hurry || liveCount() >= CAP) {
+      giveStub(w);   // already has a ticket: the stub in hand says it, no announcement
+      afterTicket(w);
+      return;
+    }
+    queue.push(w);
+    w.inQueue = true;
+    w.qi = -1;
+    w.plan = [];
+    w.qT = 0;
+    w.quitAt = !w.hurry && Math.random() < QUIT_P ? rand(2.5, 7) : null;   // some lose patience (giveUp)
+  }
+
+  // Changed their mind: out of the line (by the rope lane's open end), back out into the rain, wait at the bus stop
+  // and go home on the next bus (which waits for them at the door). No bus coming soon: one is called earlier.
+  const QUIT_P = clamp(Number(q.get('quit')) || 0.06, 0, 1);   // ?quit=1: everyone in line gives up (testing)
+  const QUIT_LINES = ['nah, going home', 'changed my mind', 'not worth it', 'this line tho', 'I\'m out'];
+  function giveUp(w) {
+    const inLane = !outsideLane(w);
+    leaveQueue(w);
+    w.quitting = true;
+    floatAt(w, QUIT_LINES[Math.floor(Math.random() * QUIT_LINES.length)], '#ffb0b0');
+    const door = STOPS.bus.door_ground;
+    w.plan = [...(inLane ? [{ to: L.queueEntry }] : []), { to: [9.5 + rand(-0.4, 0.4), 8.6] }, { to: [9.5 + rand(-0.3, 0.3), 9.6] },
+      { to: [door[0] + rand(-0.25, 0.25), rand(9.85, 10.1)] }, { call: waitBus }];
+  }
+  function waitBus(w) {
+    // art without a bus: they walk off along the sidewalk instead of waiting at the shelter for good
+    if (!VEH?.bus?.['+u']) { w.plan = [{ to: [-7, w.v] }, { call: (x) => { x.alphaT = 0; dropBubble(x); } }, { alpha: 0 }, { call: removeWalker }]; return; }
+    if (!activeBus()) nextBus = Math.min(nextBus, performance.now() + rand(6000, 14000));
+    w.waitingBus = true;   // the bus waits for them (stepTraffic): they only board the frame after the last rider is off
+    w.plan = [{ until: () => { const b = activeBus(); return !!b && b.state === 'stopped' && !b.riders.size; } }, { call: boardBus }];
+  }
+  function boardBus(w) {
+    const bus = activeBus();
+    if (!bus || bus.state !== 'stopped') { waitBus(w); return; }
+    w.waitingBus = false;
+    (bus.boarders ||= new Set()).add(w);
+    const door = STOPS.bus.door_ground;
+    w.plan = [{ to: door }, { to: STOPS.bus.boarding_point || [door[0], door[1] + 0.15] },   // curb, then in at the door
+      { call: () => { w.alphaT = 0; dropBubble(w); if (Math.random() < 0.5) floatAt(w, 'bye 👋', '#ffe08a'); } }, { alpha: 0 },
+      { call: (x) => { bus.boarders.delete(x); removeWalker(x); } }];
+  }
+  function leaveQueue(w) {
+    const i = queue.indexOf(w);
+    if (i >= 0) queue.splice(i, 1);
+    w.inQueue = false;
+    w.qi = -1;
+  }
+  // with the rope lane, anyone not in it yet walks in at its open far end
+  const outsideLane = (w) => !!L.lane && !(w.u > L.lane[0] && w.u < L.lane[2] && w.v > L.lane[1] && w.v < L.lane[3]);
+  // Ticket windows take the head of the line; a second window opens while the line is long.
+  function serveQueue(dt) {
+    // someone losing patience leaves the line (anyone still in it: being called takes them out of the queue)
+    for (const w of [...queue]) {
+      w.qT = (w.qT || 0) + dt;
+      if (w.quitAt != null && w.qT > w.quitAt) giveUp(w);
+    }
+    queue.forEach((w, i) => {
+      if (w.qi === i) return;
+      w.qi = i;
+      // with the rope lane, anyone not in it yet walks in at its open far end
+      w.plan = outsideLane(w) ? [{ to: L.queueEntry }, { to: L.slot(i) }] : [{ to: L.slot(i) }];
+    });
+    const waiting = queue.length;   // window 2 opens on the line length before anyone is called this frame
+    for (const win of windows) {
+      if (win.cur?.gone) win.cur = null;
+      if (!win.cur) {
+        if (!queue.length || (win.opensAt && waiting < win.opensAt)) continue;
+        const next = queue[0];
+        leaveQueue(next);
+        // someone called before reaching the rope lane still walks it, never across the ropes
+        next.plan = outsideLane(next) ? [{ to: L.queueEntry }, { to: L.slot(0) }, { to: win.at }] : [{ to: win.at }];
+        win.cur = next;
+        win.t = 0;
+        if (win.opensAt) bounceStaff(win.cashier);   // the second cashier waves them over
+        continue;
+      }
+      if (win.cur.plan.length) continue;
+      win.t += dt;
+      if (win.t < Math.max(0.8, 2.6 - 0.3 * queue.length)) continue;
+      const w = win.cur;
+      win.cur = null;
+      const cashier = staff[win.cashier];
+      if (cashier) { flyTicket(cashier, w); cashier.bounce = 1; }
+      giveStub(w);
+      afterTicket(w);
+    }
+  }
+  // staff talk with gestures (a hop, a pointing arrow) rather than text, so the counters stay calm
+  function bounceStaff(role) { if (staff[role]) staff[role].bounce = 1; }
+  // ticket stub: carried from the box office to the usher, who tears it
+  function giveStub(w) {
+    if (w.stub) return;
+    w.stub = itemEl('stub', 'stub', HELD.stub);
+    placeItem(w, w.stub, 'stub');
+    w.bod.append(w.stub);
+  }
+  function takeStub(w) {
+    if (!w.stub) return;
+    w.stub.remove();
+    w.stub = null;
+    if (staff.usher) flyTicket(w, staff.usher, true);
+  }
+  function lockDoor(w) {
+    if (w.doorBound) return;
+    w.doorBound = true;
+    w.doorRoom = (w.room || 0) % DOORS.length;
+  }
+  function usherPoints(w) {
+    lockDoor(w);   // the wing the usher points to is the one they walk to
+    const u = staff.usher;
+    if (!u) return;
+    const left = DOORS[w.doorRoom].wall === 'u';   // screens 1-2: left wing
+    const [x, y] = P(u.u, u.v);
+    floatText(x + (left ? -22 : 22), y - EH - 8, left ? '◀' : '▶', '#7ff7f0');
+  }
+
+  // an open umbrella in hand (pre-rendered sprite when the art has one); it is only open outside and folds at the
+  // door (drawFigure). Everyone comes with one (it's pouring); someone heading back out gets theirs again.
+  function giveUmbrella(w) {
+    w.umb?.remove();
+    const colors = (UMB?.colors || []).filter((c) => UMB.open[c]?.file && validSheet(UMB.fold?.[c]));
+    if (colors.length) {
+      const c = colors[Math.floor(Math.random() * colors.length)];
+      const o = UMB.open[c];
+      const wet = UMB.wet?.[c];   // rendered rain on the canopy (BRIEF-53): a 24 fps loop, else the still sprite
+      if (validSheet(wet)) {
+        w.umb = h('div', 'umbs sheet');
+        sheetStyle(w.umb, wet);
+        w.umbLoop = { spec: wet, ph: Math.random() * 2, k: -1 };
+      } else {
+        w.umb = h('img', 'umbs');
+        w.umb.alt = '';
+        setImg(w.umb, o.file, o.file_2x, dpr() > 1.3, () => { w.umb.style.display = 'none'; });
+        w.umbLoop = null;
+      }
+      // handle grip held at the emote's side, 40 px up (asset guidance for a 50 px emote)
+      Object.assign(w.umb.style, { width: `${o.w}px`, height: `${o.h}px`, left: `${UMB_GRIP[0] - o.anchor[0]}px`, top: `${UMB_GRIP[1] - o.anchor[1]}px` });
+      w.umbColor = c;
+      w.umbSpec = o;
+    } else {
+      w.umb = h('div', 'umb');
+      w.umb.style.setProperty('--c', ['#e8285c', '#2a8cff', '#ffd75a', '#1a1a24', '#7ff7f0'][Math.floor(Math.random() * 5)]);
+    }
+    w.bod.append(w.umb);
+  }
+  function spawn(wi) {
+    if (wi.features?.includes('moderator')) return;   // mods are the jannies (see onModMessage), they don't walk in
+    const key = wi.nick.toLowerCase();
+    const old = walkers.get(key);
+    if (old && !old.entering && !old.removing) {
+      setEmote(old, wi.emote);
+      queueLine(old, wi.tokens);   // said at their next conversation
+      if (!old.doorBound) old.room = wi.roomIndex;
+      return;
+    }
+    if (crowdSkip(wi)) return;
+    // someone already going through a door keeps going (still updated via `figures`); a new one walks in
+    if (old) walkers.delete(key);
+    const w = makeFigure(wi.nick, wi.emote, wi.color, false);
+    if (wi.rainbow) { w.nm.textContent = ''; w.nm.append(h('span', 'rbt', wi.nick)); }   // tier 5: rainbow name, as in DGG chat
+    w.key = key;
+    figures.add(w);
+    w.room = wi.roomIndex;
+    // with the real restroom (layout 3) about one in five drops by before the film (chat already sends ~5 %)
+    const r = Math.random();
+    w.detour = wi.detour || (RESTROOM && r < 0.16 ? 'bathroom' : r > 0.93 ? 'arcade' : null);
+    giveUmbrella(w);
+    // each arrival gets its own lane on the sidewalk (clear of the bus stop and lamp), and arrivals
+    // from the same side close together start further back, so groups trickle in instead of piling up
+    const lane = rand(9.78, 10.05);
+    // before going in, some stop on the sidewalk to talk (layout 3)
+    // (back from a sidewalk group they first line up with the entrance, so nobody walks through the glass)
+    const walkIn = [{ to: [9.5 + rand(-0.4, 0.4), lane] }, { call: hangOutside }, { to: [9.5 + rand(-0.3, 0.3), 9.45] },
+      { to: [9.5 + rand(-0.6, 0.6), 8.6] }, { call: joinQueue }];
+    const ride = pickRide();
+    if (ride) {
+      // arrives by bus / taxi: hidden until the vehicle has stopped, then steps out of its door
+      // riders get off one at a time; the vehicle waits until all of them have stepped away from the door
+      const { veh, door } = ride;
+      const idx = veh.riders.size;
+      veh.riders.add(w);
+      w.ride = veh;
+      w.u = door[0]; w.v = door[1];
+      w.alpha = 0;
+      w.alphaT = 0;
+      w.plan = [{ until: () => veh.state === 'stopped' || veh.gone || !w.ride },
+        { wait: 0.3 + 0.9 * idx },
+        { call: () => {
+          w.alphaT = 1;
+          w.nameT = 7;
+          splash(w.u, w.v);
+          if (veh.type === 'bus' && !veh.thanked && Math.random() < 0.4) { veh.thanked = true; floatAt(w, 'thanks driver!', '#ffe08a'); }
+        } },
+        { to: [door[0], lane] },
+        { call: () => { veh.riders.delete(w); w.ride = null; } },
+        ...walkIn];
+    } else {
+      const side = Math.random() < 0.5 ? 'l' : 'r';
+      const now = performance.now();
+      const k = (arrivals[side] = (arrivals[side] || []).filter((t) => now - t < 1500)).length;
+      arrivals[side].push(now);
+      w.u = side === 'l' ? -6 - 1.1 * k : 16.5 + 1.1 * k;
+      w.v = lane;
+      w.alphaT = 1;
+      w.plan = walkIn;
+      // now and then someone walks along the road with the traffic instead of the sidewalk; traffic doesn't stop
+      // for them (stepTraffic runs them over), the rest step up to the sidewalk at the entrance
+      if (VEH && Math.random() < JAYWALK) {
+        w.v = (side === 'l' ? LANES.near : LANES.far) + rand(-0.1, 0.1);
+        w.plan = [{ to: [9.5 + rand(-0.4, 0.4), w.v] }, ...walkIn];
+      }
+    }
+    walkers.set(key, w);
+    queueLine(w, wi.tokens);   // said once they're in view (soloSpeech), or in a talk group if they join one first
+    enforceCap();
+    directorArrival(w);
+  }
+
+  // Crowd control: once the street and the ticket line fill up (CROWD people outside or in line), only every 2nd new
+  // chatter walks in, every 3rd from 1.5x CROWD and every 5th from 2x CROWD or a full house (CAP). Chatters already
+  // on screen keep talking and the host always walks in. ?crowd=<n> sets the threshold, ?crowd=0 lets everyone in.
+  const CROWD = q.get('crowd') === '0' ? 0 : clamp(Number(q.get('crowd')) || 14, 4, 60);
+  let crowdN = 0;
+  function crowdEvery() {
+    let outside = 0;
+    let live = 0;
+    for (const w of figures) {
+      if (w.removing || w.jan || w.gone) continue;
+      live++;
+      if (w.inQueue || (w.v > 9.1 && !w.quitting && !w.ride)) outside++;
+    }
+    if (live >= CAP || outside >= CROWD * 2) return 5;
+    if (outside >= CROWD * 1.5) return 3;
+    return outside >= CROWD ? 2 : 1;
+  }
+  function crowdSkip(wi) {
+    if (!CROWD || (Cinema.tag && wi.nick.toLowerCase() === Cinema.tag.toLowerCase())) return false;
+    const every = crowdEvery();
+    if (every === 1) { crowdN = 0; return false; }
+    crowdN++;
+    return crowdN % every !== 0;
+  }
+
+  // Takes someone out of every line and slot before they fade out (HARD_CAP, the panel's remove, run over): a line
+  // that moved on during the fade handed them a new plan, and the invisible walker then lived on and, as head of the
+  // usher's line (serveGate waits on a removing head), stopped the gate for good (QA 05 Nov)
+  function retire(w) {
+    if (w.inQueue) leaveQueue(w);
+    if (w.snack) { w.snack.line = w.snack.line.filter((x) => x !== w); w.snack = null; w.afterSnack = null; }
+    const gi = gateLine.indexOf(w);
+    if (gi >= 0) gateLine.splice(gi, 1);
+    for (const win of windows) if (win.cur === w) win.cur = null;
+    w.removing = true;
+    w.alphaT = 0;
+  }
+  function liveCount() {
+    let n = 0;
+    for (const w of figures) if (!w.removing && !w.jan) n++;
+    return n;
+  }
+  function enforceCap() {
+    const live = [...figures].filter((w) => !w.removing && !w.jan);
+    if (live.length > CAP) {
+      const w = live.find((x) => !x.hurry && !x.entering);
+      if (w) {
+        w.hurry = true;
+        if (w.inQueue) { leaveQueue(w); afterTicket(w); }
+        if (w.snack) leaveSnack(w);
+      }
+    }
+    if (live.length > HARD_CAP) {
+      const w = live.find((x) => !x.entering) || live[0];
+      retire(w);
+      w.plan = [{ alpha: 0 }, { call: removeWalker }];
+    }
+    // bursts: never more than 80 figures in the DOM, the oldest fading ones go at once
+    while (figures.size > 80) removeWalker(figures.values().next().value);
+  }
+
+  function removeWalker(w) {
+    if (w.inQueue) leaveQueue(w);
+    if (wcBusy === w) { wcBusy = null; setWC(false); }
+    if (arcadeBusy === w) arcadeBusy = null;
+    if (benchBusy === w) benchBusy = null;
+    if (w.stall) {
+      if (w.stall.busy === w) w.stall.busy = null;
+      w.stall = null;
+      setWC(restroomFull());
+    }
+    if (w.snack) w.snack.line = w.snack.line.filter((x) => x !== w);
+    w.ride?.riders.delete(w);
+    if (wcWait === w) wcWait = null;
+    // a janny removed any other way than clocking off (the 80-figure purge takes the oldest first, the panel's remove)
+    // kept its spot: after four of those no mod got a janny again (QA 05 Nov)
+    if (w.jan && jannies.get(w.key) === w) jannies.delete(w.key);
+    dropBubble(w);
+    w.el.remove();
+    if (walkers.get(w.key) === w) walkers.delete(w.key);
+    figures.delete(w);
+    w.gone = true;
+  }
+
+  Cinema.onWalkIn(spawn);
+  Cinema.onPurge((nick) => {
+    const key = nick.toLowerCase();
+    for (const w of [...figures]) if (w.key === key) removeWalker(w);
+  });
+  Cinema.onCombo(({ emote }) => {   // everyone wearing the combo emote jumps (no floating badge)
+    const t = performance.now();
+    combo = { emote, start: t, until: t + 2600 };
+  });
+
+  // ---------- traffic: pre-rendered vehicles (manifest "vehicles") ----------
+  // Cars pass both ways; a bus stops at the shelter now and then and a taxi can bring a chatter to the
+  // door. Road light sprites (headlights on the wet road) are additive and sit under bodies and walkers.
+  let VEH = null;
+  let LANES = { near: 11, far: 12.75 };
+  let STOPS = { bus: { vehicle_centre: [0.16, 11], door_ground: [1.2, 10.6] }, taxi: { vehicle_centre: [9.73, 11], door_ground: [9.5, 10.69] } };
+  const traffic = [];
+  const preloaded = [];
+  let nextCar = 0;
+  let nextBus = 0;
+
+  // @2x missing -> 1x; `fail` runs when even the 1x file can't load
+  function setImg(im, f, f2, two, fail) {
+    const src = ART + (two && f2 ? f2 : f);
+    if (im.dataset.src === src) return;
+    im.dataset.src = src;
+    im.onerror = () => {
+      if (two && f2 && im.src.endsWith(f2)) { im.src = ART + f; return; }
+      fail?.();
+    };
+    im.src = src;
+  }
+  // A vehicle body is drawn as depth slices along its length (each sorted on its own, so people beside a
+  // long bus sort right at both ends); its additive road light switches between normal / brake / indicator.
+  function vehSprites(v) {
+    const s = v.open && v.spec.door_open ? { ...v.spec, ...v.spec.door_open, door_open: null } : v.spec;
+    const two = dpr() > 1.3;
+    v.ax = s.anchor[0];
+    v.ay = s.anchor[1];
+    const parts = Array.isArray(s.slices) && s.slices.length ? s.slices
+      : [{ file: s.file, file_2x: s.file_2x, x: 0, y: 0, w: s.w, h: s.h, du: 0 }];
+    const key = `${parts.map((p) => p.file).join('|')}|${two}`;
+    // rendered rain on the roof (BRIEF-53): one additive loop per body slice, drawn right above its slice
+    const roof = Array.isArray(s.roof_rain) && s.roof_rain.length === parts.length ? s.roof_rain : null;
+    if (v.partsKey !== key) {
+      // the new set is decoded before the old one goes (no blank frame); errors from a replaced set are ignored
+      const gen = (v.gen = (v.gen || 0) + 1);
+      const old = v.parts || [];
+      v.parts = parts.filter((p) => p && typeof p.file === 'string' && [p.x, p.y, p.w, p.h].every(Number.isFinite)).map((p) => {
+        const el = h('img', 'veh');
+        el.alt = '';
+        el.style.width = `${p.w}px`;
+        el.style.height = `${p.h}px`;
+        setImg(el, p.file, p.file_2x, two, () => { if (v.gen === gen) removeVehicle(v); });   // can't load: off the road
+        world.append(el);
+        const r = roof?.[parts.indexOf(p)];
+        let rr = null;
+        if (validSheet({ ...r, anchor: [0, 0], frame_width: r?.w, frame_height: r?.h }) && [r.x, r.y].every(Number.isFinite)) {
+          const spec = { ...r, frame_width: r.w, frame_height: r.h };
+          const re = h('div', 'veh sheet vehrain');
+          sheetStyle(re, spec);
+          world.append(re);
+          rr = { el: re, spec, k: -1 };
+        }
+        return { el, p, rr };
+      });
+      Promise.all(v.parts.map(({ el }) => el.decode().catch(() => {}))).then(() => old.forEach((o) => { o.el.remove(); o.rr?.el.remove(); }));
+      v.partsKey = key;
+      if (v.u != null && v.ax != null) place(v);
+    }
+    if (v.spray === undefined) {   // tyre spray + road wake loops for this vehicle's direction (BRIEF-53)
+      const mk = (spec) => {
+        if (!validSheet(spec)) return null;
+        const el = h('div', 'veh sheet vehrain');
+        sheetStyle(el, spec);
+        el.style.display = 'none';
+        world.append(el);
+        return { el, spec, k: -1, a: '0.00' };
+      };
+      v.spray = mk(v.spec.spray);
+      v.wake = mk(v.spec.wake);
+    }
+    v.lights = {
+      normal: [s.light, s.light_2x],
+      brake: [s.light_brake || s.light, s.light_brake_2x || s.light_2x],
+      ind: [s.light_indicator || s.light, s.light_indicator_2x || s.light_2x],
+    };
+    v.light.style.width = `${s.w}px`;
+    v.light.style.height = `${s.h}px`;
+    // indicator-only glow, added on top of the normal or brake light (blinks on its own)
+    v.indOnly = !!s.light_indicator_only;
+    if (v.indOnly) {
+      v.ind ||= world.appendChild(Object.assign(h('img', 'veh vehlight'), { alt: '' }));
+      setImg(v.ind, s.light_indicator_only, s.light_indicator_only_2x, two);
+      v.ind.style.width = `${s.w}px`;
+      v.ind.style.height = `${s.h}px`;
+    }
+    v.lightMode = null;
+    setLight(v, 'normal');
+  }
+  function setLight(v, mode) {
+    if (v.lightMode === mode) return;
+    v.lightMode = mode;
+    const [f, f2] = v.lights[mode];
+    setImg(v.light, f, f2, dpr() > 1.3);
+  }
+  function addVehicle(type, dir, opts = {}) {
+    const spec = VEH?.[type]?.[dir];
+    if (!spec) return null;
+    const v = { type, dir, spec, sign: dir === '+u' ? 1 : -1, lane: dir === '+u' ? LANES.near : LANES.far,
+      cruise: opts.cruise || rand(3.4, 4.8), stopAt: opts.stopAt ?? null, dwell: opts.dwell || 2.5,
+      state: 'drive', t: 0, open: false, riders: new Set(), len: spec.length_tiles || 1.7 };
+    v.u = v.sign > 0 ? -9 : 21;
+    if (!laneClear(v)) return null;
+    v.cur = v.cruise;
+    v.light = h('img', 'veh vehlight');
+    v.light.alt = '';
+    world.append(v.light);
+    vehSprites(v);
+    traffic.push(v);
+    return v;
+  }
+  // nothing near the spawn point of that lane (vehicles enter one after another, never inside each other)
+  function laneClear(v) {
+    return traffic.every((o) => o.dir !== v.dir || Math.abs(o.u - v.u) > (o.len + v.len) / 2 + 1.2);
+  }
+  // riders still inside a vehicle that has to go (or vanished) get off at the shelter instead
+  function releaseRiders(v) {
+    for (const r of v.riders) {
+      r.ride = null;
+      if (r.gone || r.alpha >= 0.5) continue;
+      r.u = 1.2; r.v = 9.95;
+      const lane = rand(9.78, 10.05);
+      r.plan = [{ call: () => { r.alphaT = 1; r.nameT = 5; } }, { to: [9.5 + rand(-0.4, 0.4), lane] }, { to: [9.5, 8.6] }, { call: joinQueue }];
+    }
+    v.riders.clear();
+  }
+  function removeVehicle(v) {
+    if (v.gone) return;
+    v.gone = true;
+    v.gen = (v.gen || 0) + 1;
+    releaseRiders(v);
+    v.parts?.forEach((p) => { p.el.remove(); p.rr?.el.remove(); });
+    v.spray?.el.remove();
+    v.wake?.el.remove();
+    v.light.remove();
+    v.ind?.remove();
+    const i = traffic.indexOf(v);
+    if (i >= 0) traffic.splice(i, 1);
+  }
+  function activeBus() { return traffic.find((v) => v.type === 'bus' && v.stopAt != null && !v.gone); }
+  function pickRide() {
+    if (!VEH) return null;
+    const bus = activeBus();
+    // a bus takes at most 6 riders, and only while it can still unload them before leaving
+    if (bus && bus.riders.size < 6 && (bus.state !== 'stopped' || bus.t < bus.dwell) && Math.random() < 0.65) {
+      return { veh: bus, door: STOPS.bus.door_ground };
+    }
+    if (Math.random() < 0.1 && traffic.filter((v) => v.type === 'taxi' && v.stopAt != null).length < 1) {
+      const taxi = addVehicle('taxi', '+u', { stopAt: STOPS.taxi.vehicle_centre[0], dwell: 2.4, cruise: 4.2 });
+      if (taxi) return { veh: taxi, door: STOPS.taxi.door_ground };
+    }
+    return null;
+  }
+
+  function stepTraffic(dt, nowMs) {
+    if (!VEH) return;
+    // schedule: a passing car every 6-16 s, a bus every 50-100 s
+    if (nowMs > nextCar) {
+      nextCar = nowMs + rand(6000, 16000);
+      addVehicle(['sedan_a', 'sedan_b', 'sedan_a', 'sedan_b', 'taxi'][Math.floor(Math.random() * 5)], Math.random() < 0.5 ? '+u' : '-u');
+    }
+    if (nowMs > nextBus) {
+      nextBus = nowMs + rand(50000, 100000);
+      if (!activeBus()) addVehicle('bus', '+u', { stopAt: STOPS.bus.vehicle_centre[0], dwell: 4.5, cruise: 3.2 });
+    }
+    for (const v of [...traffic]) {
+      if (v.state === 'stopped') {
+        v.t += dt;
+        // waits until every rider has stepped away from the door (at most 10 s past its dwell)
+        for (const r of v.riders) if (r.gone) v.riders.delete(r);
+        // and for anyone boarding to get in (at most 12 s past its dwell)
+        for (const r of v.boarders || []) if (r.gone) v.boarders.delete(r);
+        // and for anyone waiting at the stop, who only becomes a boarder the frame after the last rider is off
+        const waiting = v.type === 'bus' && [...figures].some((w) => w.waitingBus && !w.gone && !w.removing);
+        if (v.t >= v.dwell && (!v.riders.size || v.t > v.dwell + 10) && (!(v.boarders?.size || waiting) || v.t > v.dwell + 12)) {
+          releaseRiders(v);   // no one appears after it left
+          v.state = 'drive'; v.stopAt = null; v.cur = 0.2; v.open = false; v.leftAt = nowMs; vehSprites(v);
+        }
+      } else {
+        let target = v.cruise;
+        if (v.stopAt != null) {
+          const dist = (v.stopAt - v.u) * v.sign;
+          if (dist <= 0.03) { v.u = v.stopAt; v.state = 'stopped'; v.t = 0; v.open = true; vehSprites(v); place(v); continue; }
+          target = Math.min(target, Math.max(0.35, dist * 1.4));
+        }
+        // keep distance to the vehicle ahead in the same lane; never move into it
+        let room = Infinity;
+        for (const o of traffic) {
+          if (o === v || o.dir !== v.dir) continue;
+          const gap = (o.u - v.u) * v.sign;
+          if (gap <= 0) continue;
+          const free = gap - (o.len + v.len) / 2 - 0.35;
+          room = Math.min(room, free);
+          target = Math.min(target, Math.max(0, free * 2));
+        }
+        v.cur += clamp(target - v.cur, -dt * 6, dt * 3);
+        v.u += v.sign * Math.min(v.cur * dt, Math.max(0, room));
+        if (v.cur > 0.8) runOver(v);
+      }
+      if (v.u > 22 || v.u < -10) { removeVehicle(v); continue; }
+      // lights: brake lights while slowing (deceleration, held 0.3 s) or stopped; bus/taxi blink the
+      // indicator while pulling in and out (the indicator sprite carries normal lights, so a parked vehicle
+      // keeps a steady brake light instead of blinking it away)
+      if (v.prevCur != null && dt > 0 && (v.prevCur - v.cur) / dt > 0.4) v.brakeT = 0.3;
+      v.brakeT = Math.max(0, (v.brakeT || 0) - dt);
+      const braking = v.state === 'stopped' || v.brakeT > 0;
+      const blink = Math.floor(nowMs / 400) % 2 === 0;
+      if (v.indOnly) {
+        // brake light steady + indicator glow blinking on top (also while parked at the stop)
+        const signalling = (v.type === 'bus' || v.type === 'taxi')
+          && ((v.stopAt != null && (v.stopAt - v.u) * v.sign < 7) || v.state === 'stopped' || (v.leftAt && nowMs - v.leftAt < 1800));
+        setLight(v, braking ? 'brake' : 'normal');
+        const show = signalling && blink ? '' : 'none';
+        if (v.ind.style.display !== show) v.ind.style.display = show;
+      } else {
+        const signalling = (v.type === 'bus' || v.type === 'taxi') && v.state !== 'stopped'
+          && ((v.stopAt != null && (v.stopAt - v.u) * v.sign < 7) || (v.leftAt && nowMs - v.leftAt < 1800));
+        setLight(v, signalling && blink ? 'ind' : braking ? 'brake' : 'normal');
+      }
+      v.prevCur = v.cur;
+      vehRain(v, nowMs);
+      // spray off the rear wheel, on the ground layer under bodies and walkers (only without the rendered loops)
+      if (!v.spray && v.state === 'drive' && v.cur > 2.2 && SPRAY?.[v.dir] && Math.random() < dt * 1.2) {
+        oneShot(SPRAY[v.dir], v.u - v.sign * v.len * 0.33, v.lane + 0.22, 4);
+      }
+      place(v);
+    }
+  }
+  // rendered rain on vehicles (BRIEF-53): roof loops always run; tyre spray and wake fade in with speed
+  // (full at about half the speed the plume was rendered for). All 24 fps loops, each vehicle at its own phase.
+  function vehRain(v, nowMs) {
+    if (v.rainPh == null) v.rainPh = Math.random() * 2;
+    const frame = (spec) => Math.floor((nowMs / 1000 + v.rainPh) * (spec.fps || 24)) % spec.frames;
+    for (const { rr } of v.parts || []) {
+      if (!rr) continue;
+      const k = frame(rr.spec);
+      if (k !== rr.k) { rr.k = k; sheetFrame(rr.el, rr.spec, k); }
+    }
+    for (const fx of [v.spray, v.wake]) {
+      if (!fx) continue;
+      const fs = fx.spec.full_speed || 2;
+      const s = v.state === 'drive' ? clamp((Math.abs(v.cur) - fs * 0.1) / (fs * 0.4), 0, 1) : 0;
+      const a = (s * s * (3 - 2 * s)).toFixed(2);
+      if (a !== fx.a) { fx.a = a; fx.el.style.opacity = a; fx.el.style.display = a === '0.00' ? 'none' : ''; }
+      if (a === '0.00') continue;
+      const k = frame(fx.spec);
+      if (k !== fx.k) { fx.k = k; sheetFrame(fx.el, fx.spec, k); }
+    }
+  }
+  // anyone on the road (v past the curb) inside a moving vehicle's footprint: BONK, knocked along, fades away
+  function runOver(v) {
+    const half = (v.spec.width_tiles || 0.7) / 2 + 0.1;
+    for (const w of figures) {
+      // (riders stepping out of a bus / taxi stand at the curb, v <= 10.7)
+      if (w.gone || w.removing || w.entering || w.ride || w.alpha < 0.5 || w.v < 10.75) continue;
+      if (Math.abs(w.v - v.lane) > half || Math.abs(w.u - v.u) > v.len / 2 + 0.1) continue;
+      retire(w);
+      w.hurry = true;
+      dropBubble(w);
+      floatAt(w, '💥 BONK', '#ff7a7a');
+      w.bounce = 1;
+      w.alphaT = 0;
+      w.plan = [{ to: [w.u + v.sign * 1.3, w.v + rand(-0.15, 0.15)] }, { alpha: 0 }, { call: removeWalker }];
+    }
+  }
+  function place(v) {
+    const [x, y] = P(v.u, v.lane);
+    const x0 = x - v.ax;
+    const y0 = y - v.ay;
+    v.light.style.transform = `translate(${x0.toFixed(1)}px, ${y0.toFixed(1)}px)`;
+    if (v.ind) v.ind.style.transform = v.light.style.transform;
+    let zTop = 0;
+    for (const { el, p, rr } of v.parts) {
+      el.style.transform = `translate(${(x0 + p.x).toFixed(1)}px, ${(y0 + p.y).toFixed(1)}px)`;
+      el.style.zIndex = String(depth(v.u + (p.du || 0), v.lane));
+      zTop = Math.max(zTop, Number(el.style.zIndex));
+      if (rr) {
+        rr.el.style.transform = `translate(${(x0 + rr.spec.x).toFixed(1)}px, ${(y0 + rr.spec.y).toFixed(1)}px)`;
+        rr.el.style.zIndex = el.style.zIndex;   // after the slice in the DOM, so it draws on top of it
+      }
+    }
+    // tyre spray rises off the wheels (the sheet already hides what the body covers): above the whole body;
+    // the wake lies on the road under bodies and walkers
+    for (const [fx, z] of [[v.spray, zTop + 1], [v.wake, 4]]) {
+      if (!fx) continue;
+      fx.el.style.transform = `translate(${(x - fx.spec.anchor[0]).toFixed(1)}px, ${(y - fx.spec.anchor[1]).toFixed(1)}px)`;
+      fx.el.style.zIndex = String(z);
+    }
+  }
+
+  // ---------- sprite sheets: one-shot effects (tyre spray) and the lobby cat ----------
+  let SPRAY = null;
+  const shots = [];
+  const validSheet = (s) => !!s && typeof s.file === 'string' && Array.isArray(s.anchor) && s.anchor.length === 2
+    && [s.frames, s.columns, s.frame_width, s.frame_height, ...s.anchor].every((n) => Number.isFinite(n)) && s.frames > 0 && s.columns > 0;
+  function sheetStyle(el, spec) {
+    const two = dpr() > 1.3;
+    const rows = spec.rows || Math.ceil(spec.frames / spec.columns);
+    el.style.width = `${spec.frame_width}px`;
+    el.style.height = `${spec.frame_height}px`;
+    el.style.backgroundSize = `${spec.columns * spec.frame_width}px ${rows * spec.frame_height}px`;
+    const src = ART + (two && spec.file_2x ? spec.file_2x : spec.file);
+    el.style.backgroundImage = `url("${src}")`;
+    if (two && spec.file_2x) {   // a missing @2x sheet falls back to 1x
+      const probe = new Image();
+      probe.onerror = () => { if (el.style.backgroundImage.includes(spec.file_2x)) el.style.backgroundImage = `url("${ART + spec.file}")`; };
+      probe.src = src;
+    }
+  }
+  function sheetFrame(el, spec, f) {
+    el.style.backgroundPosition = `${-(f % spec.columns) * spec.frame_width}px ${-Math.floor(f / spec.columns) * spec.frame_height}px`;
+  }
+  // a sprite-sheet animation played once at a screen position (top-left), then removed
+  function sheetShot(spec, x, y, z, additive, onDone) {
+    if (shots.length >= 16) return false;
+    const el = h('div', additive ? 'sheet fxsheet' : 'sheet');
+    sheetStyle(el, spec);
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    el.style.zIndex = String(z);
+    world.append(el);
+    const shot = { el, spec, t: 0, onDone };
+    shots.push(shot);
+    return shot;
+  }
+  function oneShot(spec, u, v, z) {
+    if (!validSheet(spec) || shots.length >= 12) return;
+    const [x, y] = P(u, v);
+    sheetShot(spec, x - spec.anchor[0], y - spec.anchor[1], z, true);
+  }
+  // screen doors / restroom door swing open (warm light spilling out) and close again
+  const doorAnims = {};
+  const doorBusy = {};
+  // The sheet is open (first ~35 %) - hold - close. Someone arriving while it plays keeps it open: the
+  // animation is wound back to the start of its hold, so no one walks through a closing door.
+  function playDoor(key) {
+    const d = doorAnims[key];
+    if (!d) return;
+    const busy = doorBusy[key];
+    if (busy) {
+      const holdStart = Math.round(d.frames * 0.35) / (d.fps || 18);
+      if (busy.t > holdStart) busy.t = holdStart;
+      return;
+    }
+    doorBusy[key] = sheetShot(d, d.x, d.y, d.z_index ?? 900, false, () => { doorBusy[key] = null; }) || null;
+  }
+  // umbrellas: a pre-rendered sprite held over the emote outside; folded with a short one-shot at the door
+  let UMB = null;
+  const UMB_GRIP = [10, -40];   // grip point relative to the walker's feet
+  function stepShots(dt) {
+    for (let i = shots.length - 1; i >= 0; i--) {
+      const s = shots[i];
+      s.t += dt;
+      const f = Math.floor(s.t * (s.spec.fps || 24));
+      if (f >= s.spec.frames) { s.el.remove(); shots.splice(i, 1); s.onDone?.(); continue; }
+      sheetFrame(s.el, s.spec, f);
+    }
+  }
+
+  // ---------- NPCs: pre-rendered sprite characters (the lobby cat, the janitor) ----------
+  // They walk axis-aligned routes via a hub in the open middle of the lobby (every spot -> hub route was
+  // checked clear of all prop footprints) and use the walk cycle for the direction they're heading.
+  const HUB = [8.6, 6.6];
+  const npcs = [];
+  function makeNpc(specs, spots) {
+    const n = { specs, spots, el: h('div', 'sheet'), spot: 0, u: 0, v: 0, anim: null, spec: null, animT: 0, t: 0, dur: 0, path: [], f: -1 };
+    world.append(n.el);
+    n.spot = Math.floor(Math.random() * spots.length);
+    [n.u, n.v] = spots[n.spot].at;
+    npcs.push(n);
+    return n;
+  }
+  function npcAnim(n, name) {
+    const spec = n.specs[name];
+    if (!spec || n.anim === name) return;
+    n.anim = name;
+    n.spec = spec;
+    n.animT = 0;
+    n.f = -1;
+    sheetStyle(n.el, spec);
+  }
+  function npcRoute(n) {
+    let next = n.spot;
+    while (next === n.spot) next = Math.floor(Math.random() * n.spots.length);
+    n.path = [...n.spots[n.spot].route, HUB, ...[...n.spots[next].route].reverse(), n.spots[next].at];
+    n.spot = next;
+  }
+  // one walking step; true once the route is done
+  function npcWalk(n, dt) {
+    const [tu, tv] = n.path[0];
+    const du = tu - n.u;
+    const dv = tv - n.v;
+    const d = Math.hypot(du, dv);
+    const name = Math.abs(du) > Math.abs(dv) ? (du > 0 ? 'walk_plus_u' : 'walk_minus_u') : (dv > 0 ? 'walk_plus_v' : 'walk_minus_v');
+    npcAnim(n, name);
+    const spec = n.specs[name];
+    const step = (spec?.stride_tiles ? spec.stride_tiles / (spec.frames / (spec.fps || 12)) : 0.4) * dt;
+    if (d <= step) { n.u = tu; n.v = tv; n.path.shift(); return !n.path.length; }
+    n.u += (du / d) * step;
+    n.v += (dv / d) * step;
+    return false;
+  }
+  function npcDraw(n) {
+    const spec = n.spec;
+    if (!spec) return;
+    const f = spec.loop === false ? Math.min(spec.frames - 1, Math.floor(n.animT * (spec.fps || 12)))
+      : Math.floor(n.animT * (spec.fps || 12)) % spec.frames;
+    if (f !== n.f) { n.f = f; sheetFrame(n.el, spec, f); }
+    const [x, y] = P(n.u, n.v);
+    n.el.style.transform = `translate(${(x - spec.anchor[0]).toFixed(1)}px, ${(y - spec.anchor[1]).toFixed(1)}px)`;
+    n.el.style.zIndex = String(depth(n.u, n.v));
+  }
+  const npcWalkSpecs = (s) => ['walk_plus_u', 'walk_minus_u', 'walk_plus_v', 'walk_minus_v'].every((k) => validSheet(s?.[k]));
+
+  // The lobby cat: sleeps at a favourite spot, stretches, wanders, sits a while, sleeps again; someone
+  // hopping right past can wake it up.
+  const CAT_SPOTS = [   // spot + its route to the hub
+    { at: [11.9, 4.35], route: [[11.9, 5.6], [8.6, 5.6]] },   // by the palm, end of the snack bar
+    { at: [6.2, 8.45], route: [[6.2, 6.6]] },                 // by the front glass
+    { at: [12.55, 6.85], route: [[12.55, 6.6]] },             // between bench and arcade
+    { at: [10.5, 7.9], route: [[10.5, 6.6]] },                // near the entrance
+  ];
+  let cat = null;
+  function initCat(specs) {
+    cat = makeNpc(specs, CAT_SPOTS);
+    cat.state = 'sleep';
+    cat.dur = rand(20, 50);
+    npcAnim(cat, 'sleep');
+  }
+  function stepCat(dt) {
+    if (!cat) return;
+    cat.t += dt;
+    cat.animT += dt;
+    if (cat.state === 'sleep') {
+      npcAnim(cat, 'sleep');
+      if (cat.t > 4 && Math.random() < dt * 0.5) {
+        for (const w of figures) {
+          if (w.moving && w.alpha > 0.8 && !w.removing && Math.hypot(w.u - cat.u, w.v - cat.v) < 0.7 && Math.random() < 0.3) {
+            cat.state = 'sit'; cat.t = 0; cat.dur = rand(6, 12); break;
+          }
+        }
+      }
+      if (cat.t > cat.dur) {
+        cat.t = 0;
+        if (cat.specs.stretch) cat.state = 'stretch'; else { cat.state = 'walk'; npcRoute(cat); }
+      }
+    } else if (cat.state === 'stretch') {
+      npcAnim(cat, 'stretch');
+      if (cat.animT >= cat.specs.stretch.frames / (cat.specs.stretch.fps || 12)) { cat.state = 'walk'; cat.t = 0; npcRoute(cat); }
+    } else if (cat.state === 'walk') {
+      if (npcWalk(cat, dt)) { cat.state = 'sit'; cat.t = 0; cat.dur = rand(8, 20); }
+    } else if (cat.state === 'sit') {
+      npcAnim(cat, 'sit');
+      if (cat.t > cat.dur) { cat.state = 'sleep'; cat.t = 0; cat.dur = rand(30, 80); }
+    }
+    npcDraw(cat);
+  }
+
+  // The janitor: walks to a spot, sweeps it for a while, leans on the broom checking his watch, moves on.
+  const JAN_SPOTS = [
+    { at: [7.0, 6.2], route: [[7.0, 6.6]] },
+    { at: [10.2, 7.0], route: [[10.2, 6.6]] },
+    { at: [5.6, 8.3], route: [[5.6, 6.6]] },
+    { at: [11.9, 5.6], route: [[8.6, 5.6]] },
+  ];
+  let janitor = null;
+  function initJanitor(specs) {
+    janitor = makeNpc(specs, JAN_SPOTS);
+    janitor.state = 'sweep';
+    janitor.dur = rand(6, 12);
+    npcAnim(janitor, 'sweep');
+  }
+  // Owner's pick (02 Nov): the janitor is the cpMOP emote (Club Penguin penguin with mop and bucket, a DGG
+  // inside joke) instead of the rendered 3D janitor: it mops each spot for a while (the emote itself is the
+  // mopping animation) and waddles to the next one, turned the way it walks. ?janitor=3d brings the old one back.
+  const JAN_EMOTE = 'assets/cpMOP.webp';
+  const JAN_H = 52;
+  let mopper = null;
+  function initMopper() {
+    const el = h('div', 'w');
+    const sh = h('div', 'sh');
+    const bod = h('div', 'bod');
+    const im = h('img', 'em');
+    im.alt = '';
+    im.src = JAN_EMOTE;
+    const iw = Math.round((JAN_H * 144) / 128);
+    Object.assign(im.style, { height: `${JAN_H}px`, width: `${iw}px`, left: `${-iw / 2}px` });
+    Object.assign(sh.style, { width: '40px', left: '-20px' });
+    bod.append(im);
+    el.append(sh, bod);
+    world.append(el);
+    const spot = Math.floor(Math.random() * JAN_SPOTS.length);
+    const [u, v] = JAN_SPOTS[spot].at;
+    mopper = { el, bod, im, spots: JAN_SPOTS, spot, u, v, path: [], state: 'mop', t: 0, dur: rand(8, 16), phase: 0, face: 1, key: '' };
+  }
+  function stepMopper(dt) {
+    const j = mopper;
+    if (!j) return;
+    j.t += dt;
+    let lift = 0;
+    let tilt = 0;
+    if (j.held) {
+      if (j.state === 'mop') j.t = Math.min(j.t, j.dur - 0.5);   // someone is talking to it: it stays and listens
+    } else if (j.state === 'mop') {
+      if (j.t > j.dur) { j.state = 'walk'; j.t = 0; npcRoute(j); }
+    } else {
+      const [tu, tv] = j.path[0];
+      const du = tu - j.u;
+      const dv = tv - j.v;
+      const d = Math.hypot(du, dv);
+      const step = 0.55 * dt;
+      if (Math.abs(du - dv) > 0.01) j.face = du - dv > 0 ? 1 : -1;   // screen direction: x grows with u - v
+      if (d <= step) {
+        j.u = tu; j.v = tv; j.path.shift();
+        if (!j.path.length) { j.state = 'mop'; j.t = 0; j.dur = rand(10, 18); }
+      } else { j.u += (du / d) * step; j.v += (dv / d) * step; }
+      // the same lazy waddle-and-hop as the chatters
+      j.phase += dt * 3.6;
+      const c = (j.phase / Math.PI) % 1;
+      lift = c < 0.5 ? Math.sin((c / 0.5) * Math.PI) * 9 : 0;
+      tilt = c < 0.5 ? 0 : Math.sin((c - 0.5) * 4 * Math.PI) * 3;
+    }
+    const [x, y] = P(j.u, j.v);
+    const key = `${x.toFixed(1)}|${y.toFixed(1)}|${lift.toFixed(1)}|${tilt.toFixed(1)}|${j.face}`;
+    if (key === j.key) return;
+    j.key = key;
+    j.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+    j.bod.style.transform = `translateY(${(-lift).toFixed(1)}px) rotate(${tilt.toFixed(1)}deg) scaleX(${j.face})`;
+    j.el.style.zIndex = String(depth(j.u, j.v));
+  }
+
+  // ---------- jannies: DGG mods mop the lobby ----------
+  // No janitor at the start (?janitor=always keeps the old penguin, ?janitor=3d the rendered one). When a DGG moderator
+  // types (any message, tagged or not) a cpMOP penguin wearing their name comes in from the staff corridor behind the
+  // usher, mops a free lobby spot for a while, moves on to the next, and says their messages. Several mods, several
+  // jannies (one per spot, so at most JAN_SPOTS.length); 10 min without a message and they clock off the way they came.
+  const JAN_IDLE = clamp(Number(q.get('janidle')) || 600, 20, 3600) * 1000;   // ?janidle=<s> for testing
+  const jannies = new Map();   // nick (lower case) -> figure
+  function onModMessage(m) {
+    if (!m.features?.includes('moderator')) return;
+    const key = m.nick.toLowerCase();
+    let j = jannies.get(key);
+    if (!j || j.gone) j = addJanny(m);
+    if (!j) return;
+    j.lastMsg = performance.now();
+    queueLine(j, m.tokens);
+  }
+  function addJanny(m) {
+    if (jannies.size >= JAN_SPOTS.length) return null;   // every spot has its janny
+    const w = makeFigure(m.nick, 'PEPE', m.color, false);
+    if (m.rainbow) { w.nm.textContent = ''; w.nm.append(h('span', 'rbt', m.nick)); }
+    // the cpMOP penguin (with mop and bucket) instead of an emote
+    w.em.remove();
+    const im = h('img', 'em');
+    im.alt = '';
+    im.src = JAN_EMOTE;
+    const iw = Math.round((JAN_H * 144) / 128);
+    Object.assign(im.style, { height: `${JAN_H}px`, width: `${iw}px`, left: `${-iw / 2}px` });
+    Object.assign(w.sh.style, { width: '40px', left: '-20px' });
+    w.bod.prepend(im);
+    w.em = im;
+    w.emName = 'cpMOP';
+    w.jan = true;
+    w.key = m.nick.toLowerCase();
+    [w.u, w.v] = J;
+    w.alpha = 0;
+    w.alphaT = 1;
+    w.nameT = 8;
+    w.spot = null;
+    w.lastMsg = performance.now();
+    figures.add(w);
+    jannies.set(w.key, w);
+    w.plan = [{ alpha: 1 }, { call: (x) => { floatAt(x, '🧹 janny on duty', '#7ff7f0'); janNext(x); } }];
+    return w;
+  }
+  // to a free spot (via the hub, like the old janitor), mop it, then the next one
+  function janNext(j) {
+    if (j.gone) return;
+    if (performance.now() - j.lastMsg > JAN_IDLE) { janLeave(j); return; }
+    const taken = new Set([...jannies.values()].filter((o) => o !== j && !o.gone).map((o) => o.spot));
+    const free = JAN_SPOTS.map((_, i) => i).filter((i) => i !== j.spot && !taken.has(i));
+    const next = free.length ? free[Math.floor(Math.random() * free.length)] : j.spot ?? 0;
+    const s = JAN_SPOTS[next];
+    const from = j.spot == null ? [G, L.gateIn || G] : JAN_SPOTS[j.spot].route;
+    j.spot = next;
+    j.mopping = false;
+    const dur = rand(10, 18) * 1000;
+    let t0 = 0;
+    j.plan = [...[...from, HUB, ...[...s.route].reverse(), s.at].map((to) => ({ to })),
+      { call: (x) => { x.mopping = true; t0 = performance.now(); } },
+      { until: () => !j.held && performance.now() - t0 > dur },   // someone talking to them: they stay and listen
+      { call: (x) => { x.mopping = false; janNext(x); } }];
+  }
+  // clocks off: back past the usher into the staff corridor
+  function janLeave(j) {
+    j.leaving = true;
+    j.mopping = false;
+    const from = j.spot == null ? [] : JAN_SPOTS[j.spot].route;
+    j.spot = null;
+    j.plan = [...[...from, HUB, L.gateIn || G, G, J].map((to) => ({ to })), { call: (x) => { x.alphaT = 0; dropBubble(x); } }, { alpha: 0 },
+      { call: (x) => { jannies.delete(x.key); removeWalker(x); } }];
+  }
+  SB.on('msg', onModMessage);
+
+  function stepJanitor(dt) {
+    stepMopper(dt);
+    if (!janitor) return;
+    const j = janitor;
+    j.t += dt;
+    j.animT += dt;
+    if (j.state === 'sweep') {
+      npcAnim(j, 'sweep');
+      if (j.t > j.dur) { j.state = 'idle'; j.t = 0; j.dur = rand(3, 6); }
+    } else if (j.state === 'idle') {
+      npcAnim(j, 'idle');
+      if (j.t > j.dur) { j.state = 'walk'; j.t = 0; npcRoute(j); }
+    } else if (j.state === 'walk') {
+      if (npcWalk(j, dt)) { j.state = 'sweep'; j.t = 0; j.dur = rand(8, 16); }
+    }
+    npcDraw(j);
+  }
+
+  // --- per-frame update ---
+  // personal space: someone about to walk into the back of a visible person just ahead (before their own
+  // target) waits a moment, so lines form instead of piles; after 1.5 s they go anyway (no deadlocks)
+  function blockedAhead(w, du, dv, d) {
+    if (w.passT > 0 || w.alpha < 0.5 || w.entering) return false;
+    const eu = du / d;
+    const ev = dv / d;
+    for (const o of figures) {
+      if (o === w || o.gone || o.entering || o.alpha < 0.5) continue;
+      const ru = o.u - w.u;
+      const rv = o.v - w.v;
+      const along = ru * eu + rv * ev;
+      if (along <= 0.05 || along >= d) continue;   // behind, or beyond where this one is going
+      if (Math.abs((ru - rv) * 60) < 34 && Math.abs((ru + rv) * 30) < 30) return true;   // overlapping on screen
+    }
+    return false;
+  }
+
+  // Walking pace: a stroll at 75% (owner, 05 Nov) while the lobby has room, back up to full speed as the crowd nears
+  // the cap (70% -> 85% of CAP), so a busy night still clears; eased so nobody visibly changes gear mid-step.
+  let pace = 0.75;
+  function stepPace(dt) {
+    const target = 0.75 + 0.25 * clamp((liveCount() / CAP - 0.7) / 0.15, 0, 1);
+    pace += (target - pace) * Math.min(1, dt * 0.5);
+  }
+  function stepPlan(w, dt) {
+    let moving = false;
+    let guard = 8;
+    if (w.passT > 0) w.passT -= dt;
+    while (w.plan.length && guard--) {
+      const s = w.plan[0];
+      if (s.to) {
+        const [tu, tv] = s.to;
+        const du = tu - w.u;
+        const dv = tv - w.v;
+        const d = Math.hypot(du, dv);
+        if (d > 0.001 && !s.slow && blockedAhead(w, du, dv, d)) {
+          w.holdT = (w.holdT || 0) + dt;
+          if (w.holdT > 1.5) { w.holdT = 0; w.passT = 1.2; }
+          break;
+        }
+        w.holdT = 0;
+        const sp = (w.hurry ? 3.0 : (s.slow ? 0.9 : 2.0) * pace) * dt;
+        if (d <= sp) { w.u = tu; w.v = tv; w.plan.shift(); moving = d > 0.001; } else { w.u += (du / d) * sp; w.v += (dv / d) * sp; moving = true; }
+        if (moving) SB.faceEmote(w.em, w.emName, du - dv);   // looks the way it walks (screen x = u - v)
+        break;
+      }
+      if (s.wait != null) {
+        if (!s.started) { s.started = true; s.start?.(w); }
+        s.wait -= dt;
+        if (s.wait <= 0) { w.plan.shift(); s.end?.(w); }
+        break;
+      }
+      if (s.until) {   // hold until a condition is true (e.g. their bus / taxi has stopped)
+        if (s.until()) { w.plan.shift(); continue; }
+        break;
+      }
+      if (s.alpha != null) {
+        if (Math.abs(w.alpha - s.alpha) < 0.02) { w.alpha = s.alpha; w.plan.shift(); continue; }
+        break;
+      }
+      if (s.call) { w.plan.shift(); s.call(w); if (w.gone) return false; continue; }
+      w.plan.shift();
+    }
+    if (w.plan.length === 0 && !w.inQueue && !w.staff && !w.gone) { /* idle until the queue moves */ }
+    return moving;
+  }
+
+  // The glass front (v 8.95-9.05, u 3-13) is cut into depth slices ~0.9 tile wide, each sorted at its middle. Right
+  // at the glass a figure's sprite (and umbrella) overlaps the neighbouring slices, so plain depth sorting put glass
+  // over people outside and people inside over the glass. Near the front, sort by the side of the glass instead:
+  // outside within a tile always in front of the slices they can overlap, inside always behind them.
+  function frontV(u, v) {
+    if (u < 2.9 || u > 13.1) return v;   // left of the glass: the bus shelter and the solid wall sort as usual
+    if (v >= 9.05) return v < 10 ? 10 : v;
+    return Math.min(v, 16.85 - v);
+  }
+  function drawFigure(w, dt, t) {
+    let s = 0;
+    let lift = 0;
+    let tilt = 0;
+    let bouncing = false;
+    const moving = w.moving;
+    if (t < combo.until && w.emName === combo.emote && !w.entering) {
+      s = Math.abs(Math.sin(((t - combo.start) / 1000) * 9));
+      lift = s * 26;
+      bouncing = true;
+    } else if (w.bounce > 0) {
+      w.bounce = Math.max(0, w.bounce - dt * 2.4);
+      s = Math.sin(w.bounce * Math.PI);
+      lift = s * 12;
+      bouncing = true;
+    } else if (moving) {
+      // one lazy hop every ~0.8 s (0.55 s hurrying), waddling along the floor in between
+      w.phase += dt * (w.hurry ? 5.7 : 3.9 * pace);
+      const c = (w.phase / Math.PI) % 1;
+      s = c < 0.5 ? Math.sin((c / 0.5) * Math.PI) : 0;
+      lift = s * 13;
+      bouncing = c < 0.5;
+      tilt = c < 0.5 ? 0 : Math.sin((c - 0.5) * 4 * Math.PI) * 3.5;
+      // landing on wet pavement: splash ring
+      if (w.lastC != null && w.lastC < 0.5 && c >= 0.5) {
+        if (w.v > 9.15) { if (Math.random() < 0.6) splash(w.u, w.v); } else if (w.wetSteps > 0) { w.wetSteps--; wetPrint(w.u, w.v); }
+      }
+      w.lastC = c;
+    } else if (!w.staff) {
+      if (!w.idle && Math.random() < dt * 0.1) w.idle = 0.001;
+      if (w.idle) { w.idle += dt * 6; if (w.idle >= Math.PI) w.idle = 0; }
+      s = Math.sin(w.idle);
+      lift = s * 12;
+      bouncing = w.idle > 0;
+    }
+    const sq = bouncing && s < 0.2 ? 0.9 : 1;
+    const [x, y] = P(w.u, w.v, w.stand || 0);
+    w.x = x; w.y = y; w.lift = lift;
+    // only touch the DOM when something changed (most figures stand still most of the time)
+    const tEl = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+    const tBod = `translateY(${(-lift).toFixed(1)}px)${tilt ? ` rotate(${tilt.toFixed(1)}deg)` : ''} scale(${(2 - sq).toFixed(3)}, ${sq})`;
+    if (tEl !== w.tEl) { w.tEl = tEl; w.el.style.transform = tEl; }
+    if (tBod !== w.tBod) { w.tBod = tBod; w.bod.style.transform = tBod; }
+    // the contact shadow shrinks and fades while they're in the air, full and dark on landing
+    const shS = (1 - Math.min(lift, 26) / 52).toFixed(2);
+    if (shS !== w.shS) { w.shS = shS; w.sh.style.transform = `scale(${shS})`; w.sh.style.opacity = shS; }
+    // names show while someone is new or talking, so the crowd stays readable
+    if (!w.staff) {
+      w.nameT = Math.max(0, (w.nameT ?? 5) - dt);
+      // (a janny always wears their name; shown or not in showNames(), so neighbours' names never print on top of each other)
+      w.nameWant = (w.nameT > 0 || w.jan || director.follow?.w === w) && !w.bub && w.alpha > 0.3;
+    }
+    // vehicles are depth-sliced along their length, so plain depth sorting is right beside them too
+    const z = depth(w.u, frontV(w.u, w.v));
+    if (z !== w.z) { w.z = z; w.el.style.zIndex = String(z); }
+    const out = w.v > 9.1;
+    if (out !== w.out) {
+      // stepping in under the roof: the umbrella folds in their hand (attached, hops along), then it's gone
+      if (w.out && !out && w.umbColor && UMB?.fold?.[w.umbColor]) {
+        const fs = UMB.fold[w.umbColor];
+        const el = h('div', 'sheet');
+        sheetStyle(el, fs);
+        el.style.left = `${UMB_GRIP[0] - fs.anchor[0]}px`;
+        el.style.top = `${UMB_GRIP[1] - fs.anchor[1]}px`;
+        el.style.transform = 'none';
+        w.bod.append(el);
+        w.fold = { el, spec: fs, t: 0 };
+        w.umb.remove();
+        w.umb = null;
+        w.umbLoop = null;
+        w.umbColor = null;
+        w.umbSpec = null;
+      }
+      if (w.out && !out) w.wetSteps = 4;   // in from the rain: a few wet prints on the lobby floor
+      if (w.out === false && out && !w.umb) giveUmbrella(w);   // back out into the rain (changed their mind)
+      w.out = out;
+      w.el.classList.toggle('out', out);
+    }
+    if (w.umbLoop && w.out) {
+      const u = w.umbLoop;
+      const k = Math.floor((t / 1000 + u.ph) * (u.spec.fps || 24)) % u.spec.frames;
+      if (k !== u.k) { u.k = k; sheetFrame(w.umb, u.spec, k); }
+    }
+    if (w.fold) {
+      w.fold.t += dt;
+      const f = Math.floor(w.fold.t * (w.fold.spec.fps || 12));
+      if (f >= w.fold.spec.frames) { w.fold.el.remove(); w.fold = null; } else sheetFrame(w.fold.el, w.fold.spec, f);
+    }
+    w.alpha += clamp(w.alphaT - w.alpha, -dt * 1.8, dt * 1.8);
+    if (Math.abs(w.alpha - w.vis) > 0.004) { w.vis = w.alpha; w.el.style.opacity = w.alpha.toFixed(3); }
+  }
+
+  // Names that would land on each other show one at a time (QA 05 Nov, as in the auditorium): placed in order (followed,
+  // jannies, then the most recent), a name that would overlap one already shown fades out until it is clear.
+  // World px; a name sits 7 px under its walker's feet (.w .nm), 14 px Oswald.
+  const nameRank = (w) => (director.follow?.w === w ? 1e6 : 0) + (w.jan ? 1e5 : 0) + w.nameT;
+  function showNames() {
+    const shown = [];
+    const list = [];
+    for (const w of figures) if (w.nameWant && !w.gone) list.push(w); else if (w.nameOn !== false && !w.staff) { w.nameOn = false; w.nm.style.opacity = '0'; }
+    list.sort((a, b) => nameRank(b) - nameRank(a));
+    for (const w of list) {
+      w.nmW ??= w.nm.offsetWidth;   // the text never changes: measured once
+      const r = [w.x - w.nmW / 2, w.y + 7, w.x + w.nmW / 2, w.y + 23];
+      const clash = shown.some((o) => r[0] < o[2] + 2 && r[2] > o[0] - 2 && r[1] < o[3] && r[3] > o[1]);
+      if (!clash) shown.push(r);
+      if (!clash !== w.nameOn) { w.nameOn = !clash; w.nm.style.opacity = clash ? '0' : '1'; }
+    }
+  }
+  function placeBubble(w, dt) {
+    if (!w.bub) return;
+    // hidden (in the restroom, fading in off the street) or out of view: hold the line until they are visible
+    const [sx, sy] = toScreen(w.x, w.y - (EH + w.lift) * 0.5);
+    const hidden = w.alpha < 0.3 || sx < 20 || sx > 1900 || sy > 1075 || sy < 0;
+    if (!hidden && !w.bubBlocked) w.bubT -= dt;   // no time lost while hidden or waiting for room
+    if (w.bubT <= 0) { dropBubble(w); return; }
+    // kept inside the stage; the pointer aims at the speaker (set in layoutBubbles, after any displacement)
+    const half = (w.bubW ||= w.bub.offsetWidth || 160) / 2;
+    const bx = clamp(sx, half + 8, 1912 - half);
+    w.bubH ||= w.bub.offsetHeight || 50;
+    w.bx = bx;
+    w.sx = sx;
+    // bottom edge (screen px), from the speaker's standing height: a hop no longer bobs the bubble (and any stacked
+    // above it) up and down; final position after layoutBubbles()
+    // (13 px = a walking hop: the head never pokes into the bubble, also zoomed in; a combo jump can for a moment)
+    w.by = toScreen(w.x, w.y - EH - 13)[1] - 16;
+    w.bubHidden = hidden;
+    if (!hidden) w.bubAge += dt;
+    w.bub.style.opacity = hidden ? '0' : String((Math.min(clamp(w.bubT / 0.4, 0, 1), clamp(w.bubAge / 0.25, 0, 1)) * w.alpha).toFixed(3));
+  }
+  // Speech never covers the HUD or the billboard (hard), and keeps off the door titles and the gate sign
+  // when another spot near the speaker is free (soft). Rects in stage px: [left, top, right, bottom].
+  const HARD_RECTS = [];
+  const softRects = [];
+  // bubbles that would overlap are stacked upwards (the lower one stays next to its speaker); if that
+  // leaves the stage or lands on a protected area, beside the speaker instead; else this one waits (hidden).
+  // A bubble follows its speaker directly, but a change of spot (making room, stacking) glides on a spring (~0.4 s).
+  // critically damped spring (starts from rest, eases in and out): [new value, new velocity], smooth = time scale (s)
+  function spring(cur, target, vel, smooth, dt) {
+    const om = 2 / smooth;
+    const x = om * dt;
+    const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    const ch = cur - target;
+    const tmp = (vel + om * ch) * dt;
+    return [target + (ch + tmp) * e, (vel - om * tmp) * e];
+  }
+  function layoutBubbles(dt) {
+    const list = bubOrder.filter((w) => w.bub && !w.bubHidden).sort((a, b) => b.by - a.by);
+    const placed = [];
+    // where the bubbles placed so far are drawn this frame (target + gliding offset + push). A later one that would
+    // be drawn over one of them while it glides is pushed up above it (QA 04 Nov: overlaps 63 s -> 6 s in 2 min)
+    const drawn = [];
+    const hitAt = (x, by, w) => placed.find((p) => Math.abs(p.x - x) < (p.half + w.bubW / 2 + 6) && by > p.top - 4 && by - w.bubH < p.bottom + 4);
+    const over = (rects, x, by, w) => rects.find(([l, t, r, b]) => x + w.bubW / 2 > l && x - w.bubW / 2 < r && by > t && by - w.bubH < b);
+    const [vx0, vy0, vx1] = view();   // bubbles stay inside the part of the stage on screen (fit=cover crops it)
+    for (const w of list) {
+      const half = w.bubW / 2;
+      const fit = (x) => clamp(x, vx0 + half + 8, vx1 - 8 - half);
+      let by = w.by;
+      for (let guard = 0; guard < 7; guard++) {
+        const hit = hitAt(w.bx, by, w);
+        if (!hit) break;
+        by = hit.top - 6;
+      }
+      const cands = [[w.bx, by]];
+      const soft = softRects.map(([l, t, r, b]) => [...toScreen(l, t), ...toScreen(r, b)]);   // world -> screen
+      for (const r of [...HARD_RECTS, ...soft]) {
+        if (over([r], w.bx, by, w)) cands.push([fit(r[0] - half - 6), by], [fit(r[2] + half + 6), by]);
+      }
+      const low = Math.max(w.by, vy0 + 8 + w.bubH);
+      cands.push([fit(w.bx + 2 * half + 12), low], [fit(w.bx - 2 * half - 12), low]);
+      const ok = cands.filter(([x, y]) => y - w.bubH >= vy0 + 8 &&!hitAt(x, y, w) && !over(HARD_RECTS, x, y, w));
+      const pick = ok.find(([x, y]) => !over(soft, x, y, w)) || ok[0];
+      w.bubBlocked = !pick;
+      if (!pick) { w.bub.style.opacity = '0'; w.bubShown = false; continue; }
+      const [bx, bY] = pick;
+      placed.push({ x: bx, half, top: bY - w.bubH, bottom: bY });
+      // the offset from the speaker's natural spot eases; the speaker's own movement is followed 1:1
+      const dx = bx - w.bx;
+      const dy = bY - w.by;
+      if (!w.bubShown) { w.offX = dx; w.offY = dy; w.offVX = 0; w.offVY = 0; w.pushOff = 0; w.pushV = 0; w.bubShown = true; } else {
+        [w.offX, w.offVX] = spring(w.offX, dx, w.offVX, 0.2, dt);
+        [w.offY, w.offVY] = spring(w.offY, dy, w.offVY, 0.2, dt);
+      }
+      // kept on the stage while gliding too (the speaker can move on while a sideways offset is still easing)
+      const cx = clamp(w.bx + w.offX, vx0 + half + 8, vx1 - 8 - half);
+      const cy0 = w.by + w.offY;
+      // a push eases back down on its own spring, but only while the way down is free (else it would sink into the
+      // bubble below and be pushed out again every frame: a wobble)
+      const [relaxed, rv] = spring(w.pushOff, 0, w.pushV, 0.15, dt);
+      const y1 = cy0 + relaxed;
+      if (!drawn.some((p) => Math.abs(p.x - cx) < p.half + half + 4 && y1 > p.top - 4 && y1 - w.bubH < p.bottom + 4)) { w.pushOff = relaxed; w.pushV = rv; } else w.pushV = 0;
+      let cy = cy0 + w.pushOff;
+      for (let guard = 0; guard < 7; guard++) {
+        // pushed only on a real overlap and placed 6 px clear: a dead band, so small moves never start a push
+        const hit = drawn.find((p) => Math.abs(p.x - cx) < p.half + half && cy > p.top + 2 && cy - w.bubH < p.bottom - 2);
+        if (!hit) break;
+        cy = hit.top - 6;
+      }
+      cy = Math.max(cy, vy0 + 8 + w.bubH);   // never above the top edge either (a glide down from a high stacked spot)
+      if (cy !== cy0 + w.pushOff) {
+        // pushed up at most 900 px/s: a quick slide, never a jump (a bubble gliding in sideways underneath)
+        const need = cy - cy0;
+        w.pushOff = need < w.pushOff ? Math.max(need, w.pushOff - 900 * dt) : need;
+        w.pushV = 0;
+        cy = cy0 + w.pushOff;
+      }
+      // a new bubble takes its room as it fades in, so the one above it is eased up instead of shoved
+      const grow = clamp(w.bubAge / 0.3, 0, 1);
+      drawn.push({ x: cx, half, top: cy - w.bubH * grow * grow * (3 - 2 * grow), bottom: cy });
+      w.bub.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) translate(-50%, -100%)`;
+      const tail = Math.round(clamp(w.sx - cx, -half + 12, half - 12));
+      if (tail !== w.bubTail) { w.bubTail = tail; w.bub.style.setProperty('--tail', `${tail}px`); }
+    }
+  }
+
+  // ---------- rain (outside the building only) ----------
+  const rainCv = $('rain');
+  const rctx = rainCv.getContext('2d');
+  // a downpour: many thin far drops plus fewer long, brighter near ones (only drawn without the video loops)
+  const drops = Array.from({ length: 520 }, (_, i) => {
+    const near = i < 90;
+    return { x: Math.random() * 960, y: Math.random() * 540, l: near ? rand(18, 30) : rand(8, 15), s: near ? rand(760, 980) : rand(480, 680), near };
+  });
+  const building = [P(0, 9.05), P(0, 9.05, WALL), P(0, 0, WALL), P(13, 0, WALL), P(13, 0), P(13, 9.05)].map(([x, y]) => [x / 2, y / 2]);
+  let rainOn = true;   // off while the pre-rendered light loop (which has its own rain) is playing
+  function setRain(on) { rainOn = on; if (!on) rctx.clearRect(0, 0, 960, 540); }
+  function drawRain(dt) {
+    rctx.clearRect(0, 0, 960, 540);
+    rctx.save();
+    rctx.beginPath();
+    rctx.rect(0, 0, 960, 540);
+    building.forEach(([x, y], i) => (i ? rctx.lineTo(x, y) : rctx.moveTo(x, y)));
+    rctx.closePath();
+    rctx.clip('evenodd');
+    for (const near of [false, true]) {
+      rctx.strokeStyle = near ? 'rgba(200,215,255,.42)' : 'rgba(180,200,255,.3)';
+      rctx.lineWidth = near ? 1.3 : 0.8;
+      rctx.beginPath();
+      for (const d of drops) {
+        if (d.near !== near) continue;
+        d.y += d.s * dt * 0.5;
+        d.x -= d.s * dt * 0.06;
+        if (d.y > 540) { d.y = -d.l; d.x = Math.random() * 1000; }
+        rctx.moveTo(d.x, d.y);
+        rctx.lineTo(d.x - d.l * 0.12, d.y + d.l);
+      }
+      rctx.stroke();
+    }
+    rctx.restore();
+  }
+
+  // ---------- splash mist (SAMPLES, off by default; ?mist=1|2|3|4, ?mistgain=): the spray a downpour puts on every surface it hits ----------
+  // Surface passes from the out10 scene (roxy3d/out10mist/, BRIEF-50): catch = where rain lands, rim = edges with a
+  // drop (roofs, curbs, ledges), light = the light falling there (tints the spray), height = how high above the street.
+  // One WebGL pass, drawn additively under the rain. Spray rises off a surface, so each pixel looks a few px DOWN the
+  // screen for the surface it rises from (taps), tinted by the light there: dark surfaces give no visible mist.
+  // Styles: 1 splash sparkle (dense tiny crowns, faint veil), 2 edge spray (plumes off roof edges/curbs),
+  //         3 lamp-lit mist (soft drifting mist that glows under lamps and neon), 4 wind sheets (gusts sweep across).
+  const MIST = clamp(Math.round(Number(q.get('mist')) || 0), 0, 4);   // off: style 2 live looked like water boiling off the edges (owner, 04 Nov)
+  const MIST_GAIN = clamp(Number(q.get('mistgain')) || 1, 0.1, 4);
+  const MIST_DIR = `roxy3d/${(q.get('mistdir') || 'out10mist').replace(/[^a-z0-9_-]/gi, '')}/`;
+  let mist = null;
+  if (MIST) {
+    const load = (f) => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = MIST_DIR + f; });
+    Promise.all(['catch.png', 'rim.png', 'light.png', 'height.png'].map(load)).then(setupMist)
+      .catch((e) => console.warn('[lobby] mist passes missing', e));
+  }
+  const MIST_FS = `
+precision highp float;
+uniform sampler2D uC, uR, uL, uH;
+uniform vec2 uRes;
+uniform float uT, uGain;
+uniform int uMode;
+float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float noise(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n0 = mix(mix(hash(i.xy + i.z * 17.0), hash(i.xy + vec2(1, 0) + i.z * 17.0), f.x),
+                 mix(hash(i.xy + vec2(0, 1) + i.z * 17.0), hash(i.xy + vec2(1, 1) + i.z * 17.0), f.x), f.y);
+  float n1 = mix(mix(hash(i.xy + (i.z + 1.0) * 17.0), hash(i.xy + vec2(1, 0) + (i.z + 1.0) * 17.0), f.x),
+                 mix(hash(i.xy + vec2(0, 1) + (i.z + 1.0) * 17.0), hash(i.xy + vec2(1, 1) + (i.z + 1.0) * 17.0), f.x), f.y);
+  return mix(n0, n1, f.z);
+}
+float fbm(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * noise(p); p = p * 2.03 + 7.1; a *= 0.5; } return v; }
+float lum(vec3 c) { return dot(c, vec3(0.3, 0.55, 0.15)); }
+vec3 tex(sampler2D s, vec2 px) { return texture2D(s, px / uRes).rgb; }
+// splash crowns: one per cell per cycle, re-placed every cycle; a flat ring seen edge-on + droplets thrown up
+vec4 crowns(vec2 px, float cs, float rate, float density, float size) {
+  vec2 id = floor(px / cs);
+  float h0 = hash(id);
+  float cyc = uT * rate + h0;
+  float k = floor(cyc), ph = fract(cyc) / 0.4;   // a splash lasts 40% of its cycle: short pops
+  if (ph > 1.0) return vec4(0.0);
+  vec2 seed = id + k * 13.7;
+  if (hash(seed + 3.1) > density) return vec4(0.0);
+  vec2 c = (id + 0.2 + 0.6 * vec2(hash(seed), hash(seed + 1.7))) * cs;
+  float ca = texture2D(uC, c / uRes).r;
+  if (ca < 0.3) return vec4(0.0);
+  vec3 L = tex(uL, c);
+  vec2 d = px - c;
+  float r = size * (0.3 + ph);
+  float ring = smoothstep(0.9, 0.0, abs(length(d * vec2(1.0, 2.2)) - r)) * (1.0 - ph);
+  float up = size * 1.6 * ph * (1.0 - ph) * 4.0;
+  float drops = 0.0;
+  for (int j = 0; j < 3; j++) {
+    float fj = float(j) - 1.0;
+    vec2 dp = c + vec2(fj * r * 0.9, -up * (1.0 - 0.3 * abs(fj)));
+    drops += smoothstep(0.9, 0.0, length(px - dp));
+  }
+  float a = (ring * 0.6 + drops * (1.0 - ph * 0.6)) * ca;
+  return vec4(L, a);
+}
+void main() {
+  vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  int m = uMode;
+  // how far the spray rises above ground surfaces (hc) and above edges (hr), in 1080p px
+  float hc = m == 1 ? 3.0 : m == 2 ? 5.0 : m == 3 ? 12.0 : 7.0;
+  float hr = m == 1 ? 4.0 : m == 2 ? 26.0 : m == 3 ? 14.0 : 9.0;
+  float span = max(hc, hr) * 2.2;
+  float g = 0.0, rr = 0.0;
+  vec3 tint = vec3(0.0);
+  float tw = 0.0;
+  float jit = hash(floor(px) * 0.37 + 1.3);   // per-pixel tap offset: no banding/stripes from the 14 taps
+  for (int k = 0; k < 14; k++) {
+    float fk = (float(k) + jit) / 14.0 * span;
+    vec2 s = px + vec2(0.0, fk);
+    float c = texture2D(uC, s / uRes).r;
+    float r = texture2D(uR, s / uRes).r;
+    float wc = exp(-fk / hc) * c, wr = exp(-fk / hr) * r;
+    g = max(g, wc);
+    rr = max(rr, wr);
+    vec3 L = tex(uL, s);
+    tint += L * (wc + wr);
+    tw += wc + wr;
+  }
+  vec3 L = tw > 0.001 ? tint / tw : vec3(0.0);
+  float hgt = texture2D(uH, px / uRes).r;
+  float t = uT;
+  vec3 col = vec3(0.0);
+  vec3 air = vec3(0.04, 0.045, 0.06);   // faint sky/city glow so unlit spray is barely there
+  vec3 lit = L * 1.6 + air;
+  if (m == 1) {
+    float n = fbm(vec3(px * 0.12, t * 3.0));
+    col += lit * g * (0.14 + 0.14 * n);
+    col += lit * rr * 0.25 * n;
+    vec4 cr = crowns(px, 5.0, 2.6, 0.35, 1.3) + crowns(px + 2.5, 7.0, 2.1, 0.25, 2.0);
+    col += (cr.rgb * 2.2 + air) * cr.a * 0.6;
+  } else if (m == 2) {
+    float rise = fbm(vec3(px.x * 0.11, (px.y + t * 70.0) * 0.035, t * 0.6));
+    float streak = smoothstep(0.35, 0.8, rise);
+    col += lit * rr * (0.2 + 0.8 * streak) * 0.6;
+    float n = fbm(vec3(px * 0.05 + vec2(-t * 9.0, 0.0), t * 0.8));
+    col += lit * g * (0.08 + 0.18 * n);
+    vec4 cr = crowns(px, 8.0, 2.0, 0.55, 1.8);
+    col += (cr.rgb * 2.0 + air * 0.5) * cr.a * 0.7;
+  } else if (m == 3) {
+    vec2 w = vec2(fbm(vec3(px * 0.008, t * 0.15)), fbm(vec3(px * 0.008 + 5.2, t * 0.15)));
+    float n = fbm(vec3(px * 0.018 + w * 6.0 + vec2(-t * 6.0, t * 1.5), t * 0.25));
+    float soft = smoothstep(0.25, 0.75, n);
+    float glow = pow(lum(L) * 1.6, 0.8);
+    col += (L * 2.2 + air) * (g * 0.75 + rr * 0.3) * (0.35 + 0.9 * soft) * (0.4 + glow) * 0.3;
+    vec4 cr = crowns(px, 9.0, 1.8, 0.35, 1.6);
+    col += cr.rgb * 1.6 * cr.a * 0.6;
+  } else {
+    vec2 dir = normalize(vec2(-0.894, 0.447));   // the wind blows along the street, right to left
+    vec2 a = vec2(dot(px, dir), dot(px, vec2(-dir.y, dir.x)));
+    float n = fbm(vec3(a.x * 0.012 - t * 1.6, a.y * 0.05, t * 0.4));
+    float gust = pow(0.5 + 0.5 * sin(a.x * 0.006 + t * 1.3 + 2.0 * fbm(vec3(a.y * 0.004, 0.0, t * 0.1))), 3.0);
+    float sheet = smoothstep(0.35, 0.75, n) * (0.25 + 1.2 * gust);
+    col += lit * (g * 1.5 + rr * 0.8) * sheet;
+    vec4 cr = crowns(px, 7.0, 2.2, 0.3, 1.8);
+    col += (cr.rgb * 2.0 + air) * cr.a * 0.6;
+  }
+  col *= uGain;
+  gl_FragColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0));
+}`;
+  function setupMist([c, r, l, hgt]) {
+    mist = glLayer($('mist'), MIST_FS, { uC: c, uR: r, uL: l, uH: hgt }, MIST, MIST_GAIN);
+  }
+
+  // one full-screen WebGL pass over 1080p textures (mist, extra rain); null without WebGL or on a shader error
+  function glLayer(cv, fs, texs, mode, gain) {
+    cv.width = 1920;
+    cv.height = 1080;
+    const gl = cv.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: false });
+    if (!gl) { console.warn(`[lobby] ${cv.id}: no WebGL`); return null; }
+    const sh = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    };
+    const pr = gl.createProgram();
+    gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }'));
+    gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs));
+    gl.bindAttribLocation(pr, 0, 'p');
+    gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { console.warn(`[lobby] ${cv.id} link`, gl.getProgramInfoLog(pr)); return null; }
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    Object.entries(texs).forEach(([name, img], i) => {
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.uniform1i(gl.getUniformLocation(pr, name), i);
+    });
+    gl.uniform2f(gl.getUniformLocation(pr, 'uRes'), 1920, 1080);
+    gl.uniform1i(gl.getUniformLocation(pr, 'uMode'), mode);
+    gl.uniform1f(gl.getUniformLocation(pr, 'uGain'), gain);
+    gl.viewport(0, 0, 1920, 1080);
+    cv.style.display = 'block';
+    return { gl, pr, uT: gl.getUniformLocation(pr, 'uT') };
+  }
+  function drawGL(layer, t, wrap) {
+    layer.gl.uniform1f(layer.uT, (t / 1000) % wrap);
+    layer.gl.drawArrays(layer.gl.TRIANGLES, 0, 3);
+  }
+
+  // ---------- extra rain + weather (on by default; ?morerain=0 off, 1|2|3|4 one fixed style, ?moreraingain=) ----------
+  // More falling rain on top of the baked rain (light loop + rain_fg): thin near-vertical streaks like the baked ones,
+  // brighter where lamps and neon light the street below (out10mist/light.png). It falls in front of the cinema's
+  // outer walls but never over the open interior (the wall-top outline). Four ingredients, mixed by weights:
+  // fine rain, long near drops, gust curtains (density sweeps across in bands), splash crowns on the lit ground.
+  // Weather: the mix drifts between light / steady / downpour / curtains / deluge, holding each 40-120 s and
+  // crossfading over ~15 s (?weather=<x> runs the clock x times faster, for testing). Fixed styles: 1 steady,
+  // 2 downpour, 3 curtains, 4 deluge (the owner's sample numbers).
+  // 5th number = the streaks' fall speed (x the first tuning): 0.20-0.40, faster as it gets heavier (owner, 05 Nov:
+  // 1.00 fell far faster than the baked rain; the speed drifts with the weather like the intensity does)
+  const WEATHER = {
+    light: [0.35, 0, 0, 0, 0.2],
+    steady: [1, 0, 0, 0, 0.26],
+    downpour: [1, 1, 0, 0, 0.34],
+    curtains: [1, 0.7, 1, 0, 0.3],
+    deluge: [1.15, 1.1, 0, 1, 0.4],
+  };
+  const WEATHER_ODDS = { light: 2, steady: 3, downpour: 2, curtains: 1.5, deluge: 1 };
+  const RAIN2 = q.has('morerain') ? clamp(Math.round(Number(q.get('morerain')) || 0), 0, 4) : 5;   // 5 = weather
+  const RAIN2_GAIN = clamp(Number(q.get('moreraingain')) || 1, 0.1, 4);
+  const WEATHER_SPEED = clamp(Number(q.get('weather')) || 1, 0.1, 100);
+  const RAIN2_FPS = q.has('rainfps') ? clamp(Number(q.get('rainfps')) || 0, 0, 120) : 24;   // 0 = every display frame
+  // fall speed of the extra rain's streaks: follows the weather (WEATHER[...][4]); ?rainspeed=x fixes it,
+  // ?raintune=1 shows a slider that fixes it while testing
+  let rainSpeed = 0.26;
+  let rainSpeedFixed = q.has('rainspeed') ? clamp(Number(q.get('rainspeed')) || 0.26, 0.1, 2) : null;
+  let rainClock = 0;
+  if (q.has('raintune')) {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:16px;top:16px;z-index:99999;padding:10px 14px;border-radius:8px;'
+      + 'background:rgba(10,12,20,.85);color:#fff;font:600 18px/1.3 system-ui,sans-serif;display:flex;gap:12px;align-items:center';
+    const label = document.createElement('span');
+    const range = Object.assign(document.createElement('input'), { type: 'range', min: '0.1', max: '2', step: '0.05', value: String(rainSpeedFixed ?? rainSpeed) });
+    range.style.width = '320px';
+    const show = () => { label.textContent = `rain speed ${(rainSpeedFixed ?? rainSpeed).toFixed(2)}${rainSpeedFixed === null ? ' (weather)' : ''}`; };
+    range.addEventListener('input', () => { rainSpeedFixed = Number(range.value); show(); });
+    setInterval(show, 500);
+    box.append(label, range);
+    document.body.append(box);
+    show();
+  }
+  let rain2 = null;
+  const weather = { from: WEATHER.steady, to: WEATHER.steady, name: 'steady', fade: 1, fadeT: 15, hold: 60 };
+  if (RAIN2 && RAIN2 < 5) weather.from = weather.to = WEATHER[['steady', 'downpour', 'curtains', 'deluge'][RAIN2 - 1]];
+  if (RAIN2) {
+    const load = (f) => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = MIST_DIR + f; });
+    Promise.all(['light.png', 'catch.png', 'height.png'].map(load)).then(([light, ctch, hgt]) => {
+      // red = the extra rain may fall here, green = the baked foreground rain (rain_fg) shows here
+      const m = document.createElement('canvas');
+      m.width = 1920;
+      m.height = 1080;
+      const x = m.getContext('2d', { willReadFrequently: true });
+      const poly = (pts) => { x.beginPath(); pts.forEach(([bx, by], i) => (i ? x.lineTo(bx, by) : x.moveTo(bx, by))); x.closePath(); };
+      x.fillStyle = '#fff';
+      x.fillRect(0, 0, 1920, 1080);
+      x.fillStyle = '#0f0';   // under the roof line: no extra rain (the baked rain has its own holdouts)
+      poly([P(0, 9.05, WALL), P(0, 0, WALL), P(13, 0, WALL), P(13, 9.05, WALL)]);
+      x.fill();
+      // The cutaway strip along the lobby's right side (u 13-15.6, the railing and plants by the ABSOLUTE CINEMA
+      // annex) stays dry, both rains (owner, 05 Nov): the air above it up to the roof line, wherever the surface seen
+      // there is low (height pass < 60 = under ~100 px); the taller roof in front of it keeps its rain.
+      const strip = [P(13, -0.6, WALL), P(15.6, -0.6, WALL), P(15.6, -0.6, 0), P(15.6, 9.05, 0), P(13, 9.05, 0), P(13, 9.05, WALL)];
+      const bx0 = Math.floor(Math.min(...strip.map((p) => p[0]))), by0 = Math.floor(Math.min(...strip.map((p) => p[1])));
+      const bw = Math.min(1920, Math.ceil(Math.max(...strip.map((p) => p[0])))) - bx0, bh = Math.min(1080, Math.ceil(Math.max(...strip.map((p) => p[1])))) - by0;
+      x.drawImage(hgt, bx0, by0, bw, bh, bx0, by0, bw, bh);
+      const hd = x.getImageData(bx0, by0, bw, bh);
+      x.fillStyle = '#fff';
+      x.fillRect(bx0, by0, bw, bh);
+      x.fillStyle = '#0f0';
+      poly([P(0, 9.05, WALL), P(0, 0, WALL), P(13, 0, WALL), P(13, 9.05, WALL)]);
+      x.fill();
+      x.fillStyle = '#f00';   // marks the strip; turned into "dry" below where the surface is low
+      poly(strip);
+      x.fill();
+      const md = x.getImageData(bx0, by0, bw, bh);
+      for (let p = 0; p < md.data.length; p += 4) {
+        if (md.data[p] > 128 && md.data[p + 1] < 128 && hd.data[p] < 60) { md.data[p] = 0; md.data[p + 1] = 0; }
+        else if (md.data[p] > 128 && md.data[p + 1] < 128) md.data[p + 1] = 255;   // high roof in the strip: rain as before
+      }
+      x.putImageData(md, bx0, by0);
+      // Drops in the air take their light from the surface pass, which is black wherever no rain lands (the glass
+      // front, walls): streaks over the windows came out dim grey-blue next to the lamp-lit ones over the street
+      // ("another version", owner 05 Nov). Those holes get the light of the lit surfaces around them instead: a wide
+      // blur of the light pass divided by the same blur of its coverage (catch), at quarter size, once.
+      const q4 = (img, f) => { const c = document.createElement('canvas'); c.width = 480; c.height = 270; const g = c.getContext('2d', { willReadFrequently: true }); g.filter = f; g.drawImage(img, 0, 0, 480, 270); return g.getImageData(0, 0, 480, 270); };
+      const Lb = q4(light, 'blur(18px)'), Cb = q4(ctch, 'blur(18px)');
+      const fill = document.createElement('canvas');
+      fill.width = 480;
+      fill.height = 270;
+      const fd = fill.getContext('2d').createImageData(480, 270);
+      for (let p = 0; p < fd.data.length; p += 4) {
+        const cv = Math.max(Cb.data[p] / 255, 0.04);
+        for (let k = 0; k < 3; k++) fd.data[p + k] = Math.min(255, Lb.data[p + k] / cv);
+        fd.data[p + 3] = 255;
+      }
+      fill.getContext('2d').putImageData(fd, 0, 0);
+      const airL = document.createElement('canvas');
+      airL.width = 1920;
+      airL.height = 1080;
+      const ag = airL.getContext('2d');
+      ag.drawImage(fill, 0, 0, 1920, 1080);
+      // the real light pass on top wherever rain lands (its catch coverage as the alpha)
+      const lit = document.createElement('canvas');
+      lit.width = 1920;
+      lit.height = 1080;
+      const lg = lit.getContext('2d', { willReadFrequently: true });
+      lg.drawImage(light, 0, 0);
+      const ld = lg.getImageData(0, 0, 1920, 1080);
+      lg.drawImage(ctch, 0, 0);
+      const cd = lg.getImageData(0, 0, 1920, 1080).data;
+      for (let p = 0; p < ld.data.length; p += 4) ld.data[p + 3] = Math.min(255, cd[p] * 3);
+      lg.putImageData(ld, 0, 0);
+      ag.drawImage(lit, 0, 0);
+      rain2 = glLayer($('rain2'), RAIN2_FS, { uL: airL, uC: ctch, uM: m }, 0, RAIN2_GAIN);
+      if (rain2) {
+        rain2.uW = rain2.gl.getUniformLocation(rain2.pr, 'uW');
+        rain2.uS = rain2.gl.getUniformLocation(rain2.pr, 'uS');
+        // texture unit 3: the baked foreground rain video (fgToRain2), empty until it plays
+        const gl = rain2.gl;
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array(3));
+        for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+        gl.uniform1i(gl.getUniformLocation(rain2.pr, 'uV'), 3);
+        rain2.uVid = gl.getUniformLocation(rain2.pr, 'uVid');
+        // context lost (GPU reset, driver update): no extra rain, and the foreground rain video shows on its own again
+        $('rain2').addEventListener('webglcontextlost', () => {
+          const v = rain2?.fg;
+          if (v) { v.style.opacity = ''; v.style.mixBlendMode = ''; }
+          rain2 = null;
+          $('rain2').style.display = 'none';
+        }, { once: true });
+        gl.uniform1f(rain2.uVid, 0);
+        fgToRain2();
+      }
+    }).catch((e) => console.warn('[lobby] extra rain: passes missing', e));
+  }
+  // The baked foreground rain (rain_fg video) is added in the extra-rain pass instead of as its own plus-lighter
+  // <video> on top of the page: a blended video over everything held Edge at ~52 fps whatever the load (QA, 04 Nov:
+  // 105 fps headless without it). Same pixels (both are 1080p, scaled up the same way). The video keeps playing,
+  // invisible, as the texture source; without the extra rain (?morerain=0, no WebGL) it is shown as before.
+  let fgPlaying = null;   // the rain_fg <video> while it plays (setupArt)
+  let fgFps = 24;         // its frame rate (manifest rain_fg.fps)
+  function fgToRain2() {
+    if (!rain2 || rain2.fg === fgPlaying) return;
+    rain2.fg = fgPlaying;
+    rain2.fgT = -1;
+    rain2.gl.uniform1f(rain2.uVid, fgPlaying ? 1 : 0);
+    if (fgPlaying) { fgPlaying.style.opacity = '0'; fgPlaying.style.mixBlendMode = 'normal'; }
+    // the browser's own "new frame is ready" signal (OBS's Chromium has it too); else the frame number (uploadFg)
+    const v = fgPlaying;
+    if (v?.requestVideoFrameCallback) {
+      rain2.fgReady = false;
+      const seen = () => { if (rain2?.fg !== v) return; rain2.fgReady = true; v.requestVideoFrameCallback(seen); };
+      v.requestVideoFrameCallback(seen);
+    }
+  }
+  function uploadFg() {
+    const v = rain2.fg;
+    // a new video frame (24 fps loop): currentTime is an interpolated clock that changes every display frame
+    if (!v || v.readyState < 2) return false;
+    if (v.requestVideoFrameCallback) {
+      if (!rain2.fgReady) return false;
+      rain2.fgReady = false;
+    } else {
+      const f = Math.floor(v.currentTime * fgFps);
+      if (f === rain2.fgT) return false;
+      rain2.fgT = f;
+    }
+    const gl = rain2.gl;
+    gl.activeTexture(gl.TEXTURE3);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, v);
+    return true;
+  }
+  function stepWeather(dt) {
+    const w = weather;
+    if (RAIN2 === 5) {
+      w.fade = Math.min(1, w.fade + dt * WEATHER_SPEED / w.fadeT);
+      w.hold -= dt * WEATHER_SPEED;
+      if (w.hold <= 0 && w.fade >= 1) {
+        const names = Object.keys(WEATHER_ODDS).filter((n) => n !== w.name);
+        let r = Math.random() * names.reduce((s, n) => s + WEATHER_ODDS[n], 0);
+        const next = names.find((n) => (r -= WEATHER_ODDS[n]) < 0) || names[0];
+        w.from = w.to;
+        w.to = WEATHER[next];
+        w.name = next;
+        w.fade = 0;
+        w.fadeT = rand(12, 20);
+        w.hold = rand(40, 120);
+      }
+    }
+    const f = w.fade * w.fade * (3 - 2 * w.fade);
+    const m = w.from.map((a, i) => a + (w.to[i] - a) * f);
+    rain2.gl.uniform4f(rain2.uW, m[0], m[1], m[2], m[3]);
+    rainSpeed = rainSpeedFixed ?? m[4];
+  }
+  const RAIN2_FS = `
+precision highp float;
+uniform sampler2D uL, uC, uM, uV;
+uniform vec2 uRes;
+uniform float uT, uGain, uVid, uS;   // uS = the streaks' own clock (rain speed)
+uniform vec4 uW;   // weights: fine rain, near drops, gust curtains, splash crowns
+float h1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float noise(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n0 = mix(mix(hash(i.xy + i.z * 17.0), hash(i.xy + vec2(1, 0) + i.z * 17.0), f.x),
+                 mix(hash(i.xy + vec2(0, 1) + i.z * 17.0), hash(i.xy + vec2(1, 1) + i.z * 17.0), f.x), f.y);
+  float n1 = mix(mix(hash(i.xy + (i.z + 1.0) * 17.0), hash(i.xy + vec2(1, 0) + (i.z + 1.0) * 17.0), f.x),
+                 mix(hash(i.xy + vec2(0, 1) + (i.z + 1.0) * 17.0), hash(i.xy + vec2(1, 1) + (i.z + 1.0) * 17.0), f.x), f.y);
+  return mix(n0, n1, f.z);
+}
+float fbm(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * noise(p); p = p * 2.03 + 7.1; a *= 0.5; } return v; }
+// one layer of falling streaks: columns cw px wide (sheared by the slant), a drop of length len in some of the
+// gap-long slots of each column, each column at its own speed (px/s at 1080p); bright head, fading tail
+float streaks(vec2 px, float cw, float speed, float len, float gap, float prob, float width, float seed) {
+  float x = px.x + 0.06 * px.y;
+  float col = floor(x / cw);
+  float y = px.y - uS * speed * (0.85 + 0.3 * h1(col + seed)) + h1(col * 3.1 + seed) * 977.0;
+  float k = floor(y / gap);
+  float r = h1(k * 7.13 + col * 1.31 + seed);
+  if (r > prob) return 0.0;
+  float cx = (col + 0.2 + 0.6 * h1(k * 3.7 + col + seed)) * cw;
+  float s = (y - k * gap) / len;
+  if (s > 1.0) return 0.0;
+  return smoothstep(width, 0.0, abs(x - cx)) * s * s * (0.55 + 0.45 * h1(r * 91.0 + seed));
+}
+// splash crowns on lit ground (as the mist samples): a flat ring + droplets, short pops
+float crowns(vec2 px, float cs, float rate, float density, float size, out vec3 L) {
+  vec2 id = floor(px / cs);
+  float cyc = uT * rate + hash(id);
+  float k = floor(cyc), ph = fract(cyc) / 0.4;
+  L = vec3(0.0);
+  if (ph > 1.0) return 0.0;
+  vec2 seed = id + k * 13.7;
+  if (hash(seed + 3.1) > density) return 0.0;
+  vec2 c = (id + 0.2 + 0.6 * vec2(hash(seed), hash(seed + 1.7))) * cs;
+  float ca = texture2D(uC, c / uRes).r;
+  if (ca < 0.3) return 0.0;
+  L = texture2D(uL, c / uRes).rgb;
+  vec2 d = px - c;
+  float r = size * (0.3 + ph);
+  float ring = smoothstep(0.9, 0.0, abs(length(d * vec2(1.0, 2.2)) - r)) * (1.0 - ph);
+  float up = size * 1.6 * ph * (1.0 - ph) * 4.0;
+  float drops = 0.0;
+  for (int j = 0; j < 3; j++) {
+    float fj = float(j) - 1.0;
+    drops += smoothstep(0.9, 0.0, length(px - c - vec2(fj * r * 0.9, -up * (1.0 - 0.3 * abs(fj)))));
+  }
+  return (ring * 0.6 + drops * (1.0 - ph * 0.6)) * ca;
+}
+void main() {
+  vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  // the baked foreground rain (rain_fg video), added like its old plus-lighter <video>, everywhere but the dry
+  // strip (mask green); the extra rain only where the mask is red
+  vec2 mk = texture2D(uM, px / uRes).rg;
+  vec3 fg = uVid > 0.5 ? texture2D(uV, px / uRes).rgb * step(0.5, mk.g) : vec3(0.0);
+  if (mk.r < 0.5) { gl_FragColor = vec4(fg, max(fg.r, max(fg.g, fg.b))); return; }
+  // drops in the air catch the light of the lamps/neon around them: average the surface light nearby
+  vec3 La = (texture2D(uL, px / uRes).rgb + texture2D(uL, (px + vec2(0.0, 30.0)) / uRes).rgb
+           + texture2D(uL, (px + vec2(-24.0, 12.0)) / uRes).rgb + texture2D(uL, (px + vec2(24.0, 12.0)) / uRes).rgb) * 0.25;
+  vec3 tint = vec3(0.55, 0.62, 0.78) * 0.3 + La * 1.8;
+  float a = 0.0;
+  if (uW.x > 0.01) a += uW.x * (streaks(px, 5.0, 520.0, 13.0, 42.0, 0.85, 0.8, 1.0) * 0.55
+                              + streaks(px, 7.0, 430.0, 10.0, 34.0, 0.8, 0.7, 2.0) * 0.4
+                              + streaks(px + 2.5, 4.0, 380.0, 7.0, 30.0, 0.7, 0.6, 4.0) * 0.25);
+  if (uW.y > 0.01) a += uW.y * streaks(px, 16.0, 820.0, 30.0, 150.0, 0.8, 1.3, 3.0) * 0.9;
+  if (uW.z > 0.01) {
+    float g = smoothstep(0.35, 0.75, fbm(vec3(px.x * 0.003 + uT * 0.2, px.y * 0.0015 - uT * 0.07, uT * 0.05)));
+    a *= mix(1.0, 0.12 + 2.2 * g, uW.z);
+  }
+  vec3 col = tint * a;
+  if (uW.w > 0.01) {
+    vec3 Lc;
+    float cr = crowns(px, 7.0, 2.2, 0.35, 1.6, Lc);
+    col += (Lc * 2.0 + vec3(0.02)) * cr * 0.65 * uW.w;
+  }
+  col = col * uGain + fg;
+  gl_FragColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0));
+}`;
+
+  // ---------- HUD ----------
+  // a wedge of warm projector light spills out of the door for a moment when someone goes in
+  function doorGlow(i) {
+    const d = DOORS[i];
+    if (!d) return;
+    const [x, y] = d.wall === 'u' ? P(0.35, d.at, 40) : P(d.at, 0.35, 40);
+    const el = h('div', 'doorglow');
+    el.style.zIndex = '3';
+    $('cam').append(el);
+    el.animate([
+      { transform: `translate(${x}px, ${y}px) scale(.6)`, opacity: 0 },
+      { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1, offset: 0.25 },
+      { transform: `translate(${x}px, ${y}px) scale(1.1)`, opacity: 0 },
+    ], { duration: 1400, easing: 'ease-out' }).onfinish = () => el.remove();
+  }
+  function arcadeFlash() {
+    const [x, y] = P(12.7, 7.85, 57);
+    const el = h('div', 'doorglow arcadeglow');
+    el.style.zIndex = '3';
+    $('cam').append(el);
+    el.animate([{ transform: `translate(${x}px, ${y}px)`, opacity: 1 }, { transform: `translate(${x}px, ${y}px)`, opacity: 0 }],
+      { duration: 900, easing: 'ease-out', iterations: 2 }).onfinish = () => el.remove();
+  }
+
+  // ---------- conversations: speech only happens in groups (owner, 02 Nov) ----------
+  // A chatter's messages are saved (latest two). After tickets / popcorn, instead of heading straight for the
+  // gate they hang out: they join a group at a hangout spot (or start one) and the group talks in turns,
+  // each line from someone's saved messages. With nothing left to say they drift on to the gate. Someone left
+  // alone with something to say goes and tells the mopping penguin instead (it stops to listen).
+  const HANGOUTS = [[10.8, 7.2], [11.0, 5.35]];   // open lobby floor, clear of the rope lane, counters and props
+  const RING = [[-1, 1], [1, -1], [-0.95, -0.95], [1, 1]];   // left, right, back, front (screen), times the spot's radius
+  // where people stand around and talk before going in: the lobby floor; with layout 3 also the sidewalk in front of
+  // the glass (either side of the entrance, clear of the lamp and the bus stop) and the corridor past the usher
+  // (beside the walking line to the doors at v 1.4, clear of the fountain, bench and bin)
+  const SPOTS = { lobby: HANGOUTS.map((c) => ({ c, r: 0.42 })), outside: [], hall: [] };
+  // chance to stop and talk at each kind of spot (with something to say / without)
+  // (most have said their arrival message on the way, so the "without" chance carries the hanging around)
+  const HANG_P = { outside: [0.5, 0.35], lobby: [1, 0.5], hall: [0.7, 0.4] };
+  const groups = [];
+  // Every message a chatter sends is said once, in order: in a talk group when their turn comes, otherwise on their
+  // own a moment after it arrives (soloSpeech). Nothing is repeated; a backlog over 4 says the oldest at once.
+  function queueLine(w, tokens) {
+    if (!tokens?.length) return;
+    (w.lines ||= []).push(tokens);
+    if (w.lines.length > 4) say(w, w.lines.shift());
+  }
+  const SOLO_DELAY = 1.2;   // s between a message arriving (or their last bubble) and saying it outside a group
+  function soloSpeech(w, dt) {
+    if (!w.lines?.length || (w.group && w.arrived) || w.entering || w.removing || !onScreen(w)) { w.soloT = 0; return; }
+    if (w.bub && w.bubT > 1.5) return;   // let the current bubble be read first
+    w.soloT = (w.soloT || 0) + dt;
+    if (w.soloT < SOLO_DELAY) return;
+    w.soloT = 0;
+    say(w, w.lines.shift());
+  }
+  // someone alone with something to say can go and tell a janitor: the old penguin (?janitor=always) or a mopping janny
+  const janTarget = () => mopper || [...jannies.values()].find((j) => j.mopping && !j.leaving && !j.gone) || null;
+  const groupCenter = (g) => (g.janitor && g.jan && !g.jan.gone ? [g.jan.u, g.jan.v] : g.center || [0, 0]);
+  function slotOf(g, w) {
+    const [cu, cv] = groupCenter(g);
+    const [ou, ov] = RING[w.ring % RING.length];
+    return [cu + ou * g.r, cv + ov * g.r];
+  }
+  function joinGroup(w, g) {
+    const used = new Set(g.members.map((m) => m.ring));
+    w.ring = [0, 1, 2, 3].find((i) => !used.has(i)) ?? 0;
+    g.members.push(w);
+    w.group = g;
+    w.arrived = false;
+    w.leaveNow = false;
+    w.hangT = 0;
+    w.stayT = rand(9, 16);
+    w.plan = [{ to: slotOf(g, w) }, { call: () => { w.arrived = true; } }, { until: () => w.leaveNow }, { call: leaveGroup }];
+  }
+  function leaveGroup(w) {
+    const g = w.group;
+    if (g) g.members = g.members.filter((m) => m !== w);
+    w.group = null;
+    w.arrived = false;
+    w.plan = w.afterHang || [];
+    w.afterHang = null;
+  }
+  // called from the walker's plan (outside before going in, in the lobby where they would head for the gate, in
+  // the corridor before their door); the rest of the plan waits. Once per kind of spot.
+  function hangOut(w, kind = 'lobby') {
+    if (w.hurry || w.removing || (w.hung ||= new Set()).has(kind)) return;
+    w.hung.add(kind);
+    const [pTalk, pQuiet] = HANG_P[kind];
+    if (Math.random() > (w.lines?.length ? pTalk : pQuiet)) return;   // some just go in
+    let g = groups.find((x) => x.kind === kind && !x.janitor && x.members.length < 4);
+    if (!g) {
+      const s = SPOTS[kind].find((s0) => !groups.some((x) => x.spot === s0));
+      if (!s) return;
+      g = { kind, spot: s, center: s.c, r: s.r, members: [], next: 1.2, last: null, janitor: false };
+      groups.push(g);
+    }
+    w.afterHang = w.plan;
+    joinGroup(w, g);
+  }
+  const hangOutside = (w) => hangOut(w, 'outside');
+  const hangHall = (w) => hangOut(w, 'hall');
+  function stepGroups(dt) {
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const g = groups[i];
+      g.members = g.members.filter((m) => !m.gone && m.group === g);
+      if (!g.members.length) { groups.splice(i, 1); continue; }
+      const here = g.members.filter((m) => m.arrived && m.alpha > 0.6);
+      // alone with something to say for a while: go and tell a janitor (one listener per janitor)
+      const jt = g.kind === 'lobby' && !g.janitor && g.members.length === 1 && here.length === 1 && here[0].lines?.length
+        && here[0].hangT > 7 ? janTarget() : null;
+      if (jt && !groups.some((x) => x.janitor && x.jan === jt)) {
+        g.janitor = true;
+        g.jan = jt;
+        g.center = null;
+        g.spot = null;   // the lobby spot is free again
+        const m = here[0];
+        m.arrived = false;
+        m.plan = [{ to: slotOf(g, m) }, { call: () => { m.arrived = true; } }, { until: () => m.leaveNow }, { call: leaveGroup }];
+      }
+      // their janitor clocked off: the chat is over
+      if (g.janitor && (!g.jan || g.jan.gone || g.jan.leaving)) for (const m of g.members) m.leaveNow = true;
+      // take turns: someone with a saved line speaks (not the same one twice in a row if others have lines)
+      g.next -= dt;
+      const audience = g.janitor ? 1 : 2;
+      if (g.next <= 0 && here.length >= audience && !here.some((m) => m.bub && m.bubT > 2.5)) {
+        const ready = here.filter((m) => m.lines?.length);
+        const sp = ready.find((m) => m !== g.last) || ready[0];
+        if (sp) {
+          say(sp, sp.lines.shift());
+          sp.hangT = Math.min(sp.hangT, sp.stayT - 4);   // stick around for the replies
+          g.last = sp;
+          g.next = rand(2.2, 3.4);
+        } else g.next = 1;
+      }
+      for (const m of g.members) {
+        if (!m.arrived) continue;
+        m.hangT += dt;
+        if (m.leaveNow) continue;
+        const othersTalking = here.some((o) => o !== m && o.lines?.length);
+        const done = !m.lines?.length && !m.bub && m.hangT > m.stayT && (!othersTalking || m.hangT > 30);
+        // nobody to talk to: outside and in the corridor they don't wait long, they'll talk further on
+        const lonely = here.length === 1 && g.members.length === 1 && (!m.lines?.length || g.kind !== 'lobby') && m.hangT > (g.kind === 'lobby' ? 10 : 7);
+        if (done || lonely || m.hangT > 45 || m.hurry) m.leaveNow = true;
+      }
+    }
+    // a janitor stands still while someone talks to it
+    if (mopper) mopper.held = groups.some((x) => x.janitor && x.jan === mopper);
+    for (const j of jannies.values()) j.held = groups.some((x) => x.janitor && x.jan === j);
+  }
+
+  // ---------- layout 3 (pass 10): three screens in the right wing, the left wing is the restroom ----------
+  // The right-wing doors become screens 1-3 (the last three films, newest first); the two left-wing screens and
+  // their signs/posters go. The restroom is a real room: door off the corridor junction, four stalls (one each),
+  // sinks, a dryer. Its red/green light shows OCCUPIED only when every stall is taken.
+  let RESTROOM = null;
+  function setupLayout3(m) {
+    for (let i = DOORS.length - 1; i >= 0; i--) {
+      if (DOORS[i].wall !== 'u') continue;
+      DOORS.splice(i, 1);
+      const s = signs.splice(i, 1)[0];
+      s.el.remove();
+      s.img.parentElement.remove();
+    }
+    // the remaining signs are screens 1-3 now; films that arrived before the art move onto them at once
+    signs.forEach((s, i) => { const no = s.el.querySelector('.no'); if (no) no.textContent = `SCREEN ${i + 1}`; });
+    applyRooms(rooms);
+    const r = m.restroom;
+    const pt = (p) => Array.isArray(p) && p.length >= 2 && p.every(Number.isFinite);
+    if (!r || !pt(r.door) || !pt(r.inside) || !Array.isArray(r.stalls) || !r.stalls.length) return;
+    RESTROOM = {
+      door: r.door,
+      outside: pt(r.outside) ? r.outside : [r.door[0], r.door[1] - 0.4],
+      inside: r.inside,
+      stalls: r.stalls.filter((s) => pt(s?.spot)).map((s, i) => ({ key: `stall${i + 1}`, spot: s.spot,
+        route: (Array.isArray(s.route_points) ? s.route_points : Array.isArray(s.route) ? s.route : []).filter(pt), busy: null })),
+      sinks: (r.sinks || []).filter(pt),
+      dryer: pt(r.dryer) ? r.dryer : null,
+    };
+    r.stalls.forEach((s, i) => {
+      const d = s?.door_anim;
+      if (d && validSheet({ ...d, anchor: [0, 0] }) && Number.isFinite(d.x) && Number.isFinite(d.y)) doorAnims[`stall${i + 1}`] = d;
+    });
+    if (r.door_anim && validSheet({ ...r.door_anim, anchor: [0, 0] })) doorAnims.wc = r.door_anim;
+    // more places to stand and talk (see SPOTS): a third lobby spot between the box office and the glass, two on the
+    // sidewalk either side of the entrance, two in the corridor
+    SPOTS.lobby = [...HANGOUTS.map((c) => ({ c, r: 0.42 })), { c: [5.9, 8.35], r: 0.42 }];
+    SPOTS.outside = [{ c: [6.8, 9.5], r: 0.34 }, { c: [11.9, 9.5], r: 0.34 }];
+    // corridor spots between the screen doors (v = 0 wall), on the strip in front of the walking line (v 1.4): behind
+    // the line (v > ~1.6) the snack bar's tall back wall hides the floor, so people standing there showed only their
+    // heads over the wall top and looked like they stood on it (owner, 05 Nov)
+    SPOTS.hall = [{ c: [6.3, 0.85], r: 0.28 }, { c: [9.7, 0.85], r: 0.28 }];
+    // the janitor spot between the front rope and the glass: reached round the rope lane's open (east) end, not
+    // through the rope, and clear of the new talk spot
+    JAN_SPOTS[2] = { at: [6.7, 8.35], route: [[9.6, 8.35], [9.6, 6.6]] };
+  }
+  const restroomFull = () => !!RESTROOM && RESTROOM.stalls.every((s) => s.busy && !s.busy.gone);
+  function tryRestroom(w) {
+    const R = RESTROOM;
+    R.stalls.forEach((s) => { if (s.busy?.gone) s.busy = null; });
+    const stall = R.stalls.find((s) => !s.busy);
+    if (!stall) return;   // every stall taken: they hold it until after the film
+    stall.busy = w;
+    w.stall = stall;
+    setWC(restroomFull());
+    const go = (pts) => pts.map((to) => ({ to }));
+    const sink = R.sinks.length ? R.sinks[Math.floor(Math.random() * R.sinks.length)] : null;
+    w.plan.unshift(
+      ...go([R.outside]), { call: () => playDoor('wc') }, ...go([R.door, R.inside]),
+      ...go([...stall.route, stall.spot]),
+      { call: () => { playDoor(stall.key); w.alphaT = 0; dropBubble(w); } }, { alpha: 0 },
+      { wait: rand(3, 6) },
+      { call: () => { playDoor(stall.key); w.alphaT = 1; } }, { alpha: 1 },
+      { call: () => { if (stall.busy === w) stall.busy = null; w.stall = null; setWC(restroomFull()); } },
+      ...go([...[...stall.route].reverse()]),
+      ...(sink ? [{ to: sink }, { wait: rand(1.4, 2.4) }] : []),
+      ...(R.dryer && Math.random() < 0.5 ? [{ to: R.dryer }, { wait: 1.6 }] : []),
+      { to: R.inside }, { call: () => { playDoor('wc'); floatAt(w, 'much better', '#9fd8ff'); } },
+      ...go([R.door, R.outside]),
+    );
+  }
+
+  // ---------- camera + zoom director ----------
+  // Wide shot most of the time. Every ~2-3 min (director=<seconds>) the camera takes the next arrival and
+  // follows them from the bus / taxi / sidewalk through tickets, popcorn and the gate to their door, holds a
+  // moment, then eases back out. Manual: keys F (follow the next arrival), R (follow someone now),
+  // W / Esc (wide shot), D (director on/off), and control.html through the standby server.
+  const camEl = $('cam');
+  const cam = { x: WIDE_X, y: 540, z: 1, vx: 0, vy: 0, vz: 0, key: '' };
+  const director = { on: DIRECTOR_ON, every: clamp(Number(q.get('director')) || 150, 30, 1800), zoom: ZOOM,
+    follow: null, next: performance.now() + rand(45, 75) * 1000, wantNext: false };
+  function toScreen(x, y) { return [(x - cam.x) * cam.z + 960, (y - cam.y) * cam.z + 540]; }
+  // critically damped spring: smooth start and stop, no overshoot, frame-rate independent
+  function damp(c, v, target, time, dt) {
+    const o = 2 / time;
+    const x = o * dt;
+    const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    const ch = c - target;
+    const tmp = (v + o * ch) * dt;
+    return [target + (ch + tmp) * e, (v - o * tmp) * e];
+  }
+  function startFollow(w) {
+    if (!w || w.gone || w.removing) return;
+    director.follow = { w, since: performance.now(), lx: null, ly: null, ax: 0, ay: 0, tx: null, ty: null, endAt: 0 };
+    director.wantNext = false;
+  }
+  function endFollow() {
+    if (!director.follow) return;
+    director.follow = null;
+    director.next = performance.now() + director.every * 1000 * rand(0.85, 1.2);
+  }
+  // a new arrival: taken when the director is due, or when someone asked for the next one
+  function directorArrival(w) {
+    if (director.follow || w.hurry) return;
+    if (director.wantNext || (director.on && performance.now() >= director.next)) startFollow(w);
+  }
+  function followSomeone(nick) {
+    const key = nick?.toLowerCase();
+    const list = [...figures].filter((w) => !w.gone && !w.entering && !w.removing && w.alpha > 0.5 && (!key || w.key === key));
+    if (list.length) startFollow(list[Math.floor(Math.random() * list.length)]);
+    return list.length > 0;
+  }
+  function stepCamera(dt) {
+    const now = performance.now();
+    const f = director.follow;
+    let tx = WIDE_X;
+    let ty = 540;
+    let tz = 1;
+    if (f) {
+      const w = f.w;
+      // in through the door (or gone): hold on the doorway a moment, then back to the wide shot
+      if (!f.endAt && (w.gone || w.removing || now - f.since > 150000)) f.endAt = now + (w.gone ? 1600 : 0);
+      if (f.endAt && now >= f.endAt) endFollow();
+      else {
+        let x = null;
+        let y = null;
+        const veh = w.ride && !w.ride.gone && w.alpha < 0.5 ? w.ride : null;
+        // still riding: follow the bus / taxi (vehicles keep their road position in .lane: .v was undefined, so the
+        // camera went NaN for good on every rider follow, and with it onScreen() and all speech; QA 05 Nov)
+        if (!w.gone && veh) [x, y] = P(veh.u, veh.lane, 40);
+        else if (!w.gone && w.alpha > 0.2) { x = w.x; y = w.y - 34; }   // the chatter, at about head height
+        if (x != null) {
+          // lead the shot a little in the walking direction (smoothed velocity)
+          if (f.lx != null && dt > 0) {
+            f.ax = f.ax * 0.9 + ((x - f.lx) / dt) * 0.1;
+            f.ay = f.ay * 0.9 + ((y - f.ly) / dt) * 0.1;
+          }
+          f.lx = x;
+          f.ly = y;
+          f.tx = x + clamp(f.ax * 0.35, -60, 60);
+          f.ty = y + clamp(f.ay * 0.35, -40, 40);
+        }
+        if (f.tx != null) { tx = f.tx; ty = f.ty; tz = director.zoom; }
+      }
+    }
+    // the view never leaves the stage (with fit=cover only the cropped middle is on screen: its half size)
+    const fit = (c, half, size) => clamp(c, half, size - half);
+    const [vx0, vy0, vx1, vy1] = view();
+    const hw = (vx1 - vx0) / 2;
+    const hh = (vy1 - vy0) / 2;
+    tx = fit(tx, hw / tz, 1920);
+    ty = fit(ty, hh / tz, 1080);
+    [cam.z, cam.vz] = damp(cam.z, cam.vz, tz, 1.5, dt);
+    [cam.x, cam.vx] = damp(cam.x, cam.vx, tx, f ? 0.75 : 1.4, dt);
+    [cam.y, cam.vy] = damp(cam.y, cam.vy, ty, f ? 0.75 : 1.4, dt);
+    cam.x = fit(cam.x, hw / cam.z, 1920);
+    cam.y = fit(cam.y, hh / cam.z, 1080);
+    // a bad target must never freeze the camera (and with it every bubble): back to the wide shot
+    if (![cam.x, cam.y, cam.z].every(Number.isFinite)) { Object.assign(cam, { x: 960, y: 540, z: 1, vx: 0, vy: 0, vz: 0 }); endFollow(); }
+    const key = `translate(${(960 - cam.x * cam.z).toFixed(2)}px, ${(540 - cam.y * cam.z).toFixed(2)}px) scale(${cam.z.toFixed(4)})`;
+    if (key !== cam.key) { cam.key = key; camEl.style.transform = key; }
+  }
+  // keys work while the page has focus (OBS: right-click the source -> Interact)
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'f') director.wantNext = true;
+    else if (k === 'r') followSomeone();
+    else if (k === 'w' || k === 'escape') { director.wantNext = false; endFollow(); }
+    else if (k === 'd') director.on = !director.on;
+  });
+
+  // ---------- control panel (control.html) through the standby server ----------
+  function statusOf(w) {
+    if (w.entering) return 'going in';
+    if (w.ride) return w.ride.type === 'bus' ? 'on the bus' : 'in a taxi';
+    if (w.v > 9.1) return 'street';
+    if (w.inQueue) return 'ticket line';
+    if (windows.some((x) => x.cur === w)) return 'buying a ticket';
+    if (w.snack) return 'snack bar';
+    if (gateLine.includes(w)) return 'usher gate';
+    if (wcBusy === w || wcWait === w || w.stall) return 'restroom';
+    if (arcadeBusy === w) return 'arcade';
+    if (benchBusy === w) return 'bench';
+    if (w.group) return w.group.janitor ? 'talking to the janitor' : 'chatting';
+    return w.u < 3 || w.v < 3 ? 'corridor' : 'lobby';
+  }
+  function control(c) {
+    const now = performance.now();
+    const key = typeof c.nick === 'string' ? c.nick.trim().toLowerCase() : '';
+    switch (c.cmd) {
+      case 'follow': followSomeone(key); break;
+      case 'random': followSomeone(); break;
+      case 'next': director.wantNext = true; break;
+      case 'wide': director.wantNext = false; endFollow(); break;
+      case 'director': director.on = !!c.on; if (director.on) director.next = Math.min(director.next, now + 20000); break;
+      case 'every': if (Number.isFinite(+c.value)) director.every = clamp(+c.value, 30, 1800); break;
+      case 'zoom': if (Number.isFinite(+c.value)) director.zoom = clamp(+c.value, 1.2, 3); break;
+      case 'remove':
+        for (const w of [...figures]) {
+          if (w.key !== key || w.removing) continue;
+          retire(w);
+          w.plan = [{ alpha: 0 }, { call: removeWalker }];
+        }
+        break;
+      case 'add':
+      case 'say': {
+        const nick = String(c.nick || '').trim().slice(0, 25);
+        if (!nick) break;
+        const tokens = SB.tokenize(String(c.text || '').slice(0, 200));
+        const w = walkers.get(key);
+        if (c.cmd === 'say' && w && !w.entering && !w.removing) { say(w, tokens); break; }
+        const em = tokens.find((t) => t.t === 'emote')?.name;
+        spawn({ nick, emote: em || Cinema.defaultEmote(nick), tokens, color: SB.nickColor(nick),
+          roomIndex: Math.floor(Math.random() * 5), detour: c.detour || null });
+        break;
+      }
+      default: break;
+    }
+  }
+  const pageId = Math.random().toString(36).slice(2, 8);
+  if (q.get('ctl') !== '0' && location.protocol.startsWith('http')) {
+    let alive = true;
+    let statePending = false;   // one post at a time, 3.5 s at most (as the auditorium): slow posts never pile up
+    const es = new EventSource('/ctl/events');
+    es.onmessage = (e) => { try { control(JSON.parse(e.data)); } catch (error) { console.error('[lobby] control', error); } };
+    const postState = () => {
+      if (!alive || statePending) return;
+      const f = director.follow;
+      // obs: this screen is the OBS source (the panel shows it before a bigger preview tab)
+      const body = { id: pageId, ts: Date.now(), size: [innerWidth, innerHeight], obs: !!window.obsstudio,
+        director: { on: director.on, every: director.every, zoom: director.zoom, wantNext: director.wantNext,
+          following: f && !f.w.gone ? f.w.nick : null, nextIn: Math.max(0, Math.round((director.next - performance.now()) / 1000)) },
+        chatters: [...figures].filter((w) => !w.gone).map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w })) };
+      statePending = true;
+      fetch('/ctl/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(3500) })
+        .then((r) => { if (r.status === 404) { alive = false; es.close(); } })   // an older server without the panel
+        .catch(() => {}).finally(() => { statePending = false; });
+    };
+    setInterval(postState, 1500);
+  }
+
+  // ---------- main loop ----------
+  let last = performance.now();
+  let lastFrame = 0;
+  function frame(t) {
+    const dt = clamp((t - last) / 1000, 0, 0.1);
+    last = t;
+    lastFrame = performance.now();
+    stepCamera(dt);
+    serveQueue(dt);
+    serveSnacks(dt);
+    serveGate(dt);
+    stepGroups(dt);
+    stepTraffic(dt, t);
+    stepPropLoops(t);
+    stepLeds(t);
+    stepShots(dt);
+    stepCat(dt);
+    stepJanitor(dt);
+    stepPace(dt);
+    for (const w of [...figures]) {
+      if (w.gone) continue;
+      w.moving = stepPlan(w, dt);
+      if (w.gone) continue;
+      drawFigure(w, dt, t);
+      if (w.pending && onScreen(w)) say(w, w.pending);
+      else soloSpeech(w, dt);
+      placeBubble(w, dt);
+    }
+    for (const w of Object.values(staff)) { w.moving = false; drawFigure(w, dt, t); placeBubble(w, dt); }
+    showNames();
+    layoutBubbles(dt);
+    // door sign flash when someone goes in (driven here, not by CSS animations: they stall in throttled sources)
+    for (const s of signs) {
+      if (!s.pulse) continue;
+      s.pulse = Math.max(0, s.pulse - dt * 1.2);
+      s.el.style.boxShadow = s.pulse ? `0 0 ${Math.round(30 * s.pulse)}px rgba(255,95,176,${(0.9 * s.pulse).toFixed(2)}), inset 0 0 ${Math.round(24 * s.pulse)}px rgba(255,95,176,${(0.6 * s.pulse).toFixed(2)})` : '';
+    }
+    if (rainOn) drawRain(dt);
+    if (mist) drawGL(mist, t, 1000);
+    if (rain2) {
+      stepWeather(dt);
+      rainClock = (rainClock + dt * rainSpeed) % 1000;
+      rain2.gl.uniform1f(rain2.uS, rainClock);
+      // stepped like the baked rain (24 fps loops); the canvas keeps its last frame between steps
+      const tq = RAIN2_FPS ? Math.floor(t * RAIN2_FPS / 1000) * 1000 / RAIN2_FPS : t;
+      // with the foreground-rain video in this pass, its new frames are the steps (24 a second, both layers change
+      // together); else the page clock steps it as before
+      // (a stalled video: the page clock takes over after 120 ms, so the extra rain never freezes with it)
+      if (rain2.fg && RAIN2_FPS) {
+        const fgNew = uploadFg();
+        if (fgNew) rain2.fgAt = t;
+        // (at the real time on a video frame: the page clock's 24 fps steps drift against the video's and would
+        // repeat or skip a step now and then)
+        if (fgNew) { rain2.lastT = tq; drawGL(rain2, t, 1000); } else if (t - (rain2.fgAt || 0) > 120 && tq !== rain2.lastT) { rain2.lastT = tq; drawGL(rain2, tq, 1000); }
+      } else {
+        const fgNew = rain2.fg ? uploadFg() : false;
+        if (tq !== rain2.lastT || fgNew) { rain2.lastT = tq; drawGL(rain2, tq, 1000); }
+      }
+    }
+  }
+  // an exception in one subsystem must never stop the screen: the next frame is always scheduled
+  function loop(t) {
+    try { frame(t); } catch (error) { console.error('[lobby] frame', error); }
+    requestAnimationFrame(loop);
+  }
+  // fallback for throttled/background tabs (headless screenshots): drive the loop if rAF stalls
+  setInterval(() => {
+    if (performance.now() - lastFrame <= 150) return;
+    try { frame(performance.now()); } catch (error) { console.error('[lobby] frame', error); }
+  }, 40);
+
+  // ---------- art: pre-rendered layers from roxy3d/out (Blender), flat canvas art as fallback ----------
+  let art = null;
+  const artImgs = [];
+  async function loadArt() {
+    if (q.get('art') === 'flat') return null;
+    try {
+      // never hang the screen on the art: 5 s and we start with the flat fallback
+      const res = await fetch(`${ART}manifest.json`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+      const m = res.ok ? await res.json() : null;
+      return m && (m.bg || m.base) && Array.isArray(m.occluders) ? m : null;
+    } catch { return null; }
+  }
+  // A pre-rendered video loop: first frame within 6 s or it's dropped; a stall while visible is nudged to
+  // play again, and still stuck after three nudges (~18 s) it's dropped too. onOk/onDead run at most once.
+  // Returns kill(): drop it now (a dropped video is detached, so no hidden decoder keeps running).
+  function playLoop(video, file, onOk, onDead) {
+    let state = 'starting';
+    const timers = [];
+    const dead = () => {
+      if (state === 'dead') return;
+      state = 'dead';
+      timers.forEach(clearTimeout);
+      clearInterval(timer);
+      video.onplaying = video.onerror = null;
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.style.display = 'none';
+      onDead();
+    };
+    video.onplaying = () => { if (state === 'starting') { state = 'ok'; onOk(); } };
+    video.onerror = dead;
+    video.style.display = 'block';
+    video.src = ART + file;
+    video.play().catch(() => timers.push(setTimeout(() => { if (state !== 'dead') video.play().catch(dead); }, 1000)));
+    timers.push(setTimeout(() => { if (state === 'starting') dead(); }, 6000));
+    let lastT = -1;
+    let stuck = 0;
+    const timer = setInterval(() => {
+      if (state === 'dead') return;
+      if (state !== 'ok' || document.hidden) return;
+      if (video.currentTime === lastT) {
+        if (++stuck % 3 === 0) video.play().catch(() => {});
+        if (stuck >= 9) dead();
+      } else stuck = 0;
+      lastT = video.currentTime;
+    }, 2000);
+    return dead;
+  }
+  function setupArt(m) {
+    document.body.classList.add('art');
+    if (m.layout === 3) setupLayout3(m);
+    bg.style.display = 'none';
+    $('bgimg').style.display = 'block';
+    // with a light loop, the still is the unlit base and the loop adds all animated light on top
+    // With a light loop the still is the unlit base and the loop adds all animated light (and rain).
+    // Without it (?loop=0, codec, file, no first frame in 6 s) a fully lit still is used: lit_bg = lit
+    // without props; full is flattened, so its glass doubles up under the prop sprites (acceptable).
+    const loop = $('loop');
+    // the still for "no video": lit without baked rain when the art has one (procedural rain is drawn on top)
+    const lit = m.lit_bg_dry || m.lit_bg || m.full;
+    const wantLoop = !!m.light_loop && q.get('loop') !== '0';
+    artImgs.push([$('bgimg'), wantLoop ? m.base || m.bg : (m.light_loop && lit) || m.bg || m.base]);
+    if (wantLoop) {
+      // One foreground rain at a time: the rain_fg video while both videos run, else the procedural rain.
+      // Base loop gone -> lit still + procedural rain (and the fg video is dropped with it);
+      // only the fg video gone -> procedural rain over the still-running base loop.
+      let baseOk = false;
+      let fgOk = false;
+      let killFg = null;
+      const hasFg = typeof m.rain_fg?.file === 'string';
+      const sync = () => setRain(!(baseOk && (fgOk || !hasFg)));
+      // the 4K base needs the 4K loop (each is the other's exact complement); ?loop2x=0 keeps the lighter 1080p one
+      // (from the window size: the stage scale is not known yet here, so with director=0 at 1440p dpr() said 1 and the
+      // 1080p loop ran over the 4K base, which is not its exact complement; QA 05 Nov)
+      const k = Math.min(MAXK, (FIT_COVER ? Math.max : Math.min)(innerWidth / 1920, innerHeight / 1080) * (devicePixelRatio || 1) * (DIRECTOR_ON ? ZOOM : 1));
+      const two = m.scale2x && k > 1.3 && typeof m.light_loop_2x === 'string' && q.get('loop2x') !== '0';
+      // the source resized across the 4K/1080p line (resize handler): the loop follows the base art, as its complement
+      let loopTwo = two;
+      loopSwap = (k) => {
+        const want = m.scale2x && k > 1.3 && typeof m.light_loop_2x === 'string' && q.get('loop2x') !== '0';
+        if (want === loopTwo || !baseOk) return;
+        loopTwo = want;
+        loop.src = ART + (want ? m.light_loop_2x : m.light_loop);
+        loop.play().catch(() => {});
+      };
+      playLoop(loop, two ? m.light_loop_2x : m.light_loop, () => { baseOk = true; sync(); }, () => {
+        baseOk = false;
+        killFg?.();
+        sync();
+        if (lit && artImgs[0][1] !== lit) { artImgs[0][1] = lit; $('bgimg').dataset.src = ''; applyArtRes(); }
+      });
+      if (hasFg) {
+        killFg = playLoop($('rainfg'), m.rain_fg.file, () => { fgOk = true; fgPlaying = $('rainfg'); fgFps = m.rain_fg.fps || 24; fgToRain2(); sync(); },
+          () => { fgOk = false; fgPlaying = null; fgToRain2(); sync(); });
+      }
+    } else if (m.glow) { $('glow').style.display = 'block'; artImgs.push([$('glow'), m.glow]); }
+    for (const o of m.occluders) {
+      if (!o || typeof o !== 'object') continue;
+      const sliced = Array.isArray(o.depth_slices) && o.depth_slices.length ? o.depth_slices : null;
+      // Where two depth slices meet, both have soft (antialiased) edges, so the art behind the wall (the restroom
+      // floor) showed through as thin dark lines across the TICKETS / SNACK BAR signs (owner, 05 Nov). The whole
+      // wall goes underneath at the lowest slice depth and fills those seams; anyone further back than that is
+      // behind every slice anyway, so it hides nothing the slices didn't.
+      const parts = sliced && typeof o.file === 'string' && [o.x, o.y, o.w, o.h].every(Number.isFinite)
+        ? [{ ...o, z_index: Math.min(...sliced.map((s) => s.z_index ?? o.z_index)) }, ...sliced] : sliced || [o];
+      for (const s of parts) {
+        if (!s || typeof s.file !== 'string' || ![s.x, s.y, s.w, s.h].every(Number.isFinite)) continue;   // skip broken entries
+        const im = h('img', 'prop');
+        im.alt = '';
+        im.decoding = 'async';
+        Object.assign(im.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${s.w}px`, height: `${s.h}px`, zIndex: String(s.z_index ?? o.z_index) });
+        // the restroom's side wall and the ticket wall are two walls almost on top of each other: this slice of the
+        // restroom one carries a black strip (its shaded face) that lands on the ticket wall as a black bar beside
+        // the box office; only its lit top cap is kept
+        if (/occ_restroom_side_wall_01\.png$/.test(s.file) && s.w === 159 && s.h === 99) im.style.clipPath = 'polygon(0 0, 159px 0, 159px 10px, 143px 10px, 143px 99px, 0 99px)';
+        world.append(im);
+        artImgs.push([im, s.file]);
+      }
+    }
+    flatSigns.forEach((el) => { el.style.display = 'none'; });
+    if (Array.isArray(m.marquees)) softRects.push([812, 328, 988, 370]);   // older art: the screen-facing gate sign
+    // pass 9+: titles on LED dot-matrix signs above the doors instead of the floating title boxes
+    if (Array.isArray(m.led_signs)) {
+      for (const sp of m.led_signs) {
+        if (!sp || !signs[sp.door - 1] || !['u0', 'v0'].includes(sp.wall) || ![...(sp.along || []), ...(sp.z_px || [])].every(Number.isFinite)) continue;
+        leds.push(makeLed(sp));
+      }
+      if (leds.length) signs.forEach((sg) => { sg.el.style.display = 'none'; });
+    }
+    if (m.wc_indicator?.vacant?.file && m.wc_indicator?.occupied?.file) { makeWcLights(m.wc_indicator); wcWrap.style.display = 'none'; setWC(!!wcBusy); }
+    // small pre-rendered prop loops (popcorn popping, arcade attract mode, buzzing boards): additive
+    // sprite sheets sitting just above their prop, stepped by the frame loop
+    if (Array.isArray(m.prop_loops)) {
+      for (const p of m.prop_loops) {
+        if (!p || typeof p.file !== 'string' || ![p.x, p.y, p.w, p.h, p.frames, p.columns].every(Number.isFinite)) continue;
+        const el = h('div', 'proploop');
+        if (p.blend === 'source-over') el.style.mixBlendMode = 'normal';   // straight-RGBA water on the glass (pass 8)
+        Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px`, zIndex: String(p.z_index ?? 3),
+          backgroundSize: `${p.columns * p.w}px ${Math.ceil(p.frames / p.columns) * p.h}px` });
+        world.append(el);
+        propLoops.push({ el, p, frame: -1 });
+      }
+    }
+    // marquee boxes and poster frames as rendered (pass 6 moved them apart); the DOM text/posters follow
+    if (Array.isArray(m.marquees)) {
+      for (const mq of m.marquees) {
+        const s = signs[mq?.screen - 1];
+        if (!s || !Array.isArray(mq.bottom_center) || !mq.bottom_center.every(Number.isFinite)) continue;
+        s.el.style.transform = `translate(${mq.bottom_center[0]}px, ${mq.bottom_center[1]}px) translate(-50%, -100%)`;
+        if (Number.isFinite(mq.inner_size?.[1])) {
+          s.el.style.height = `${mq.inner_size[1] - 14}px`;
+          s.el.classList.toggle('compact', mq.inner_size[1] < 88);   // a smaller box: one title line
+          const [bx, by] = mq.bottom_center;
+          const [iw, ih] = [mq.inner_size[0] || 176, mq.inner_size[1]];
+          softRects.push([bx - iw / 2 - 6, by - ih - 6, bx + iw / 2 + 6, by + 4]);   // speech keeps off the door titles
+        }
+      }
+    }
+    if (Array.isArray(m.poster_frames)) {
+      for (const pf of m.poster_frames) {
+        const s = signs[pf?.screen - 1];
+        if (!s || !Array.isArray(pf.along) || !Array.isArray(pf.z_px) || ![...pf.along, ...pf.z_px].every(Number.isFinite)) continue;
+        const [a0, a1] = pf.along;
+        const [z0, z1] = pf.z_px;
+        const len = a1 - a0;
+        const sz = (z1 - z0) / 150;   // the poster element is 100 x 150 px
+        const off = Number(pf.offset) || 0;   // the frame stands this far off the wall
+        const [x0, y0] = pf.wall === 'u0' ? P(off, a1, z1) : P(a0, off, z1);
+        const b = (pf.wall === 'u0' ? -1 : 1) * (len * 30) / 100;
+        s.img.parentElement.style.transform = `matrix(${(len * 60) / 100}, ${b}, 0, ${sz}, ${x0}, ${y0})`;
+      }
+    }
+    if (m.tyre_spray && typeof m.tyre_spray === 'object') SPRAY = m.tyre_spray;
+    // optional subsystems only switch on when their manifest entries are complete and sane
+    if (npcWalkSpecs(m.cat) && validSheet(m.cat.sleep) && validSheet(m.cat.sit)) {
+      initCat(validSheet(m.cat.stretch) ? m.cat : { ...m.cat, stretch: null });
+    }
+    if (q.get('janitor') === '3d') { if (npcWalkSpecs(m.janitor) && validSheet(m.janitor.sweep) && validSheet(m.janitor.idle)) initJanitor(m.janitor); } else if (q.get('janitor') === 'always') initMopper();   // default: mods are the jannies
+    if (m.door_anims && Array.isArray(m.door_anims)) {
+      for (const d of m.door_anims) if (validSheet({ ...d, anchor: [0, 0] }) && Number.isFinite(d.x) && Number.isFinite(d.y)) doorAnims[d.door] = d;
+    }
+    if (m.umbrella?.open && m.umbrella?.fold) UMB = m.umbrella;
+    if (m.items && typeof m.items === 'object') ITEMS = m.items;
+    if (m.vehicles && typeof m.vehicles === 'object') {
+      VEH = m.vehicles;
+      if (m.lanes) LANES = { ...LANES, ...m.lanes };
+      // the road runs v 10.6-13.5 with its dashed centre line at v 12 (build_scene.py), so the manifest's far lane
+      // (12) drove right-to-left traffic on the dashes: use the far lane's middle instead
+      if (LANES.far <= 12.05) LANES.far = 12.75;
+      if (m.arrival_stops) STOPS = { ...STOPS, ...m.arrival_stops };
+      nextCar = performance.now() + 2500;
+      nextBus = performance.now() + rand(8000, 20000);
+      // warm the image cache with every light variant, so brake/indicator swaps never flash
+      const two = dpr() > 1.3 || (MAXK === Infinity && (devicePixelRatio > 1.3 || innerWidth > 2400));
+      for (const dirs of Object.values(VEH)) {
+        for (const s of Object.values(dirs || {})) {
+          for (const k of ['light', 'light_brake', 'light_indicator', 'light_indicator_only']) {
+            const f = (two && s?.[`${k}_2x`]) || s?.[k];
+            if (typeof f === 'string') { const im = new Image(); im.src = ART + f; preloaded.push(im); }
+          }
+        }
+      }
+    }
+    // RESTROOM is baked: only the occupancy light stays, just above the door
+    wcLabel = '';
+    const [x, y] = P(0, WC_V, 108);
+    wcWrap.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+    setWC(!!wcBusy);
+  }
+  let loopSwap = null;   // set in setupArt: switches the light loop between 1080p and 4K with the base art
+  const propLoops = [];
+  const arcadeKind = (name) => (/arcade/i.test(name || '') ? (/play/i.test(name) ? 'play' : /hiscore|high/i.test(name) ? 'hiscore' : 'attract') : null);
+  function stepPropLoops(t) {
+    // the cabinet's screen: attract mode, a game while someone actually plays, the hi-score screen after a
+    // new high score (older art without those screens: the attract loop just goes dark during a game)
+    const playing = !!arcadeBusy && Math.hypot(arcadeBusy.u - ARCADE[0], arcadeBusy.v - ARCADE[1]) < 0.1;
+    const kinds = new Set(propLoops.map((l) => arcadeKind(l.p.name)));
+    const mode = playing ? 'play' : performance.now() < arcadeHiUntil && kinds.has('hiscore') ? 'hiscore' : 'attract';
+    const now = performance.now();
+    if (now > nextChase) { chaseUntil[1 + Math.floor(Math.random() * signs.length)] = now + 3500; nextChase = now + rand(20000, 45000); }
+    for (const l of propLoops) {
+      const bk = bulbKind(l.p.name);
+      if (bk) {
+        const chasing = (chaseUntil[bk[1]] || 0) > now;
+        const o = (bk[2].toLowerCase() === 'chase') === chasing ? '' : '0';
+        if (l.el.style.opacity !== o) l.el.style.opacity = o;
+      }
+      const kind = arcadeKind(l.p.name);
+      if (kind) {
+        const o = kind === mode ? '' : '0';
+        if (l.el.style.opacity !== o) l.el.style.opacity = o;
+      }
+      const f = Math.floor((t / 1000) * (l.p.fps || 24)) % l.p.frames;
+      if (f === l.frame) continue;
+      l.frame = f;
+      l.el.style.backgroundPosition = `${-(f % l.p.columns) * l.p.w}px ${-Math.floor(f / l.p.columns) * l.p.h}px`;
+    }
+  }
+  function applyArtRes() {
+    const two = art.scale2x && dpr() > 1.3;
+    // the 58 wet sheets (soft additive rain highlights) stay 1x: at @2x they decode to ~590 MB, more than
+    // Chrome's image cache holds, so it re-decoded them every frame (~10 fps; 1x: ~53 fps). ?wet2x=1 = old way
+    const wet2x = q.get('wet2x') === '1';
+    for (const l of propLoops) {
+      const src = ART + (two && l.p.file_2x && (wet2x || !/(^|\/)wet_/.test(l.p.file)) ? l.p.file_2x : l.p.file);
+      if (l.src !== src) { l.src = src; l.el.style.backgroundImage = `url("${src}")`; }
+    }
+    for (const [im, file] of artImgs) {
+      const src = ART + (two ? file.replace(/\.png$/, '@2x.png') : file);
+      if (im.dataset.src !== src) {
+        im.dataset.src = src;
+        // a missing @2x file falls back to the 1x one
+        im.onerror = two ? () => { im.onerror = null; im.src = ART + file; } : null;
+        im.src = src;
+      }
+    }
+  }
+
+  (async () => {
+    art = await loadArt();
+    useLayout(Number(q.get('layout')) || (LAYOUTS[art?.layout] ? art.layout : 1));   // ?layout= forces one (testing)
+    if (art) setupArt(art); else buildProps();
+    SB.on('resize', (s) => {
+      scale = s;
+      if (!art) { redrawBg(); redrawProps(); return; }
+      applyArtRes();
+      loopSwap?.(dpr());
+      traffic.forEach(vehSprites);
+      for (const n of npcs) if (n.spec) { sheetStyle(n.el, n.spec); n.f = -1; }   // keeps clock and frame
+      for (const w of figures) if (w.umbSpec && w.umb) setImg(w.umb, w.umbSpec.file, w.umbSpec.file_2x, dpr() > 1.3);
+      shots.forEach((sh) => sheetStyle(sh.el, sh.spec));
+    });
+    SB.mountStage($('stage'), { cover: FIT_COVER });
+    if (!art) document.fonts?.ready.then(() => { redrawBg(); redrawProps(); });
+    requestAnimationFrame(loop);
+    SB.start();
+  })();
+})();
+</script>
+</body>
+</html>

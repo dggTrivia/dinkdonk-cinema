@@ -1,0 +1,3 @@
+[Draft 8 image](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/cinema_draft_08.png) · [Report](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/CINEMA-DRAFT-08.md) · [Layout JSON](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa11/cinema_layout_08.json)
+
+STATUS: DRAFT 08 DELIVERED | One 1920×1080 image | Checks and remaining visibility/luminance limits documented | Earlier drafts, existing blends, cloud bundle, out10 and pages preserved | STOP

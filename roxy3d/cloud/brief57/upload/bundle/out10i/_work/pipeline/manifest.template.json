@@ -1,0 +1,2606 @@
+{
+  "layout": 3,
+  "status": "planned",
+  "size": [
+    1920,
+    1080
+  ],
+  "scale2x": true,
+  "bg": "bg.png",
+  "glow": null,
+  "full": "full.png",
+  "occluders": [],
+  "baked_signs": [
+    "tickets",
+    "showtime_prices",
+    "snackbar",
+    "gate",
+    "restroom",
+    "arcade_orbit",
+    "popcorn",
+    "standee_midnight",
+    "standee_voyager",
+    "DINK DONK",
+    "Anything else?",
+    "WCAT business",
+    "EatFresh"
+  ],
+  "projection": {
+    "origin": [
+      900,
+      350
+    ],
+    "tile_x": [
+      60,
+      30
+    ],
+    "tile_y": [
+      -60,
+      30
+    ],
+    "vertical_px_per_blender_unit": 73.48469228349535
+  },
+  "alpha": "PNG straight (unassociated); browser source-over; do not premultiply again",
+  "render_device": "OPTIX: NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "seed": 1997,
+  "staff_positions": {
+    "cashiers": [
+      [
+        3.45,
+        7.4
+      ],
+      [
+        3.45,
+        6
+      ]
+    ],
+    "snack_clerks": [
+      [
+        6.6,
+        3.75
+      ],
+      [
+        8.2,
+        3.75
+      ],
+      [
+        9.8,
+        3.75
+      ]
+    ],
+    "usher": [
+      5.3,
+      3.8
+    ]
+  },
+  "customer_positions": {
+    "tickets": [
+      [
+        4.85,
+        7.4
+      ],
+      [
+        4.85,
+        6
+      ]
+    ],
+    "ticket_queue_direction": [
+      1,
+      0
+    ],
+    "snack": [
+      [
+        6.6,
+        5.05
+      ],
+      [
+        8.2,
+        5.05
+      ],
+      [
+        9.8,
+        5.05
+      ]
+    ]
+  },
+  "marquees": [],
+  "render_layers": [],
+  "depth_slices_note": "Use supplied render_layers directly in z_index order, without polygon clipping. World-position AOV masks are disjoint and reconstruct each parent exactly. All 2x offsets and sizes double the 1x values.",
+  "static_glow": false,
+  "full_composition": "Native base + matching-resolution light_loop frame 60; render_layers, selected prop loops, ad overlays and vacant WC depth-sorted; rain_fg last. No old billboard aperture or marquee boxes.",
+  "base": "base.png",
+  "light_loop": "light_loop.webm",
+  "loop_seconds": 6,
+  "fps": 24,
+  "loop_frames": 144,
+  "loop_blend_mode": "plus-lighter",
+  "loop_size": [
+    1920,
+    1080
+  ],
+  "loop_codec": "VP9",
+  "full_reference_frame": 60,
+  "loop_static_prop_lights": [
+    "partitions",
+    "tickets",
+    "snack",
+    "podium",
+    "arcade",
+    "street_lamp",
+    "roxy_blade",
+    "bus_stop",
+    "entrance_posts"
+  ],
+  "loop_note": "Native nonnegative light/reflection/rain difference above its matching temporal-minimum base and below actors/occluders. Indoor and shelter rain protection remains; the old billboard/marquee protection masks are removed. Foreground rain is a separate additive stream. Use full.png as the flattened still fallback.",
+  "vehicles": {
+    "bus": {
+      "+u": {
+        "file": "vehicles/bus_plus.png",
+        "light": "vehicles/bus_plus_light.png",
+        "anchor": [
+          164,
+          118
+        ],
+        "length_tiles": 2.6,
+        "width_tiles": 0.78,
+        "w": 433,
+        "h": 261,
+        "height_px": 67.4,
+        "geometry_local_footprint": [
+          -1.357,
+          -0.535,
+          1.44,
+          0.535
+        ],
+        "file_2x": "vehicles/bus_plus@2x.png",
+        "light_2x": "vehicles/bus_plus_light@2x.png",
+        "door_open": {
+          "geometry_local_footprint": [
+            -1.357,
+            -0.56074,
+            1.44,
+            0.535
+          ],
+          "file": "vehicles/bus_plus_open.png",
+          "light": "vehicles/bus_plus_open_light.png",
+          "file_2x": "vehicles/bus_plus_open@2x.png",
+          "light_2x": "vehicles/bus_plus_open_light@2x.png",
+          "anchor": [
+            164,
+            118
+          ],
+          "w": 433,
+          "h": 261,
+          "slices": [
+            {
+              "file": "vehicles/slices/bus_plus_open_00.png",
+              "file_2x": "vehicles/slices/bus_plus_open_00@2x.png",
+              "x": 46,
+              "y": 1,
+              "w": 181,
+              "h": 122,
+              "du": -0.890833,
+              "u_range": [
+                -1.357,
+                -0.424667
+              ]
+            },
+            {
+              "file": "vehicles/slices/bus_plus_open_01.png",
+              "file_2x": "vehicles/slices/bus_plus_open_01@2x.png",
+              "x": 105,
+              "y": 28,
+              "w": 178,
+              "h": 123,
+              "du": 0.0415,
+              "u_range": [
+                -0.424667,
+                0.507667
+              ]
+            },
+            {
+              "file": "vehicles/slices/bus_plus_open_02.png",
+              "file_2x": "vehicles/slices/bus_plus_open_02@2x.png",
+              "x": 161,
+              "y": 56,
+              "w": 125,
+              "h": 122,
+              "du": 0.973833,
+              "u_range": [
+                0.507667,
+                1.44
+              ]
+            }
+          ],
+          "light_brake": "vehicles/bus_plus_open_light_brake.png",
+          "light_brake_2x": "vehicles/bus_plus_open_light_brake@2x.png",
+          "light_indicator": "vehicles/bus_plus_open_light_indicator.png",
+          "light_indicator_2x": "vehicles/bus_plus_open_light_indicator@2x.png",
+          "light_indicator_only": "vehicles/bus_plus_open_light_indicator_only.png",
+          "light_indicator_only_2x": "vehicles/bus_plus_open_light_indicator_only@2x.png",
+          "ad_panel_quad": [
+            [
+              101.83999999999992,
+              84.27999999999997
+            ],
+            [
+              175.03999999999996,
+              120.88
+            ],
+            [
+              175.03999999999996,
+              128.58000000000004
+            ],
+            [
+              101.83999999999992,
+              91.98000000000002
+            ]
+          ],
+          "ad_panel_aspect": 11.643029166996103
+        },
+        "door_ground_offset_tiles": [
+          1.04,
+          -0.4
+        ],
+        "slices": [
+          {
+            "file": "vehicles/slices/bus_plus_00.png",
+            "file_2x": "vehicles/slices/bus_plus_00@2x.png",
+            "x": 46,
+            "y": 1,
+            "w": 181,
+            "h": 122,
+            "du": -0.890833,
+            "u_range": [
+              -1.357,
+              -0.424667
+            ]
+          },
+          {
+            "file": "vehicles/slices/bus_plus_01.png",
+            "file_2x": "vehicles/slices/bus_plus_01@2x.png",
+            "x": 105,
+            "y": 28,
+            "w": 178,
+            "h": 123,
+            "du": 0.0415,
+            "u_range": [
+              -0.424667,
+              0.507667
+            ]
+          },
+          {
+            "file": "vehicles/slices/bus_plus_02.png",
+            "file_2x": "vehicles/slices/bus_plus_02@2x.png",
+            "x": 161,
+            "y": 56,
+            "w": 125,
+            "h": 122,
+            "du": 0.973833,
+            "u_range": [
+              0.507667,
+              1.44
+            ]
+          }
+        ],
+        "light_brake": "vehicles/bus_plus_light_brake.png",
+        "light_brake_2x": "vehicles/bus_plus_light_brake@2x.png",
+        "light_indicator": "vehicles/bus_plus_light_indicator.png",
+        "light_indicator_2x": "vehicles/bus_plus_light_indicator@2x.png",
+        "light_indicator_only": "vehicles/bus_plus_light_indicator_only.png",
+        "light_indicator_only_2x": "vehicles/bus_plus_light_indicator_only@2x.png",
+        "ad_panel_quad": [
+          [
+            101.83999999999992,
+            84.27999999999997
+          ],
+          [
+            175.03999999999996,
+            120.88
+          ],
+          [
+            175.03999999999996,
+            128.58000000000004
+          ],
+          [
+            101.83999999999992,
+            91.98000000000002
+          ]
+        ],
+        "ad_panel_aspect": 11.643029166996103
+      },
+      "-u": {
+        "file": "vehicles/bus_minus.png",
+        "light": "vehicles/bus_minus_light.png",
+        "anchor": [
+          272,
+          137
+        ],
+        "length_tiles": 2.6,
+        "width_tiles": 0.78,
+        "w": 437,
+        "h": 291,
+        "height_px": 67.4,
+        "geometry_local_footprint": [
+          -1.357,
+          -0.535,
+          1.44,
+          0.535
+        ],
+        "file_2x": "vehicles/bus_minus@2x.png",
+        "light_2x": "vehicles/bus_minus_light@2x.png",
+        "door_open": {
+          "geometry_local_footprint": [
+            -1.357,
+            -0.56074,
+            1.44,
+            0.535
+          ],
+          "file": "vehicles/bus_minus_open.png",
+          "light": "vehicles/bus_minus_open_light.png",
+          "file_2x": "vehicles/bus_minus_open@2x.png",
+          "light_2x": "vehicles/bus_minus_open_light@2x.png",
+          "anchor": [
+            272,
+            137
+          ],
+          "w": 437,
+          "h": 291,
+          "slices": [
+            {
+              "file": "vehicles/slices/bus_minus_open_00.png",
+              "file_2x": "vehicles/slices/bus_minus_open_00@2x.png",
+              "x": 151,
+              "y": 20,
+              "w": 180,
+              "h": 119,
+              "du": -0.973833,
+              "u_range": [
+                -1.44,
+                -0.507667
+              ]
+            },
+            {
+              "file": "vehicles/slices/bus_minus_open_01.png",
+              "file_2x": "vehicles/slices/bus_minus_open_01@2x.png",
+              "x": 208,
+              "y": 44,
+              "w": 170,
+              "h": 123,
+              "du": -0.0415,
+              "u_range": [
+                -0.507667,
+                0.424667
+              ]
+            },
+            {
+              "file": "vehicles/slices/bus_minus_open_02.png",
+              "file_2x": "vehicles/slices/bus_minus_open_02@2x.png",
+              "x": 264,
+              "y": 72,
+              "w": 126,
+              "h": 125,
+              "du": 0.890833,
+              "u_range": [
+                0.424667,
+                1.357
+              ]
+            }
+          ],
+          "light_brake": "vehicles/bus_minus_open_light_brake.png",
+          "light_brake_2x": "vehicles/bus_minus_open_light_brake@2x.png",
+          "light_indicator": "vehicles/bus_minus_open_light_indicator.png",
+          "light_indicator_2x": "vehicles/bus_minus_open_light_indicator@2x.png",
+          "light_indicator_only": "vehicles/bus_minus_open_light_indicator_only.png",
+          "light_indicator_only_2x": "vehicles/bus_minus_open_light_indicator_only@2x.png",
+          "ad_panel_quad": [
+            [
+              209.83999999999992,
+              103.27999999999997
+            ],
+            [
+              283.03999999999996,
+              139.88
+            ],
+            [
+              283.03999999999996,
+              147.58000000000004
+            ],
+            [
+              209.83999999999992,
+              110.98000000000002
+            ]
+          ],
+          "ad_panel_aspect": 11.643029166996103
+        },
+        "door_ground_offset_tiles": [
+          -1.04,
+          0.4
+        ],
+        "slices": [
+          {
+            "file": "vehicles/slices/bus_minus_00.png",
+            "file_2x": "vehicles/slices/bus_minus_00@2x.png",
+            "x": 151,
+            "y": 20,
+            "w": 180,
+            "h": 119,
+            "du": -0.973833,
+            "u_range": [
+              -1.44,
+              -0.507667
+            ]
+          },
+          {
+            "file": "vehicles/slices/bus_minus_01.png",
+            "file_2x": "vehicles/slices/bus_minus_01@2x.png",
+            "x": 208,
+            "y": 44,
+            "w": 170,
+            "h": 123,
+            "du": -0.0415,
+            "u_range": [
+              -0.507667,
+              0.424667
+            ]
+          },
+          {
+            "file": "vehicles/slices/bus_minus_02.png",
+            "file_2x": "vehicles/slices/bus_minus_02@2x.png",
+            "x": 264,
+            "y": 72,
+            "w": 126,
+            "h": 125,
+            "du": 0.890833,
+            "u_range": [
+              0.424667,
+              1.357
+            ]
+          }
+        ],
+        "light_brake": "vehicles/bus_minus_light_brake.png",
+        "light_brake_2x": "vehicles/bus_minus_light_brake@2x.png",
+        "light_indicator": "vehicles/bus_minus_light_indicator.png",
+        "light_indicator_2x": "vehicles/bus_minus_light_indicator@2x.png",
+        "light_indicator_only": "vehicles/bus_minus_light_indicator_only.png",
+        "light_indicator_only_2x": "vehicles/bus_minus_light_indicator_only@2x.png",
+        "ad_panel_quad": [
+          [
+            209.83999999999992,
+            103.27999999999997
+          ],
+          [
+            283.03999999999996,
+            139.88
+          ],
+          [
+            283.03999999999996,
+            147.58000000000004
+          ],
+          [
+            209.83999999999992,
+            110.98000000000002
+          ]
+        ],
+        "ad_panel_aspect": 11.643029166996103
+      }
+    },
+    "taxi": {
+      "+u": {
+        "file": "vehicles/taxi_plus.png",
+        "light": "vehicles/taxi_plus_light.png",
+        "anchor": [
+          119,
+          63
+        ],
+        "length_tiles": 1.72,
+        "width_tiles": 0.7,
+        "w": 354,
+        "h": 185,
+        "height_px": 43.0,
+        "geometry_local_footprint": [
+          -0.8943,
+          -0.42,
+          0.898,
+          0.42
+        ],
+        "file_2x": "vehicles/taxi_plus@2x.png",
+        "light_2x": "vehicles/taxi_plus_light@2x.png",
+        "door_open": {
+          "geometry_local_footprint": [
+            -0.8943,
+            -0.64656,
+            0.898,
+            0.42
+          ],
+          "file": "vehicles/taxi_plus_open.png",
+          "light": "vehicles/taxi_plus_open_light.png",
+          "file_2x": "vehicles/taxi_plus_open@2x.png",
+          "light_2x": "vehicles/taxi_plus_open_light@2x.png",
+          "anchor": [
+            119,
+            63
+          ],
+          "w": 354,
+          "h": 185,
+          "slices": [
+            {
+              "file": "vehicles/slices/taxi_plus_open_00.png",
+              "file_2x": "vehicles/slices/taxi_plus_open_00@2x.png",
+              "x": 34,
+              "y": 5,
+              "w": 136,
+              "h": 74,
+              "du": -0.446225,
+              "u_range": [
+                -0.8943,
+                0.00185
+              ]
+            },
+            {
+              "file": "vehicles/slices/taxi_plus_open_01.png",
+              "file_2x": "vehicles/slices/taxi_plus_open_01@2x.png",
+              "x": 89,
+              "y": 11,
+              "w": 115,
+              "h": 95,
+              "du": 0.449925,
+              "u_range": [
+                0.00185,
+                0.898
+              ]
+            }
+          ],
+          "light_brake": "vehicles/taxi_plus_open_light_brake.png",
+          "light_brake_2x": "vehicles/taxi_plus_open_light_brake@2x.png",
+          "light_indicator": "vehicles/taxi_plus_open_light_indicator.png",
+          "light_indicator_2x": "vehicles/taxi_plus_open_light_indicator@2x.png",
+          "light_indicator_only": "vehicles/taxi_plus_open_light_indicator_only.png",
+          "light_indicator_only_2x": "vehicles/taxi_plus_open_light_indicator_only@2x.png"
+        },
+        "door_ground_offset_tiles": [
+          -0.23,
+          -0.31
+        ],
+        "slices": [
+          {
+            "file": "vehicles/slices/taxi_plus_00.png",
+            "file_2x": "vehicles/slices/taxi_plus_00@2x.png",
+            "x": 34,
+            "y": 5,
+            "w": 136,
+            "h": 74,
+            "du": -0.446225,
+            "u_range": [
+              -0.8943,
+              0.00185
+            ]
+          },
+          {
+            "file": "vehicles/slices/taxi_plus_01.png",
+            "file_2x": "vehicles/slices/taxi_plus_01@2x.png",
+            "x": 89,
+            "y": 11,
+            "w": 115,
+            "h": 95,
+            "du": 0.449925,
+            "u_range": [
+              0.00185,
+              0.898
+            ]
+          }
+        ],
+        "light_brake": "vehicles/taxi_plus_light_brake.png",
+        "light_brake_2x": "vehicles/taxi_plus_light_brake@2x.png",
+        "light_indicator": "vehicles/taxi_plus_light_indicator.png",
+        "light_indicator_2x": "vehicles/taxi_plus_light_indicator@2x.png",
+        "light_indicator_only": "vehicles/taxi_plus_light_indicator_only.png",
+        "light_indicator_only_2x": "vehicles/taxi_plus_light_indicator_only@2x.png"
+      },
+      "-u": {
+        "file": "vehicles/taxi_minus.png",
+        "light": "vehicles/taxi_minus_light.png",
+        "anchor": [
+          238,
+          121
+        ],
+        "length_tiles": 1.72,
+        "width_tiles": 0.7,
+        "w": 357,
+        "h": 256,
+        "height_px": 43.0,
+        "geometry_local_footprint": [
+          -0.8943,
+          -0.42,
+          0.898,
+          0.42
+        ],
+        "file_2x": "vehicles/taxi_minus@2x.png",
+        "light_2x": "vehicles/taxi_minus_light@2x.png",
+        "door_open": {
+          "geometry_local_footprint": [
+            -0.8943,
+            -0.64656,
+            0.898,
+            0.42
+          ],
+          "file": "vehicles/taxi_minus_open.png",
+          "light": "vehicles/taxi_minus_open_light.png",
+          "file_2x": "vehicles/taxi_minus_open@2x.png",
+          "light_2x": "vehicles/taxi_minus_open_light@2x.png",
+          "anchor": [
+            238,
+            121
+          ],
+          "w": 357,
+          "h": 256,
+          "slices": [
+            {
+              "file": "vehicles/slices/taxi_minus_open_00.png",
+              "file_2x": "vehicles/slices/taxi_minus_open_00@2x.png",
+              "x": 153,
+              "y": 63,
+              "w": 128,
+              "h": 74,
+              "du": -0.449925,
+              "u_range": [
+                -0.898,
+                -0.00185
+              ]
+            },
+            {
+              "file": "vehicles/slices/taxi_minus_open_01.png",
+              "file_2x": "vehicles/slices/taxi_minus_open_01@2x.png",
+              "x": 208,
+              "y": 69,
+              "w": 115,
+              "h": 95,
+              "du": 0.446225,
+              "u_range": [
+                -0.00185,
+                0.8943
+              ]
+            }
+          ],
+          "light_brake": "vehicles/taxi_minus_open_light_brake.png",
+          "light_brake_2x": "vehicles/taxi_minus_open_light_brake@2x.png",
+          "light_indicator": "vehicles/taxi_minus_open_light_indicator.png",
+          "light_indicator_2x": "vehicles/taxi_minus_open_light_indicator@2x.png",
+          "light_indicator_only": "vehicles/taxi_minus_open_light_indicator_only.png",
+          "light_indicator_only_2x": "vehicles/taxi_minus_open_light_indicator_only@2x.png"
+        },
+        "door_ground_offset_tiles": [
+          0.23,
+          0.31
+        ],
+        "slices": [
+          {
+            "file": "vehicles/slices/taxi_minus_00.png",
+            "file_2x": "vehicles/slices/taxi_minus_00@2x.png",
+            "x": 153,
+            "y": 63,
+            "w": 128,
+            "h": 74,
+            "du": -0.449925,
+            "u_range": [
+              -0.898,
+              -0.00185
+            ]
+          },
+          {
+            "file": "vehicles/slices/taxi_minus_01.png",
+            "file_2x": "vehicles/slices/taxi_minus_01@2x.png",
+            "x": 208,
+            "y": 69,
+            "w": 115,
+            "h": 95,
+            "du": 0.446225,
+            "u_range": [
+              -0.00185,
+              0.8943
+            ]
+          }
+        ],
+        "light_brake": "vehicles/taxi_minus_light_brake.png",
+        "light_brake_2x": "vehicles/taxi_minus_light_brake@2x.png",
+        "light_indicator": "vehicles/taxi_minus_light_indicator.png",
+        "light_indicator_2x": "vehicles/taxi_minus_light_indicator@2x.png",
+        "light_indicator_only": "vehicles/taxi_minus_light_indicator_only.png",
+        "light_indicator_only_2x": "vehicles/taxi_minus_light_indicator_only@2x.png"
+      }
+    },
+    "sedan_a": {
+      "+u": {
+        "file": "vehicles/sedan_a_plus.png",
+        "light": "vehicles/sedan_a_plus_light.png",
+        "anchor": [
+          115,
+          65
+        ],
+        "length_tiles": 1.64,
+        "width_tiles": 0.68,
+        "w": 350,
+        "h": 186,
+        "height_px": 32.8,
+        "geometry_local_footprint": [
+          -0.8543,
+          -0.42,
+          0.858,
+          0.42
+        ],
+        "file_2x": "vehicles/sedan_a_plus@2x.png",
+        "light_2x": "vehicles/sedan_a_plus_light@2x.png",
+        "slices": [
+          {
+            "file": "vehicles/slices/sedan_a_plus_00.png",
+            "file_2x": "vehicles/slices/sedan_a_plus_00@2x.png",
+            "x": 34,
+            "y": 2,
+            "w": 132,
+            "h": 79,
+            "du": -0.426225,
+            "u_range": [
+              -0.8543,
+              0.00185
+            ]
+          },
+          {
+            "file": "vehicles/slices/sedan_a_plus_01.png",
+            "file_2x": "vehicles/slices/sedan_a_plus_01@2x.png",
+            "x": 86,
+            "y": 22,
+            "w": 110,
+            "h": 85,
+            "du": 0.429925,
+            "u_range": [
+              0.00185,
+              0.858
+            ]
+          }
+        ],
+        "light_brake": "vehicles/sedan_a_plus_light_brake.png",
+        "light_brake_2x": "vehicles/sedan_a_plus_light_brake@2x.png"
+      },
+      "-u": {
+        "file": "vehicles/sedan_a_minus.png",
+        "light": "vehicles/sedan_a_minus_light.png",
+        "anchor": [
+          238,
+          120
+        ],
+        "length_tiles": 1.64,
+        "width_tiles": 0.68,
+        "w": 353,
+        "h": 250,
+        "height_px": 32.8,
+        "geometry_local_footprint": [
+          -0.8543,
+          -0.42,
+          0.858,
+          0.42
+        ],
+        "file_2x": "vehicles/sedan_a_minus@2x.png",
+        "light_2x": "vehicles/sedan_a_minus_light@2x.png",
+        "slices": [
+          {
+            "file": "vehicles/slices/sedan_a_minus_00.png",
+            "file_2x": "vehicles/slices/sedan_a_minus_00@2x.png",
+            "x": 157,
+            "y": 64,
+            "w": 124,
+            "h": 72,
+            "du": -0.429925,
+            "u_range": [
+              -0.858,
+              -0.00185
+            ]
+          },
+          {
+            "file": "vehicles/slices/sedan_a_minus_01.png",
+            "file_2x": "vehicles/slices/sedan_a_minus_01@2x.png",
+            "x": 209,
+            "y": 77,
+            "w": 110,
+            "h": 85,
+            "du": 0.426225,
+            "u_range": [
+              -0.00185,
+              0.8543
+            ]
+          }
+        ],
+        "light_brake": "vehicles/sedan_a_minus_light_brake.png",
+        "light_brake_2x": "vehicles/sedan_a_minus_light_brake@2x.png"
+      }
+    },
+    "sedan_b": {
+      "+u": {
+        "file": "vehicles/sedan_b_plus.png",
+        "light": "vehicles/sedan_b_plus_light.png",
+        "anchor": [
+          115,
+          65
+        ],
+        "length_tiles": 1.68,
+        "width_tiles": 0.69,
+        "w": 359,
+        "h": 191,
+        "height_px": 31.082,
+        "geometry_local_footprint": [
+          -0.8743,
+          -0.42,
+          0.878,
+          0.42
+        ],
+        "file_2x": "vehicles/sedan_b_plus@2x.png",
+        "light_2x": "vehicles/sedan_b_plus_light@2x.png",
+        "slices": [
+          {
+            "file": "vehicles/slices/sedan_b_plus_00.png",
+            "file_2x": "vehicles/slices/sedan_b_plus_00@2x.png",
+            "x": 32,
+            "y": 2,
+            "w": 134,
+            "h": 79,
+            "du": -0.436225,
+            "u_range": [
+              -0.8743,
+              0.00185
+            ]
+          },
+          {
+            "file": "vehicles/slices/sedan_b_plus_01.png",
+            "file_2x": "vehicles/slices/sedan_b_plus_01@2x.png",
+            "x": 85,
+            "y": 24,
+            "w": 113,
+            "h": 84,
+            "du": 0.439925,
+            "u_range": [
+              0.00185,
+              0.878
+            ]
+          }
+        ],
+        "light_brake": "vehicles/sedan_b_plus_light_brake.png",
+        "light_brake_2x": "vehicles/sedan_b_plus_light_brake@2x.png"
+      },
+      "-u": {
+        "file": "vehicles/sedan_b_minus.png",
+        "light": "vehicles/sedan_b_minus_light.png",
+        "anchor": [
+          246,
+          126
+        ],
+        "length_tiles": 1.68,
+        "width_tiles": 0.69,
+        "w": 362,
+        "h": 253,
+        "height_px": 31.082,
+        "geometry_local_footprint": [
+          -0.8743,
+          -0.42,
+          0.878,
+          0.42
+        ],
+        "file_2x": "vehicles/sedan_b_minus@2x.png",
+        "light_2x": "vehicles/sedan_b_minus_light@2x.png",
+        "slices": [
+          {
+            "file": "vehicles/slices/sedan_b_minus_00.png",
+            "file_2x": "vehicles/slices/sedan_b_minus_00@2x.png",
+            "x": 163,
+            "y": 67,
+            "w": 126,
+            "h": 75,
+            "du": -0.439925,
+            "u_range": [
+              -0.878,
+              -0.00185
+            ]
+          },
+          {
+            "file": "vehicles/slices/sedan_b_minus_01.png",
+            "file_2x": "vehicles/slices/sedan_b_minus_01@2x.png",
+            "x": 216,
+            "y": 85,
+            "w": 113,
+            "h": 84,
+            "du": 0.436225,
+            "u_range": [
+              -0.00185,
+              0.8743
+            ]
+          }
+        ],
+        "light_brake": "vehicles/sedan_b_minus_light_brake.png",
+        "light_brake_2x": "vehicles/sedan_b_minus_light_brake@2x.png"
+      }
+    }
+  },
+  "lanes": {
+    "near": 11.0,
+    "far": 12.0
+  },
+  "vehicle_sprite_contract": {
+    "anchor": "Ground point at middle of vehicle / lane centre, in logical 1x pixels. Position top-left at P(u,v)-anchor.",
+    "resolution": "@2x images have exactly twice the pixels. Use the 1x CSS w/h and anchor, or multiply all coordinates by two on a 2x canvas.",
+    "alpha": "Body: straight RGBA with soft contact shadow. Light: RGB on black, plus-lighter under all vehicles and walkers.",
+    "crop": "Closed body, open body and their light images share w/h and anchor within each direction. The common tight crop includes the light reach.",
+    "depth": "Place body with z_index = 1000 + round((u+v)*100); road-light layers go below all bodies and static occluders.",
+    "direction": "True 180-degree 3D rotation, not mirrored images; destination and TAXI text remain legible.",
+    "door": "Optional door_open files replace the closed pair at the identical anchor. The entry is on local -v (curb side for +u)."
+  },
+  "arrival_stops": {
+    "bus": {
+      "direction": "+u",
+      "vehicle_centre": [
+        0.16,
+        11.0
+      ],
+      "door_ground": [
+        1.2,
+        10.6
+      ],
+      "boarding_point": [
+        1.2,
+        10.75
+      ]
+    },
+    "taxi": {
+      "direction": "+u",
+      "vehicle_centre": [
+        9.73,
+        11.0
+      ],
+      "door_ground": [
+        9.5,
+        10.69
+      ],
+      "boarding_point": [
+        9.5,
+        10.75
+      ]
+    }
+  },
+  "vehicle_baked_signs": [
+    "05 DINK DONK",
+    "d.gg TRANSIT",
+    "DGG 05"
+  ],
+  "lit_bg": "lit_bg.png",
+  "lit_bg_2x": "lit_bg@2x.png",
+  "lit_bg_reference_frame": 60,
+  "lit_bg_composition": "base + lossless light-loop frame 60, without occluders. Use instead of base+loop when video cannot play; still draw the occluders.",
+  "pass": 6,
+  "prop_loops": [
+    {
+      "name": "popcorn_1",
+      "file": "prop_loops/popcorn_1.png",
+      "file_2x": "prop_loops/popcorn_1@2x.png",
+      "x": 1048,
+      "y": 553,
+      "w": 68,
+      "h": 66,
+      "z_index": 1980,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 68,
+      "frame_height": 66,
+      "frame_order": "row-major",
+      "parent": "partition_right"
+    },
+    {
+      "name": "popcorn_2",
+      "file": "prop_loops/popcorn_2.png",
+      "file_2x": "prop_loops/popcorn_2@2x.png",
+      "x": 1112,
+      "y": 585,
+      "w": 68,
+      "h": 66,
+      "z_index": 2075,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 68,
+      "frame_height": 66,
+      "frame_order": "row-major",
+      "parent": "partition_right"
+    },
+    {
+      "name": "menu_popcorn",
+      "file": "prop_loops/menu_popcorn.png",
+      "file_2x": "prop_loops/menu_popcorn@2x.png",
+      "x": 1045,
+      "y": 522,
+      "w": 128,
+      "h": 82,
+      "z_index": 2075,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 128,
+      "frame_height": 82,
+      "frame_order": "row-major",
+      "parent": "partition_right"
+    },
+    {
+      "name": "menu_soda",
+      "file": "prop_loops/menu_soda.png",
+      "file_2x": "prop_loops/menu_soda@2x.png",
+      "x": 1177,
+      "y": 588,
+      "w": 114,
+      "h": 74,
+      "z_index": 2267,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 114,
+      "frame_height": 74,
+      "frame_order": "row-major",
+      "parent": "partition_right"
+    },
+    {
+      "name": "menu_nachos",
+      "file": "prop_loops/menu_nachos.png",
+      "file_2x": "prop_loops/menu_nachos@2x.png",
+      "x": 1294,
+      "y": 647,
+      "w": 116,
+      "h": 76,
+      "z_index": 2458,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 116,
+      "frame_height": 76,
+      "frame_order": "row-major",
+      "parent": "partition_right"
+    },
+    {
+      "name": "arcade_attract",
+      "file": "prop_loops/arcade_attract.png",
+      "file_2x": "prop_loops/arcade_attract@2x.png",
+      "x": 1177,
+      "y": 889,
+      "w": 32,
+      "h": 42,
+      "z_index": 3021,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 32,
+      "frame_height": 42,
+      "frame_order": "row-major",
+      "parent": "arcade"
+    },
+    {
+      "name": "soda_logo",
+      "file": "prop_loops/soda_logo.png",
+      "file_2x": "prop_loops/soda_logo@2x.png",
+      "x": 1172,
+      "y": 631,
+      "w": 46,
+      "h": 36,
+      "z_index": 2171,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 46,
+      "frame_height": 36,
+      "frame_order": "row-major",
+      "parent": "partition_right"
+    },
+    {
+      "name": "tickets_letter_e",
+      "file": "prop_loops/tickets_letter_e.png",
+      "file_2x": "prop_loops/tickets_letter_e@2x.png",
+      "x": 689,
+      "y": 554,
+      "w": 14,
+      "h": 20,
+      "z_index": 1971,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 14,
+      "frame_height": 20,
+      "frame_order": "row-major",
+      "parent": "partition_left"
+    },
+    {
+      "name": "arcade_play",
+      "file": "prop_loops/arcade_play.png",
+      "file_2x": "prop_loops/arcade_play@2x.png",
+      "x": 1177,
+      "y": 889,
+      "w": 32,
+      "h": 42,
+      "z_index": 3021,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 72,
+      "loop_seconds": 3.0,
+      "columns": 6,
+      "rows": 12,
+      "frame_width": 32,
+      "frame_height": 42,
+      "frame_order": "row-major",
+      "parent": "arcade"
+    },
+    {
+      "name": "arcade_hiscore",
+      "file": "prop_loops/arcade_hiscore.png",
+      "file_2x": "prop_loops/arcade_hiscore@2x.png",
+      "x": 1177,
+      "y": 889,
+      "w": 32,
+      "h": 42,
+      "z_index": 3021,
+      "blend": "plus-lighter",
+      "format": "png-spritesheet",
+      "fps": 24,
+      "frames": 24,
+      "loop_seconds": 1.0,
+      "columns": 6,
+      "rows": 4,
+      "frame_width": 32,
+      "frame_height": 42,
+      "frame_order": "row-major",
+      "parent": "arcade"
+    },
+    {
+      "name": "poster_bulbs_1_idle",
+      "x": 1217,
+      "y": 403,
+      "w": 64,
+      "h": 131,
+      "z_index": 902,
+      "frames": 1,
+      "columns": 1,
+      "rows": 1,
+      "fps": 12,
+      "blend": "plus-lighter",
+      "alpha": "none; black is zero",
+      "variant_group": "poster_bulbs_1",
+      "default_enabled": true,
+      "file": "prop_loops/poster_bulbs_3_idle.png",
+      "file_2x": "prop_loops/poster_bulbs_3_idle@2x.png",
+      "format": "png-spritesheet",
+      "frame_width": 64,
+      "frame_height": 131,
+      "frame_order": "row-major",
+      "loop_seconds": 0.08333333333333333
+    },
+    {
+      "name": "poster_bulbs_1_chase",
+      "x": 1217,
+      "y": 403,
+      "w": 64,
+      "h": 131,
+      "z_index": 902,
+      "frames": 72,
+      "columns": 8,
+      "rows": 9,
+      "fps": 12,
+      "blend": "plus-lighter",
+      "alpha": "none; black is zero",
+      "variant_group": "poster_bulbs_1",
+      "default_enabled": false,
+      "file": "prop_loops/poster_bulbs_3_chase.png",
+      "file_2x": "prop_loops/poster_bulbs_3_chase@2x.png",
+      "format": "png-spritesheet",
+      "frame_width": 64,
+      "frame_height": 131,
+      "frame_order": "row-major",
+      "loop_seconds": 6.0
+    },
+    {
+      "name": "poster_bulbs_2_idle",
+      "x": 1421,
+      "y": 505,
+      "w": 64,
+      "h": 131,
+      "z_index": 902,
+      "frames": 1,
+      "columns": 1,
+      "rows": 1,
+      "fps": 12,
+      "blend": "plus-lighter",
+      "alpha": "none; black is zero",
+      "variant_group": "poster_bulbs_2",
+      "default_enabled": true,
+      "file": "prop_loops/poster_bulbs_4_idle.png",
+      "file_2x": "prop_loops/poster_bulbs_4_idle@2x.png",
+      "format": "png-spritesheet",
+      "frame_width": 64,
+      "frame_height": 131,
+      "frame_order": "row-major",
+      "loop_seconds": 0.08333333333333333
+    },
+    {
+      "name": "poster_bulbs_2_chase",
+      "x": 1421,
+      "y": 505,
+      "w": 64,
+      "h": 131,
+      "z_index": 902,
+      "frames": 72,
+      "columns": 8,
+      "rows": 9,
+      "fps": 12,
+      "blend": "plus-lighter",
+      "alpha": "none; black is zero",
+      "variant_group": "poster_bulbs_2",
+      "default_enabled": false,
+      "file": "prop_loops/poster_bulbs_4_chase.png",
+      "file_2x": "prop_loops/poster_bulbs_4_chase@2x.png",
+      "format": "png-spritesheet",
+      "frame_width": 64,
+      "frame_height": 131,
+      "frame_order": "row-major",
+      "loop_seconds": 6.0
+    },
+    {
+      "name": "poster_bulbs_3_idle",
+      "x": 1601,
+      "y": 595,
+      "w": 64,
+      "h": 131,
+      "z_index": 902,
+      "frames": 1,
+      "columns": 1,
+      "rows": 1,
+      "fps": 12,
+      "blend": "plus-lighter",
+      "alpha": "none; black is zero",
+      "variant_group": "poster_bulbs_3",
+      "default_enabled": true,
+      "file": "prop_loops/poster_bulbs_5_idle.png",
+      "file_2x": "prop_loops/poster_bulbs_5_idle@2x.png",
+      "format": "png-spritesheet",
+      "frame_width": 64,
+      "frame_height": 131,
+      "frame_order": "row-major",
+      "loop_seconds": 0.08333333333333333
+    },
+    {
+      "name": "poster_bulbs_3_chase",
+      "x": 1601,
+      "y": 595,
+      "w": 64,
+      "h": 131,
+      "z_index": 902,
+      "frames": 72,
+      "columns": 8,
+      "rows": 9,
+      "fps": 12,
+      "blend": "plus-lighter",
+      "alpha": "none; black is zero",
+      "variant_group": "poster_bulbs_3",
+      "default_enabled": false,
+      "file": "prop_loops/poster_bulbs_5_chase.png",
+      "file_2x": "prop_loops/poster_bulbs_5_chase@2x.png",
+      "format": "png-spritesheet",
+      "frame_width": 64,
+      "frame_height": 131,
+      "frame_order": "row-major",
+      "loop_seconds": 6.0
+    }
+  ],
+  "prop_loop_contract": {
+    "format": "Use each entry blend and alpha: RGB on black for plus-lighter, straight RGBA for source-over.",
+    "playback": "frame = floor(elapsedSeconds * fps) % frames; source cell (frame % columns, floor(frame / columns)).",
+    "resolution": "All rects, frame_width/frame_height and z_index use the 1920x1080 coordinate system. @2x doubles each cell and the sheet, not CSS placement.",
+    "sorting": "Insert each crop at its z_index in the same walker/prop stack, immediately above its listed parent_slices. Do not place below occluder sprites.",
+    "phase": "Use per-entry fps/frames, including one-cell steady entries and six-second 12fps water/bulbs; do not assume a common sheet length.",
+    "fallback": "Pause at any cell for reduced motion. Omit sheets if unsupported; the static props remain complete.",
+    "popcorn": "Native 2x Cycles geometry, rotating lobed kernels on periodic arcs, attenuated through the existing glass and occluded by kettle/cabinet geometry.",
+    "signs": "Three menu backlights, soda logo and selections, a single E in TICKETS, and original INSERT COIN arcade pixel art."
+  },
+  "vehicle_slice_contract": {
+    "placement": "Whole top-left = P(u,v)-direction.anchor. Slice top-left = whole top-left + [slice.x,slice.y].",
+    "depth": "For each slice use 1000 + round((u + slice.du + v) * 100). du is signed world-u offset, including -u vehicles.",
+    "resolution": "x/y/w/h remain logical 1x pixels. file_2x has exactly double the dimensions. Slices replace the whole body, not its lights.",
+    "reconstruction": "Disjoint surface-owned pixels reconstruct the inherited straight RGBA body exactly, including its contact shadow.",
+    "sections": "World-space longitudinal bins no longer than one tile, from actual geometry bounds; shadow-only pixels use their floor position.",
+    "door_open": "Use door_open.slices with the same parent anchor and dimensions when the door is open.",
+    "fallback": "The inherited whole-body sprite and centre-depth contract remain available for consumers without slice support."
+  },
+  "vehicle_lamp_variant_contract": {
+    "composition": "Each new light is a complete replacement for light, on black for plus-lighter below all bodies. Do not add normal and variant together.",
+    "brake": "Brighter red tail halo and ray-traced wet-road reflection; available for every direction and closed/open body.",
+    "indicator": "Bus/taxi curb-side amber signal ON, including road reflections. Blink by alternating this complete light with normal.",
+    "combined": "For simultaneous braking and indicator, add max(indicator-normal,0) to brake, clamped to 255; do not double headlights.",
+    "anchor": "All variants preserve the published light dimensions and the direction anchor."
+  },
+  "cat": {
+    "sleep": {
+      "file": "cat/sleep.png",
+      "file_2x": "cat/sleep@2x.png",
+      "frames": 48,
+      "columns": 8,
+      "rows": 6,
+      "fps": 16,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": true,
+      "seconds": 3.0
+    },
+    "sit": {
+      "file": "cat/sit.png",
+      "file_2x": "cat/sit@2x.png",
+      "frames": 48,
+      "columns": 8,
+      "rows": 6,
+      "fps": 16,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": true,
+      "seconds": 3.0
+    },
+    "walk_plus_u": {
+      "file": "cat/walk_plus_u.png",
+      "file_2x": "cat/walk_plus_u@2x.png",
+      "frames": 10,
+      "columns": 5,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": true,
+      "seconds": 0.8333333333333334,
+      "stride_tiles": 0.32,
+      "direction": "+u"
+    },
+    "walk_minus_u": {
+      "file": "cat/walk_minus_u.png",
+      "file_2x": "cat/walk_minus_u@2x.png",
+      "frames": 10,
+      "columns": 5,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": true,
+      "seconds": 0.8333333333333334,
+      "stride_tiles": 0.32,
+      "direction": "-u"
+    },
+    "walk_plus_v": {
+      "file": "cat/walk_plus_v.png",
+      "file_2x": "cat/walk_plus_v@2x.png",
+      "frames": 10,
+      "columns": 5,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": true,
+      "seconds": 0.8333333333333334,
+      "stride_tiles": 0.32,
+      "direction": "+v"
+    },
+    "walk_minus_v": {
+      "file": "cat/walk_minus_v.png",
+      "file_2x": "cat/walk_minus_v@2x.png",
+      "frames": 10,
+      "columns": 5,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": true,
+      "seconds": 0.8333333333333334,
+      "stride_tiles": 0.32,
+      "direction": "-v"
+    },
+    "stretch": {
+      "file": "cat/stretch.png",
+      "file_2x": "cat/stretch@2x.png",
+      "frames": 32,
+      "columns": 8,
+      "rows": 4,
+      "fps": 16,
+      "frame_width": 64,
+      "frame_height": 64,
+      "anchor": [
+        32,
+        44
+      ],
+      "loop": false,
+      "seconds": 2.0
+    }
+  },
+  "cat_contract": {
+    "character": "Original small ginger tabby with cream paws and chest, about 0.45 tiles long including tail; stylized to read beside 50px emotes.",
+    "placement": "Frame top-left = P(u,v) - anchor; anchor is ground under body centre. Sort the cat at 1000 + round((u+v)*100).",
+    "frames": "RGBA, straight alpha, row-major. frame=floor(timeSeconds*fps)%frames for loops. Clamp at frames-1 for stretch.",
+    "resolution": "Coordinates and 64x64 frame size are 1x; @2x doubles every cell and sheet. Keep 1x CSS placement.",
+    "lighting": "Rendered inside the unchanged pass-4 scene at (10.75,7.75), with the exact camera and its existing lighting. Soft contact shadow included.",
+    "walk": "Four actual 3D orientations. Advance 0.32 tiles per 10-frame cycle; stance feet move backward at the corresponding speed. No travel is baked into the frame.",
+    "walk_mapping": {
+      "+u": "walk_plus_u",
+      "-u": "walk_minus_u",
+      "+v": "walk_plus_v",
+      "-v": "walk_minus_v"
+    },
+    "idle": "sleep and sit are three-second loops; stretch is an optional two-second one-shot, standing to stretch to standing.",
+    "recommended_rest_uv": [
+      10.75,
+      7.75
+    ]
+  },
+  "tyre_spray": {
+    "+u": {
+      "file": "tyre_spray/plus_u.png",
+      "file_2x": "tyre_spray/plus_u@2x.png",
+      "frames": 12,
+      "columns": 6,
+      "rows": 2,
+      "fps": 24,
+      "frame_width": 96,
+      "frame_height": 56,
+      "anchor": [
+        48,
+        31
+      ],
+      "seconds": 0.5,
+      "loop": false,
+      "blend": "plus-lighter"
+    },
+    "-u": {
+      "file": "tyre_spray/minus_u.png",
+      "file_2x": "tyre_spray/minus_u@2x.png",
+      "frames": 12,
+      "columns": 6,
+      "rows": 2,
+      "fps": 24,
+      "frame_width": 96,
+      "frame_height": 56,
+      "anchor": [
+        48,
+        31
+      ],
+      "seconds": 0.5,
+      "loop": false,
+      "blend": "plus-lighter"
+    }
+  },
+  "tyre_spray_contract": {
+    "placement": "P(wheel_u,wheel_v)-anchor, at ground contact. Add below vehicle bodies and walkers.",
+    "playback": "One-shot 12 frames at 24fps; first and last frames black. Emit while moving on wet road. Direction is vehicle travel direction.",
+    "style": "Original deterministic ballistic droplets, cool wet-road highlights, on black; @2x doubles each source cell."
+  },
+  "poster_frames": [
+    {
+      "screen": 1,
+      "wall": "v0",
+      "along": [
+        5.55,
+        6.359999999999999
+      ],
+      "z_px": [
+        20,
+        108.18163074019444
+      ],
+      "offset": 0.072,
+      "aspect": 0.675,
+      "quad_px": [
+        [
+          1228.68,
+          410.4783692598055
+        ],
+        [
+          1277.28,
+          434.7783692598056
+        ],
+        [
+          1277.28,
+          522.96
+        ],
+        [
+          1228.68,
+          498.65999999999997
+        ]
+      ]
+    },
+    {
+      "screen": 2,
+      "wall": "v0",
+      "along": [
+        8.95,
+        9.76
+      ],
+      "z_px": [
+        20,
+        108.18163074019444
+      ],
+      "offset": 0.072,
+      "aspect": 0.675,
+      "quad_px": [
+        [
+          1432.68,
+          512.4783692598055
+        ],
+        [
+          1481.2800000000002,
+          536.7783692598056
+        ],
+        [
+          1481.2800000000002,
+          624.96
+        ],
+        [
+          1432.68,
+          600.66
+        ]
+      ]
+    },
+    {
+      "screen": 3,
+      "wall": "v0",
+      "along": [
+        11.95,
+        12.76
+      ],
+      "z_px": [
+        20,
+        108.18163074019444
+      ],
+      "offset": 0.072,
+      "aspect": 0.675,
+      "quad_px": [
+        [
+          1612.68,
+          602.4783692598055
+        ],
+        [
+          1661.2800000000002,
+          626.7783692598056
+        ],
+        [
+          1661.2800000000002,
+          714.96
+        ],
+        [
+          1612.68,
+          690.66
+        ]
+      ]
+    }
+  ],
+  "janitor": {
+    "walk_plus_u": {
+      "file": "janitor/walk_plus_u.png",
+      "file_2x": "janitor/walk_plus_u@2x.png",
+      "frames": 12,
+      "columns": 6,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 96,
+      "frame_height": 96,
+      "anchor": [
+        48,
+        78
+      ],
+      "loop": true,
+      "seconds": 1.0,
+      "stride_tiles": 0.48,
+      "direction": "+u"
+    },
+    "walk_minus_u": {
+      "file": "janitor/walk_minus_u.png",
+      "file_2x": "janitor/walk_minus_u@2x.png",
+      "frames": 12,
+      "columns": 6,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 96,
+      "frame_height": 96,
+      "anchor": [
+        48,
+        78
+      ],
+      "loop": true,
+      "seconds": 1.0,
+      "stride_tiles": 0.48,
+      "direction": "-u"
+    },
+    "walk_plus_v": {
+      "file": "janitor/walk_plus_v.png",
+      "file_2x": "janitor/walk_plus_v@2x.png",
+      "frames": 12,
+      "columns": 6,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 96,
+      "frame_height": 96,
+      "anchor": [
+        48,
+        78
+      ],
+      "loop": true,
+      "seconds": 1.0,
+      "stride_tiles": 0.48,
+      "direction": "+v"
+    },
+    "walk_minus_v": {
+      "file": "janitor/walk_minus_v.png",
+      "file_2x": "janitor/walk_minus_v@2x.png",
+      "frames": 12,
+      "columns": 6,
+      "rows": 2,
+      "fps": 12,
+      "frame_width": 96,
+      "frame_height": 96,
+      "anchor": [
+        48,
+        78
+      ],
+      "loop": true,
+      "seconds": 1.0,
+      "stride_tiles": 0.48,
+      "direction": "-v"
+    },
+    "sweep": {
+      "file": "janitor/sweep.png",
+      "file_2x": "janitor/sweep@2x.png",
+      "frames": 48,
+      "columns": 8,
+      "rows": 6,
+      "fps": 16,
+      "frame_width": 96,
+      "frame_height": 96,
+      "anchor": [
+        48,
+        78
+      ],
+      "loop": true,
+      "seconds": 3.0
+    },
+    "idle": {
+      "file": "janitor/idle.png",
+      "file_2x": "janitor/idle@2x.png",
+      "frames": 48,
+      "columns": 8,
+      "rows": 6,
+      "fps": 16,
+      "frame_width": 96,
+      "frame_height": 96,
+      "anchor": [
+        48,
+        78
+      ],
+      "loop": true,
+      "seconds": 3.0
+    }
+  },
+  "janitor_contract": {
+    "character": "Original cap, short-sleeve work shirt, stitched blue overalls, work boots, straw broom, metal pail and wristwatch.",
+    "placement": "Top-left = P(u,v)-anchor. Sort at 1000+round((u+v)*100), just like cat. Contact shadow included.",
+    "frames": "Straight RGBA; row-major; floor(elapsedSeconds*fps)%frames. All coordinates are 1x; @2x doubles source cells.",
+    "walk": "12 frames at 12fps; translate 0.48 tiles per cycle (0.48 tiles/second). Stance feet counter-travel at that speed.",
+    "walk_mapping": {
+      "+u": "walk_plus_u",
+      "-u": "walk_minus_u",
+      "+v": "walk_plus_v",
+      "-v": "walk_minus_v"
+    },
+    "sweep": "Three-second repeating sweep; pail rests next to janitor.",
+    "idle": "Three-second breathing/leaning loop with a wristwatch check; pail rests next to janitor."
+  },
+  "umbrella": {
+    "colors": [
+      "red",
+      "blue",
+      "yellow",
+      "black"
+    ],
+    "open": {
+      "red": {
+        "file": "umbrella/red_open.png",
+        "file_2x": "umbrella/red_open@2x.png",
+        "anchor": [
+          44,
+          68
+        ],
+        "w": 88,
+        "h": 80
+      },
+      "blue": {
+        "file": "umbrella/blue_open.png",
+        "file_2x": "umbrella/blue_open@2x.png",
+        "anchor": [
+          44,
+          68
+        ],
+        "w": 88,
+        "h": 80
+      },
+      "yellow": {
+        "file": "umbrella/yellow_open.png",
+        "file_2x": "umbrella/yellow_open@2x.png",
+        "anchor": [
+          44,
+          68
+        ],
+        "w": 88,
+        "h": 80
+      },
+      "black": {
+        "file": "umbrella/black_open.png",
+        "file_2x": "umbrella/black_open@2x.png",
+        "anchor": [
+          44,
+          68
+        ],
+        "w": 88,
+        "h": 80
+      }
+    },
+    "fold": {
+      "red": {
+        "file": "umbrella/red_fold.png",
+        "file_2x": "umbrella/red_fold@2x.png",
+        "frames": 6,
+        "columns": 6,
+        "rows": 1,
+        "fps": 12,
+        "frame_width": 88,
+        "frame_height": 80,
+        "anchor": [
+          44,
+          68
+        ],
+        "loop": false,
+        "seconds": 0.5
+      },
+      "blue": {
+        "file": "umbrella/blue_fold.png",
+        "file_2x": "umbrella/blue_fold@2x.png",
+        "frames": 6,
+        "columns": 6,
+        "rows": 1,
+        "fps": 12,
+        "frame_width": 88,
+        "frame_height": 80,
+        "anchor": [
+          44,
+          68
+        ],
+        "loop": false,
+        "seconds": 0.5
+      },
+      "yellow": {
+        "file": "umbrella/yellow_fold.png",
+        "file_2x": "umbrella/yellow_fold@2x.png",
+        "frames": 6,
+        "columns": 6,
+        "rows": 1,
+        "fps": 12,
+        "frame_width": 88,
+        "frame_height": 80,
+        "anchor": [
+          44,
+          68
+        ],
+        "loop": false,
+        "seconds": 0.5
+      },
+      "black": {
+        "file": "umbrella/black_fold.png",
+        "file_2x": "umbrella/black_fold@2x.png",
+        "frames": 6,
+        "columns": 6,
+        "rows": 1,
+        "fps": 12,
+        "frame_width": 88,
+        "frame_height": 80,
+        "anchor": [
+          44,
+          68
+        ],
+        "loop": false,
+        "seconds": 0.5
+      }
+    }
+  },
+  "umbrella_contract": {
+    "anchor": "The curved handle grip, not the umbrella centre. For a 50px emote, suggested grip=P(u,v,40)+[10,0]; top-left=grip-anchor.",
+    "placement": "Keep with its owner, immediately above the owner in depth order; never use a global foreground layer.",
+    "fold": "Six frames at 12fps, 0.5s one-shot. Clamp at frame 5, then remove or hold the folded umbrella. Frame 0 equals open.",
+    "resolution": "Straight RGBA, shaded 3D fabric and ribs. 88x80 logical cells; @2x doubles all source dimensions."
+  },
+  "door_anims": [],
+  "door_anim_contract": {
+    "playback": "16 frames at 18fps (0.889s), row-major, open-hold-close. Clamp at frame 15 and remove. Both endpoints transparent.",
+    "composition": "Straight RGBA source-over at x,y, z_index=900, above base+ambient and below all walkers and occluders. Never plus-lighter.",
+    "background": "Opaque rendered doorway core erases closed leaves and their ambient porthole glow; signed source-over floor changes add spill. Designed over this pack base+ambient or lit_bg.",
+    "mask": "Doorway and floor only; neighbouring wall posters and title planes are excluded from the RGBA replacement.",
+    "resolution": "frame_width/frame_height and positions are 1x; file_2x doubles cells only.",
+    "doors": "Door pivots and opening positions are unchanged. Screen leaves swing inward 79 degrees; WC is a single inward leaf."
+  },
+  "shelter_drip_contract": {
+    "placement": "One front-left roof corner at P(0.35,9.6,84)=[345,564.5]; puddle centre P(0.35,9.6)=[345,648.5].",
+    "playback": "Same 72-frame, 24fps, three-second additive contract as the inherited prop loops. Frame 72 regenerated equal to frame 0.",
+    "style": "Three gravity-accelerating drops per period with spreading perspective rings over a small blue-grey puddle."
+  },
+  "items": {
+    "popcorn": {
+      "file": "items/popcorn.png",
+      "file_2x": "items/popcorn@2x.png",
+      "w": 16,
+      "h": 20,
+      "anchor": [
+        8,
+        18
+      ],
+      "attach_point": "bottom centre of tub"
+    },
+    "soda": {
+      "file": "items/soda.png",
+      "file_2x": "items/soda@2x.png",
+      "w": 12,
+      "h": 18,
+      "anchor": [
+        6,
+        16
+      ],
+      "attach_point": "bottom centre of cup"
+    },
+    "stub": {
+      "file": "items/stub.png",
+      "file_2x": "items/stub@2x.png",
+      "w": 12,
+      "h": 8,
+      "anchor": [
+        6,
+        4
+      ],
+      "attach_point": "centre of ticket stub"
+    },
+    "ticket": {
+      "file": "items/ticket.png",
+      "file_2x": "items/ticket@2x.png",
+      "w": 18,
+      "h": 11,
+      "anchor": [
+        9,
+        5.5
+      ],
+      "attach_point": "centre of whole ticket"
+    },
+    "cap_cashier": {
+      "file": "items/cap_cashier.png",
+      "file_2x": "items/cap_cashier@2x.png",
+      "w": 28,
+      "h": 12,
+      "anchor": [
+        14,
+        10
+      ],
+      "attach_point": "bottom centre of cap"
+    },
+    "cap_usher": {
+      "file": "items/cap_usher.png",
+      "file_2x": "items/cap_usher@2x.png",
+      "w": 28,
+      "h": 12,
+      "anchor": [
+        14,
+        10
+      ],
+      "attach_point": "bottom centre of cap"
+    },
+    "wet_print": {
+      "file": "items/wet_print.png",
+      "file_2x": "items/wet_print@2x.png",
+      "w": 10,
+      "h": 6,
+      "anchor": [
+        5,
+        3
+      ],
+      "alpha": "straight",
+      "attach_point": "centre of wet ground footprint",
+      "render": "4x Cycles water tread, area reduced in premultiplied space; unchanged dimetric camera"
+    }
+  },
+  "item_contract": {
+    "placement": "Top-left = attachment screen point - item.anchor. w/h/anchor are logical 1x pixels, also when file_2x is displayed at w by h.",
+    "alpha": "Straight RGBA; ordinary source-over. Transparent pixels have zero RGB. Internal shadows and highlights are baked; no ground shadow.",
+    "carried": "Popcorn and soda attach at the visible bottom centre. Suggested attachment for a 50px emote: its lower right, chosen by the page.",
+    "staff": "Both caps attach at their visible bottom centre; place this at the top centre of the roughly 50px emote.",
+    "paper": "Stub and ticket attach at their image centre. The whole ticket has a half-pixel vertical anchor because its canvas is 11px high. Rotate/translate around this point for a flying ticket.",
+    "depth": "Keep an attached item with its owner and draw it immediately above the emote. These sprites introduce no new floor footprints.",
+    "render": "Original procedural 3D, unchanged layout-2 orthographic camera and pass-6 lighting at P(8,7,50). Cycles 4x supersampling filtered to 2x then 1x with premultiplied area averaging."
+  },
+  "vehicle_indicator_only_contract": {
+    "definition": "light_indicator_only = max(light_indicator - light, 0), applied per sRGB RGB channel to the delivered maps independently at 1x and 2x.",
+    "composition": "Draw one normal OR brake light map, then add light_indicator_only only while the amber signal is on. Use plus-lighter / additive RGB clamped to 255, below all vehicle bodies.",
+    "placement": "Use the same top-left P(u,v)-direction.anchor, width and height as the selected closed/open light and body. Door-open indicator fields are nested under door_open.",
+    "off": "Hide the indicator-only layer. No new light or vehicle animation timing is imposed.",
+    "compatibility": "Inherited light_indicator remains a complete replacement light map; all existing fields and contracts are unchanged. The new additive-only files contain no normal headlights or tail lights."
+  },
+  "asset_pack_pass": 10,
+  "rain_fg": {
+    "file": "rain_fg.webm",
+    "size": [
+      1920,
+      1080
+    ],
+    "fps": 24,
+    "frames": 144,
+    "seconds": 6,
+    "blend": "plus-lighter",
+    "z_index": 70001,
+    "bytes": 2178990,
+    "sha256": "83844c9cce9a8451a82bd9693a87549af0aa50febec12938a05bf49863949268"
+  },
+  "asset_pack_revision": "10-cloud-draft13",
+  "lit_bg_dry": "lit_bg_dry.png",
+  "lit_bg_dry_2x": "lit_bg_dry@2x.png",
+  "led_signs": [
+    {
+      "door": 1,
+      "wall": "v0",
+      "along": [
+        4.065153077165046,
+        5.534846922834953
+      ],
+      "z_px": [
+        122,
+        145
+      ],
+      "offset": 0.078,
+      "cols": 108,
+      "rows_px": [
+        [
+          143,
+          136
+        ],
+        [
+          132,
+          125
+        ]
+      ],
+      "dot_pitch_px": 1,
+      "glyph_rows": 7,
+      "characters_at_6_columns": 18,
+      "quad_px": [
+        [
+          1139.2291846299029,
+          329.2945923149514
+        ],
+        [
+          1227.4108153700972,
+          373.3854076850487
+        ],
+        [
+          1227.4108153700972,
+          396.3854076850487
+        ],
+        [
+          1139.2291846299029,
+          352.2945923149514
+        ]
+      ],
+      "z_index": 901,
+      "column_direction": 1
+    },
+    {
+      "door": 2,
+      "wall": "v0",
+      "along": [
+        7.465153077165046,
+        8.934846922834952
+      ],
+      "z_px": [
+        122,
+        145
+      ],
+      "offset": 0.078,
+      "cols": 108,
+      "rows_px": [
+        [
+          143,
+          136
+        ],
+        [
+          132,
+          125
+        ]
+      ],
+      "dot_pitch_px": 1,
+      "glyph_rows": 7,
+      "characters_at_6_columns": 18,
+      "quad_px": [
+        [
+          1343.2291846299026,
+          431.2945923149514
+        ],
+        [
+          1431.4108153700972,
+          475.38540768504856
+        ],
+        [
+          1431.4108153700972,
+          498.38540768504856
+        ],
+        [
+          1343.2291846299026,
+          454.2945923149514
+        ]
+      ],
+      "z_index": 901,
+      "column_direction": 1
+    },
+    {
+      "door": 3,
+      "wall": "v0",
+      "along": [
+        10.465153077165047,
+        11.934846922834952
+      ],
+      "z_px": [
+        122,
+        145
+      ],
+      "offset": 0.078,
+      "cols": 108,
+      "rows_px": [
+        [
+          143,
+          136
+        ],
+        [
+          132,
+          125
+        ]
+      ],
+      "dot_pitch_px": 1,
+      "glyph_rows": 7,
+      "characters_at_6_columns": 18,
+      "quad_px": [
+        [
+          1523.2291846299029,
+          521.2945923149514
+        ],
+        [
+          1611.4108153700972,
+          565.3854076850486
+        ],
+        [
+          1611.4108153700972,
+          588.3854076850486
+        ],
+        [
+          1523.2291846299029,
+          544.2945923149514
+        ]
+      ],
+      "z_index": 901,
+      "column_direction": 1
+    }
+  ],
+  "wc_indicator": {},
+  "ad_surfaces": [
+    {
+      "name": "wcat",
+      "wall": "u0",
+      "offset": -0.889,
+      "along": [
+        3.6,
+        7.5
+      ],
+      "z_px": [
+        266,
+        365
+      ],
+      "quad_px": [
+        [
+          396.66,
+          183.32999999999993
+        ],
+        [
+          630.6600000000001,
+          66.33000000000004
+        ],
+        [
+          630.6600000000001,
+          165.33000000000004
+        ],
+        [
+          396.66,
+          282.3299999999999
+        ]
+      ],
+      "aspect": 2.894851514198302,
+      "lit": true,
+      "default_art_baked": true,
+      "z_index": 100
+    },
+    {
+      "name": "eatfresh",
+      "wall": "u0",
+      "offset": -0.667,
+      "along": [
+        0.45,
+        3.15
+      ],
+      "z_px": [
+        254,
+        328
+      ],
+      "quad_px": [
+        [
+          670.98,
+          96.49000000000001
+        ],
+        [
+          832.98,
+          15.490000000000009
+        ],
+        [
+          832.98,
+          89.49000000000001
+        ],
+        [
+          670.98,
+          170.49
+        ]
+      ],
+      "aspect": 2.6811982319653707,
+      "lit": true,
+      "default_art_baked": true,
+      "z_index": 100
+    },
+    {
+      "name": "shelter",
+      "wall": "v0",
+      "offset": 9.262,
+      "along": [
+        0.083,
+        0.637
+      ],
+      "z_px": [
+        10.5,
+        70.5
+      ],
+      "quad_px": [
+        [
+          349.26,
+          559.85
+        ],
+        [
+          382.5,
+          576.47
+        ],
+        [
+          382.5,
+          636.47
+        ],
+        [
+          349.26,
+          619.85
+        ]
+      ],
+      "aspect": 0.6785086587509405,
+      "lit": true,
+      "default_art_baked": true,
+      "z_index": 2024
+    },
+    {
+      "name": "paste_wall",
+      "quad_px": [
+        [
+          221.39999999999998,
+          507.1
+        ],
+        [
+          269.39999999999986,
+          531.1
+        ],
+        [
+          269.39999999999986,
+          563.1
+        ],
+        [
+          221.39999999999998,
+          539.1
+        ]
+      ],
+      "z_index": 100,
+      "lit": false,
+      "aspect": 1.8371173070873834,
+      "wall": "v0",
+      "along": [
+        -2.42,
+        -1.62
+      ],
+      "z_px": [
+        5,
+        37
+      ],
+      "offset": 8.89,
+      "overlay": {
+        "file": "occ_ad_paste_wall.png",
+        "x": 126,
+        "y": 306,
+        "w": 154,
+        "h": 268,
+        "file_2x": "occ_ad_paste_wall@2x.png",
+        "alpha": "straight",
+        "blend": "source-over"
+      }
+    }
+  ],
+  "static_glow_enabled": false,
+  "light_loop_2x": "light_loop_2x.webm",
+  "light_loop_2x_size": [
+    3840,
+    2160
+  ],
+  "doors": [
+    {
+      "screen": 1,
+      "wall": "v0",
+      "at": 4.8,
+      "approach": [
+        [
+          4.8,
+          1.4
+        ],
+        [
+          4.8,
+          0.55
+        ]
+      ]
+    },
+    {
+      "screen": 2,
+      "wall": "v0",
+      "at": 8.2,
+      "approach": [
+        [
+          8.2,
+          1.4
+        ],
+        [
+          8.2,
+          0.55
+        ]
+      ]
+    },
+    {
+      "screen": 3,
+      "wall": "v0",
+      "at": 11.2,
+      "approach": [
+        [
+          11.2,
+          1.4
+        ],
+        [
+          11.2,
+          0.55
+        ]
+      ]
+    }
+  ],
+  "restroom": {
+    "door": [
+      1.4,
+      3.0
+    ],
+    "outside": [
+      1.4,
+      2.6
+    ],
+    "inside": [
+      1.4,
+      3.5
+    ],
+    "stalls": [
+      {
+        "spot": [
+          1.5,
+          4.4
+        ],
+        "route_points": [
+          [
+            1.4,
+            3.5
+          ],
+          [
+            1.6,
+            4.1
+          ],
+          [
+            1.6,
+            4.4
+          ],
+          [
+            1.5,
+            4.4
+          ]
+        ]
+      },
+      {
+        "spot": [
+          1.5,
+          5.4
+        ],
+        "route_points": [
+          [
+            1.4,
+            3.5
+          ],
+          [
+            1.6,
+            4.1
+          ],
+          [
+            1.6,
+            5.4
+          ],
+          [
+            1.5,
+            5.4
+          ]
+        ]
+      },
+      {
+        "spot": [
+          1.5,
+          6.4
+        ],
+        "route_points": [
+          [
+            1.4,
+            3.5
+          ],
+          [
+            1.6,
+            4.1
+          ],
+          [
+            1.6,
+            6.4
+          ],
+          [
+            1.5,
+            6.4
+          ]
+        ]
+      },
+      {
+        "spot": [
+          1.5,
+          7.4
+        ],
+        "route_points": [
+          [
+            1.4,
+            3.5
+          ],
+          [
+            1.6,
+            4.1
+          ],
+          [
+            1.6,
+            7.4
+          ],
+          [
+            1.5,
+            7.4
+          ]
+        ]
+      }
+    ],
+    "sinks": [
+      [
+        2.12,
+        4.1
+      ],
+      [
+        2.63,
+        4.1
+      ]
+    ],
+    "dryer": [
+      0.55,
+      3.55
+    ],
+    "route_points": {
+      "sinks": [
+        [
+          [
+            1.4,
+            3.5
+          ],
+          [
+            1.6,
+            4.1
+          ],
+          [
+            2.12,
+            4.1
+          ]
+        ],
+        [
+          [
+            1.4,
+            3.5
+          ],
+          [
+            1.6,
+            4.1
+          ],
+          [
+            2.63,
+            4.1
+          ]
+        ]
+      ],
+      "dryer": [
+        [
+          1.4,
+          3.5
+        ],
+        [
+          0.55,
+          3.55
+        ]
+      ]
+    }
+  },
+  "queue": {
+    "slots": [
+      [
+        4.85,
+        7.4
+      ],
+      [
+        5.47,
+        7.4
+      ],
+      [
+        6.09,
+        7.4
+      ],
+      [
+        6.71,
+        7.4
+      ],
+      [
+        7.33,
+        7.4
+      ],
+      [
+        7.95,
+        7.4
+      ],
+      [
+        8.57,
+        7.4
+      ]
+    ],
+    "entry": [
+      9.3,
+      7.4
+    ],
+    "window2_gap": [
+      4.4,
+      5.79
+    ]
+  },
+  "bus_shelter": {
+    "seats": [
+      {
+        "id": "shelter_05_left",
+        "uvz": [
+          1.94,
+          9.43,
+          25.5
+        ],
+        "faces": "toward street (+v)"
+      },
+      {
+        "id": "shelter_05_right",
+        "uvz": [
+          2.35,
+          9.43,
+          25.5
+        ],
+        "faces": "toward street (+v)"
+      }
+    ],
+    "boarding_corridor": [
+      0.25,
+      9.68,
+      1.1,
+      10.9
+    ],
+    "route": "05",
+    "operator": "d.gg transit",
+    "destination": "05 DINK DONK"
+  },
+  "cloud_contract": {
+    "unique_frames": 48,
+    "cycle_seconds": 2,
+    "repetitions": 3,
+    "samples_max": 256,
+    "denoiser": "OPTIX",
+    "neon": "two separate physical tube circuits alternate every 6 frames; off circuit remains dark glass",
+    "no_green_aperture": "Retired in out9; layout 3 uses in-world ad quads.",
+    "samples_min": 64,
+    "adaptive_threshold": 0.01,
+    "persistent_data": true,
+    "static_wet_split": false,
+    "approved_draft": 13,
+    "marquee": "Dim amber, four smooth chase groups, 2 second period",
+    "rain": "Draft 10 wet layers, ponds, GN drips/crowns/pours, curb flow and reflection-only catchers; GN rain motion blur disabled"
+  }
+}

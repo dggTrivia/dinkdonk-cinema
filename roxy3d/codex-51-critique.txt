@@ -1,0 +1,47 @@
+**The draft needs a stronger pass at 1×.** The umbrella reads as wetter fabric, the taxi’s strongest change is the yellow reflection beneath its sign, and the bus spray reads as faint ground smears. Distinct rain impacts and a wet wake are much less legible.
+
+I reviewed the [owner image](qa10/draft20-rain-umb-veh-tyre.png), [notes](NOTES-51.md), and [brief](BRIEF-51-rain-on-umbrellas-vehicles-tyres.md), plus the render/composition code and an in-memory reduction to 1×. Nothing was changed. These are visual judgments and proposed tuning targets; encoded stream playback remains unverified.
+
+- **Judge at the actual scale.** The 3× umbrella and 2× taxi panels overstate readability. Design for an approximately **88 px umbrella and 130 px car**, surrounded by the baked rain. A 1440p output does not inherently rescue detail if the objects retain those pixel sizes; downscaling to 1080p makes the smallest cues more vulnerable.
+
+- **Use the numbers below as visible-output targets.** Sizes are final **1× pixels**, counts are *readable events* rather than every simulated particle, and brightness increments mean approximate **display-luminance levels on a 0–255 scale above the local underlying image**. Tune them in the complete scene.
+
+- **Umbrella—current read:** the broad sheen survives, but the pale spots mostly resemble beads or fabric mottling. The apex looks persistently wet rather than repeatedly struck. The hanging runoff is too faint to communicate rain draining off the canopy.
+
+- **Umbrella impacts:** aim for **16–24 clearly readable hits/s**, with roughly **2–4 active together**. Use irregular **2–3 px footprints**, **1–2 px upward breakup**, and at least one resolved **1 px highlight**. Show contact, brief breakup, then disappearance over **2–4 frames at 24 fps**. Avoid persistent complete rings, which suggest bubbles or pooled water on sloping fabric.
+
+- **Umbrella incoming rain and beads:** selectively connect impacts to **1 px wide, 3–5 px long**, near-vertical incoming streaks, visible for **1–2 frames**. Keep most beads subpixel, with only **4–8 conspicuous glints** at once. The existing schedule already generates many small events; increasing raw count alone will mainly add noise.
+
+- **Umbrella runoff:** make the nearest **3–4 rib tips** clearly readable, with **1–2 releases/s per visible tip** and staggered timing. Drops should be about **1 px wide × 2–3 px long**, falling **6–10 px below the hem** before fading. Preserve quieter runoff elsewhere; eight equally bright, synchronized streams would look mechanical.
+
+- **Umbrella contrast:** give selected impact cores approximately **+25–45 levels**, and visible tip drops **+20–35**. Keep the broad wet sheen around **+3–8** where lit, preserving red fabric and rib separation. Stronger small highlights should carry the action; a brighter whole canopy will simply look lacquered.
+
+- **Taxi/bus roof impacts—current read:** taxi crowns are recognizable in the enlarged panel but weak at 1×; bus impacts mostly become static-looking grit. Use predominantly **1–2 px broken highlights**, occasionally a **3 px cluster**, with **1 px lift** and a rare **2 px ejected glint**. Those dimensions should represent a highlight footprint or small droplet cluster, not oversized individual water drops.
+
+- **Roof event rates:** target **18–26 readable hits/s across the taxi**: roughly **8–12 roof, 6–8 bonnet, 4–6 boot**. For the larger bus roof, use **30–45/s**, distributed over the exposed roof and ventilation pod. At **2–4 frames per event**, that produces several distinct changing hits without a continuous sparkling crust.
+
+- **Roof brightness and film:** target selected impact cores around **+25–45 levels**, with occasional **+50–60** glints only where existing lighting supports them. Keep broad film additions around **+3–8**. Preserve darker gaps between hits, actual surface heights, and the sign’s sheltered footprint. More uniform sheen would flatten the already-wet paint and bury the impacts further.
+
+- **Taxi sign glow—what changed and whether to keep it:** the after panels add a brighter **yellow band around/below the black mounting base and a warmer roof reflection**. The render retains the existing lamps; this is additional water reflection composited over the body, rather than a new sign size or lamp-power change. **Keep a restrained local wet reflection, but reduce the added band by roughly 50–70% as a starting point.** Preserve the sign face and black mount separation; avoid a continuous luminous outline. Currently this incidental change attracts more attention than the requested rain.
+
+- **Tyre spray—current read:** the bus has a faint red rear patch and warm low patches near the wheels, but little readable airborne structure. The softness helps plausibility, yet the result can read as lighting or shadow rather than thrown water. Strengthen the wheel-contact origin, directional droplets, and trailing mist as separately recognizable parts.
+
+- **Rear plume dimensions:** at ordinary driving speed, start with **18–30 px trailing length and 3–6 px vertical height for the sedan**, and **25–45 px length and 4–8 px height for the bus**. Measure length from the tyre contact along the projected road direction; height means elevation above that road plane. Keep the dense portion around wheel-radius height, with only occasional droplets slightly higher.
+
+- **Front plumes and width:** use front plumes about **8–15 px long × 2–4 px high**. Let rear fans spread laterally to approximately **3–6 px for cars / 5–9 px for the bus**, tapering away from the contact patch. Give the rear roughly **1.5–2× the visible intensity** of the front. Retain natural far-wheel occlusion rather than forcing all four emitters into view.
+
+- **Spray droplets:** target **40–60 readable releases/s per exposed rear wheel**, and **15–25/s per exposed front wheel**, over a continuous fine mist. Use mostly **1 px cores with 1–3 px directional streaks**, lasting **3–6 frames**. Preserve a rearward/outward ballistic fan that falls back toward the road; larger bright dots or long upward jets would look like gravel or puddle splashes.
+
+- **Spray contrast and colour:** bring the useful inner mist to about **+10–18 levels** over the road, fading toward zero; selected droplet cores can reach **+25–45**. Use restrained warm street-light and red tail-light accents, with enough luminance contrast that the effect does not depend solely on red colour. Avoid a uniformly red cloud or white steam plume.
+
+- **Mist shape:** replace the impression of separate flat oval patches with an irregular, overlapping fan: a narrow contact origin, slightly fuller middle, and porous trailing edge. Keep gaps through which the road remains visible. Increasing density everywhere risks turning the current smears into opaque hovering blobs.
+
+- **Wet wake visibility:** make two broken, road-flat tracks behind the rear tyres, approximately **20–40 px long × 2–3 px wide for the sedan**, and **30–50 px × 3–4 px for the bus**. Aim for **+5–10 levels** across lit portions, with occasional **+12–18** reflection fragments. On the already-wet road, the wake needs a distinguishable reflective pattern; two continuous bright stripes would look painted.
+
+- **Wake motion and speed:** the wake should appear deposited on the road and fade over roughly **0.25–0.5 s**, with its visible length following vehicle speed. Avoid carrying an unchanged luminous patch rigidly behind the vehicle. Use slow/fast spray variants or equivalent controlled changes in emission and trajectory; the proposed opacity ramp reaches full strength at **0.40 tiles/s**, far below the stated **1.8 tiles/s** plume reference, so it can show a full driving plume while crawling.
+
+- **Timing risk:** use the brief’s permitted **48-frame / 2-second loop** for more varied impacts and irregular release intervals, with per-object phase offsets. A stronger effect makes the current one-second repetition easier to spot. Doubling every atlas also doubles decoded texture memory, so crop unused margins before multiplying directions, colours, and states.
+
+- **Lighting/compositing risk:** the vehicle overlays add light to surfaces that already contain wet reflections; indiscriminate gain can double-count reflection and clip highlights. The spray also has street lighting baked from one lane position. Stronger plumes will expose mismatches as vehicles move between light pools, so brightness must vary with location and preserve foreground occlusion.
+
+- **Acceptance test for the next pass:** inspect actual moving **1× page footage with baked rain enabled**, then its intended 1080p and 1440p stream encodes. Within a few seconds, a viewer should recognize **canopy hits plus tip drips, separate taxi/bus top impacts, wheel-origin spray, and a short road wake** without zooming or comparing stills. The isolated dark-panel image cannot establish that.

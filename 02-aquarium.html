@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Standby 02 — Chat Tank</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  #stage { font-family: 'Fredoka', system-ui, sans-serif; color: #eafcff; background: #02121f; }
+  #tank { position: absolute; left: 0; top: 0; }
+  #layer { position: absolute; inset: 0; pointer-events: none; }
+
+  .glass {
+    background: rgba(8, 40, 64, .45);
+    border: 2px solid rgba(160, 230, 255, .28);
+    border-radius: 28px;
+    backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 10px 40px rgba(0,0,0,.35);
+  }
+  #card { position: absolute; left: 56px; top: 48px; padding: 26px 36px 24px; min-width: 520px; }
+  #title { font-size: 84px; font-weight: 700; line-height: .95; letter-spacing: -1px;
+    background: linear-gradient(180deg, #fff 30%, #8fe8ff); -webkit-background-clip: text; color: transparent; }
+  #subline { font-size: 30px; opacity: .85; margin-top: 6px; }
+  #meta { display: flex; gap: 28px; margin-top: 18px; font-size: 26px; }
+  #meta b { font-size: 40px; display: block; color: #ffe27a; font-weight: 600; }
+  #cmds { position: absolute; left: 56px; bottom: 40px; padding: 12px 22px; font-size: 26px; }
+  #cmds b { color: #ffe27a; }
+  #toast { position: absolute; left: 720px; top: 60px; transform: translateX(-50%) scale(.6); opacity: 0;
+    padding: 14px 28px; font-size: 36px; font-weight: 600; transition: all .35s cubic-bezier(.2,1.6,.4,1); white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+  #chatwrap { position: absolute; right: 32px; top: 32px; bottom: 32px; width: 450px; }
+  #chathead { position: absolute; left: 0; right: 0; top: 0; height: 64px; padding: 0 26px; line-height: 64px;
+    font-size: 28px; font-weight: 600; border-bottom: 2px solid rgba(160,230,255,.2); }
+  #chathead span { float: right; opacity: .75; font-weight: 400; }
+  #chat { left: 6px; right: 6px; top: 70px; bottom: 6px; border-radius: 0 0 22px 22px; }
+
+  .say {
+    position: absolute; left: 0; top: 0; max-width: 380px; padding: 10px 16px; border-radius: 20px;
+    background: #fff; color: #08283d; font-size: 23px; line-height: 1.3; font-weight: 500;
+    box-shadow: 0 6px 18px rgba(0,0,0,.3); transform-origin: 50% 100%;
+    animation: say-in .3s cubic-bezier(.2,1.6,.4,1); overflow-wrap: anywhere; will-change: transform;
+  }
+  .say::after { content: ''; position: absolute; left: 50%; bottom: -10px; margin-left: -10px;
+    border: 10px solid transparent; border-top-color: #fff; border-bottom: 0; }
+  .say.out { transition: opacity .5s; opacity: 0; }
+  @keyframes say-in { from { transform: scale(.4); opacity: 0; } }
+  .bubble {
+    position: absolute; left: 0; top: 0; display: grid; place-items: center; border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.55), rgba(255,255,255,.08) 40%, rgba(140,220,255,.12) 70%, rgba(200,245,255,.5));
+    border: 2px solid rgba(220, 250, 255, .55); will-change: transform;
+  }
+  .bubble .n { position: absolute; bottom: -34px; font-size: 26px; font-weight: 700; color: #ffe27a;
+    text-shadow: 0 2px 6px #000; white-space: nowrap; }
+  .bubble.pop { animation: pop .35s ease-out forwards; }
+  @keyframes pop { to { transform: var(--t) scale(1.6); opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="tank"></canvas>
+  <div id="layer"></div>
+
+  <div id="card" class="glass">
+    <div id="title"></div>
+    <div id="subline"></div>
+    <div id="meta">
+      <div><b id="timer">0:00</b><span id="timer-label">away for</span></div>
+      <div><b id="fishcount">0</b>fish in the tank</div>
+      <div><b id="mpm">0</b>msgs / min</div>
+    </div>
+  </div>
+  <div id="cmds" class="glass">every chatter is a fish · <b>!feed</b> · <b>!shark</b> · <b>!bubbles</b></div>
+  <div id="toast" class="glass"></div>
+
+  <div id="chatwrap" class="glass">
+    <div id="chathead">tank chat <span id="viewers"></span></div>
+    <div id="chat"></div>
+  </div>
+</div>
+
+<script src="shared/core.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  SB.mountStage($('stage'));
+  SB.mountChat($('chat'), { emoteHeight: 30 });
+  $('title').textContent = SB.cfg.title || 'be right back';
+  $('subline').textContent = SB.cfg.sub || 'the fish are holding the fort';
+
+  const TW = 1440;           // swimmable width (chat panel sits to the right)
+  const TOP = 260;
+  const FLOOR = 930;
+  const ctx = SB.fitCanvas($('tank'));
+  const layer = $('layer');
+
+  const fish = new Map();    // nick -> fish
+  const food = [];
+  const ambient = Array.from({ length: 40 }, () => ({ x: SB.rand(0, 1920), y: SB.rand(0, 1080), r: SB.rand(2, 6), s: SB.rand(20, 60) }));
+  const kelp = Array.from({ length: 14 }, (_, i) => ({ x: 60 + i * 100 + SB.rand(-30, 30), h: SB.rand(160, 380), p: SB.rand(0, 6) }));
+  let shark = null;
+  let t = 0;
+
+  // ---------- toast ----------
+  let toastTimer;
+  function toast(text) {
+    $('toast').textContent = text;
+    $('toast').classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2600);
+  }
+
+  // ---------- fish ----------
+  function fishFor(m) {
+    let f = fish.get(m.nick);
+    if (!f) {
+      if (fish.size >= 70) {
+        const oldest = [...fish.values()].sort((a, b) => a.last - b.last)[0];
+        removeFish(oldest);
+      }
+      // New fish plop in through the surface, away from the title card.
+      f = {
+        nick: m.nick, hue: SB.hashHue(m.nick), sub: m.sub, size: SB.rand(0.85, 1.15),
+        x: SB.rand(660, TW - 80), y: -40, vx: SB.rand(-60, 60), vy: 260,
+        tx: SB.rand(100, TW - 100), ty: SB.rand(TOP, FLOOR - 60), phase: SB.rand(0, 6), last: 0, say: null,
+        kind: SB.hashHue(m.nick + 'k') % 3,
+      };
+      fish.set(m.nick, f);
+    }
+    f.last = Date.now();
+    f.sub = m.sub;
+    return f;
+  }
+
+  function removeFish(f) {
+    if (f.say) f.say.el.remove();
+    fish.delete(f.nick);
+  }
+
+  function say(f, m) {
+    if (f.say) f.say.el.remove();
+    const el = document.createElement('div');
+    el.className = 'say';
+    SB.renderTokens(el, m.tokens, 34, 110);
+    layer.append(el);
+    f.say = { el, until: performance.now() + 6500 };
+  }
+
+  const bubbles = [];
+  function emoteBubble(x, y, emote, size = 84, label = '') {
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.width = el.style.height = `${size}px`;
+    el.append(SB.emoteEl(emote, size * 0.52));
+    if (label) { const n = document.createElement('div'); n.className = 'n'; n.textContent = label; el.append(n); }
+    layer.append(el);
+    const b = { el, x, y, size, vy: -SB.rand(60, 110), wob: SB.rand(0, 6) };
+    bubbles.push(b);
+    return b;
+  }
+
+  SB.on('msg', (m) => {
+    if (m.text.startsWith('!')) { fishFor(m); return; }
+    const f = fishFor(m);
+    f.tx = SB.rand(80, TW - 80);
+    f.ty = SB.rand(TOP, FLOOR - 80);
+    if (m.onlyEmote) emoteBubble(f.x, f.y - 30, m.onlyEmote, 70 + Math.min(m.emotes.length, 4) * 10);
+    else say(f, m);
+  });
+  SB.on('purge', (nick) => {
+    for (const f of fish.values()) if (f.nick.toLowerCase() === nick.toLowerCase()) removeFish(f);
+  });
+  SB.on('names', ({ connections }) => { $('viewers').textContent = connections ? `${connections.toLocaleString()} watching` : ''; });
+
+  // Combo: one bubble at the bottom that grows while chat keeps it going.
+  let comboBubble = null;
+  SB.on('combo', ({ emote, count }) => {
+    if (!comboBubble || comboBubble.emote !== emote) {
+      if (comboBubble) release(comboBubble);
+      comboBubble = emoteBubble(TW / 2, FLOOR - 40, emote, 120, `${count}×`);
+      comboBubble.emote = emote;
+      comboBubble.hold = true;
+    }
+    const size = Math.min(320, 110 + count * 14);
+    comboBubble.size = size;
+    comboBubble.el.style.width = comboBubble.el.style.height = `${size}px`;
+    comboBubble.el.firstChild.replaceWith(SB.emoteEl(emote, size * 0.5));
+    comboBubble.el.querySelector('.n').textContent = `${count}× combo`;
+  });
+  function release(b) { b.hold = false; b.vy = -140; }
+  SB.on('comboEnd', () => { if (comboBubble) { release(comboBubble); comboBubble = null; } });
+
+  // ---------- commands ----------
+  SB.command('feed', 8_000, ({ nick }) => {
+    const cx = SB.rand(200, TW - 200);
+    for (let i = 0; i < 26; i++) food.push({ x: cx + SB.rand(-140, 140), y: TOP - SB.rand(0, 120), vy: SB.rand(30, 60), p: SB.rand(0, 6) });
+    toast(`🍤 ${nick} fed the tank`);
+  });
+  SB.command('shark', 45_000, ({ nick }) => {
+    const fromLeft = Math.random() < 0.5;
+    shark = { x: fromLeft ? -400 : TW + 400, y: SB.rand(TOP + 120, FLOOR - 160), dir: fromLeft ? 1 : -1, nick };
+    toast(`🦈 ${nick} released a shark`);
+  });
+  SB.command('bubbles', 10_000, ({ nick }) => {
+    const top = SB.topEmotes(6);
+    const pool = top.length ? top.map((e) => e.k) : [...SB.emotes.names].slice(0, 20);
+    for (let i = 0; i < 12; i++) setTimeout(() => emoteBubble(SB.rand(80, TW - 80), FLOOR + 20, SB.pick(pool), SB.rand(60, 110)), i * 140);
+    toast(`🫧 ${nick} made bubbles`);
+  });
+
+  // ---------- simulation ----------
+  function update(dt) {
+    const now = Date.now();
+    for (const f of [...fish.values()]) {
+      if (now - f.last > 8 * 60_000) { removeFish(f); continue; }
+      let tx = f.tx;
+      let ty = f.ty;
+      // Chase nearest food.
+      let best = null;
+      let bd = 420 * 420;
+      for (const p of food) {
+        const d = (p.x - f.x) ** 2 + (p.y - f.y) ** 2;
+        if (d < bd) { bd = d; best = p; }
+      }
+      if (best) { tx = best.x; ty = best.y; if (bd < 400) { best.eaten = true; f.size = Math.min(1.9, f.size + 0.04); } }
+      let speed = best ? 230 : 90;
+      // Flee the shark.
+      if (shark) {
+        const dx = f.x - shark.x;
+        const dy = f.y - shark.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 380) { tx = f.x + (dx / d) * 300; ty = f.y + (dy / d) * 300; speed = 360; }
+      }
+      const dx = tx - f.x;
+      const dy = ty - f.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 30 && !best) { f.tx = SB.rand(80, TW - 80); f.ty = SB.rand(TOP, FLOOR - 80); }
+      f.vx += ((dx / d) * speed - f.vx) * Math.min(1, dt * 1.6);
+      f.vy += ((dy / d) * speed * 0.5 - f.vy) * Math.min(1, dt * 1.6);
+      f.x += f.vx * dt;
+      f.y = Math.min(FLOOR - 30, f.y + f.vy * dt);
+      if (f.y > TOP - 40 || f.vy < 0) f.y = Math.max(TOP - 40, f.y);
+      f.x = Math.max(-60, Math.min(TW + 20, f.x));
+      f.phase += dt * (4 + Math.abs(f.vx) / 40);
+      if (Math.abs(f.vx) > 8) f.dir = Math.sign(f.vx);
+      if (f.say) {
+        if (performance.now() > f.say.until) { f.say.el.classList.add('out'); setTimeout(((el) => () => el.remove())(f.say.el), 500); f.say = null; }
+        else {
+          const w = f.say.el.offsetWidth;
+          const x = Math.max(10, Math.min(TW - w - 10, f.x - w / 2));
+          f.say.el.style.transform = `translate(${x}px, ${f.y - 44 * f.size - f.say.el.offsetHeight - 14}px)`;
+        }
+      }
+    }
+    for (let i = food.length - 1; i >= 0; i--) {
+      const p = food[i];
+      p.y += p.vy * dt;
+      p.x += Math.sin(t * 2 + p.p) * 12 * dt;
+      if (p.eaten || p.y > FLOOR + 10) food.splice(i, 1);
+    }
+    if (shark) {
+      shark.x += shark.dir * 420 * dt;
+      if (shark.x < -500 || shark.x > TW + 500) shark = null;
+    }
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      if (!b.hold) { b.y += b.vy * dt; b.vy -= 18 * dt; }
+      b.wob += dt * 2;
+      const x = b.x + Math.sin(b.wob) * 10 - b.size / 2;
+      const transform = `translate(${x}px, ${b.y - b.size / 2}px)`;
+      b.el.style.setProperty('--t', transform);
+      b.el.style.transform = transform;
+      if (b.y < TOP - 140 + b.size / 2 && !b.popping) {
+        b.popping = true;
+        b.el.classList.add('pop');
+        setTimeout(() => b.el.remove(), 400);
+        bubbles.splice(i, 1);
+      }
+    }
+  }
+
+  // ---------- drawing ----------
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, 1080);
+    g.addColorStop(0, '#0c5c7c');
+    g.addColorStop(0.45, '#073452');
+    g.addColorStop(1, '#021523');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 1920, 1080);
+    // Light rays from the surface.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 7; i++) {
+      const x = 120 + i * 260 + Math.sin(t * 0.3 + i) * 60;
+      const a = 0.05 + 0.03 * Math.sin(t * 0.7 + i * 2);
+      const rg = ctx.createLinearGradient(0, 0, 0, 900);
+      rg.addColorStop(0, `rgba(170,240,255,${a})`);
+      rg.addColorStop(1, 'rgba(170,240,255,0)');
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.moveTo(x - 40, 0); ctx.lineTo(x + 50, 0); ctx.lineTo(x + 260, 900); ctx.lineTo(x + 40, 900);
+      ctx.fill();
+    }
+    ctx.restore();
+    // Surface shimmer.
+    ctx.strokeStyle = 'rgba(200,250,255,.25)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let x = 0; x <= 1920; x += 20) ctx.lineTo(x, 12 + Math.sin(x / 70 + t * 1.5) * 6);
+    ctx.stroke();
+    // Kelp.
+    for (const k of kelp) {
+      ctx.strokeStyle = '#1f7a4a';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(k.x, FLOOR + 40);
+      for (let s = 0; s <= 10; s++) {
+        const y = FLOOR + 40 - (k.h * s) / 10;
+        ctx.lineTo(k.x + Math.sin(t * 1.1 + k.p + s * 0.5) * s * 3.2, y);
+      }
+      ctx.stroke();
+    }
+    // Sand.
+    ctx.fillStyle = '#c9a66b';
+    ctx.beginPath();
+    ctx.moveTo(0, 1080);
+    for (let x = 0; x <= 1920; x += 40) ctx.lineTo(x, FLOOR + 30 + Math.sin(x / 140) * 14 + Math.sin(x / 47) * 5);
+    ctx.lineTo(1920, 1080);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
+    ctx.fillRect(0, FLOOR + 60, 1920, 200);
+    // Ambient bubbles.
+    ctx.strokeStyle = 'rgba(220,250,255,.35)';
+    ctx.lineWidth = 1.5;
+    for (const b of ambient) {
+      b.y -= b.s * (1 / 60);
+      if (b.y < 0) { b.y = 1080; b.x = SB.rand(0, 1920); }
+      ctx.beginPath();
+      ctx.arc(b.x + Math.sin(t + b.r) * 4, b.y, b.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  function drawFish(f) {
+    const s = 34 * f.size;
+    const wag = Math.sin(f.phase) * 0.35;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.scale(f.dir || 1, 1);
+    ctx.rotate(Math.max(-0.4, Math.min(0.4, f.vy / 300)) * (f.dir || 1));
+    const body = `hsl(${f.hue} 80% 60%)`;
+    const dark = `hsl(${f.hue} 70% 38%)`;
+    // Tail.
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.85, 0);
+    ctx.lineTo(-s * 1.55, -s * (0.55 + wag));
+    ctx.lineTo(-s * 1.55, s * (0.55 - wag));
+    ctx.closePath();
+    ctx.fill();
+    // Dorsal fin (gold for subs).
+    ctx.fillStyle = f.sub ? '#ffd23f' : dark;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.4, -s * 0.5);
+    ctx.quadraticCurveTo(0, -s * (f.sub ? 1.15 : 0.95), s * 0.35, -s * 0.48);
+    ctx.fill();
+    // Body.
+    const g = ctx.createLinearGradient(0, -s * 0.6, 0, s * 0.6);
+    g.addColorStop(0, body);
+    g.addColorStop(1, `hsl(${f.hue} 85% 78%)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    if (f.kind === 1) ctx.ellipse(0, 0, s * 0.9, s * 0.7, 0, 0, Math.PI * 2);
+    else ctx.ellipse(0, 0, s, s * (f.kind === 2 ? 0.45 : 0.58), 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Stripes.
+    ctx.strokeStyle = 'rgba(255,255,255,.35)';
+    ctx.lineWidth = s * 0.12;
+    for (const sx of [-0.35, 0.05]) { ctx.beginPath(); ctx.moveTo(s * sx, -s * 0.45); ctx.lineTo(s * sx, s * 0.45); ctx.stroke(); }
+    // Eye.
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(s * 0.55, -s * 0.12, s * 0.17, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#02121f';
+    ctx.beginPath(); ctx.arc(s * 0.6, -s * 0.12, s * 0.09, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // Name tag, brighter for recent talkers.
+    const fresh = Date.now() - f.last < 60_000;
+    ctx.font = `600 ${fresh ? 20 : 17}px Fredoka, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = fresh ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.45)';
+    ctx.shadowColor = 'rgba(0,0,0,.8)';
+    ctx.shadowBlur = 6;
+    ctx.fillText(f.nick, f.x, f.y + s * 0.75 + 22);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawShark() {
+    if (!shark) return;
+    ctx.save();
+    ctx.translate(shark.x, shark.y);
+    ctx.scale(shark.dir, 1);
+    ctx.fillStyle = '#3b4f5e';
+    ctx.beginPath();
+    ctx.moveTo(220, 0);
+    ctx.quadraticCurveTo(120, -90, -160, -20);
+    ctx.lineTo(-260, -90 + Math.sin(t * 8) * 20);
+    ctx.lineTo(-230, 0);
+    ctx.lineTo(-260, 80 + Math.sin(t * 8) * 20);
+    ctx.lineTo(-160, 20);
+    ctx.quadraticCurveTo(120, 80, 220, 0);
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -55); ctx.lineTo(-60, -150); ctx.lineTo(-90, -45); ctx.fill();
+    ctx.fillStyle = '#e8f0f4';
+    ctx.beginPath(); ctx.moveTo(200, 10); ctx.quadraticCurveTo(80, 50, -120, 22); ctx.lineTo(160, 22); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(150, -18, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.font = '600 22px Fredoka, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.8)';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${shark.nick}'s shark`, shark.x, shark.y + 120);
+  }
+
+  function drawFood() {
+    ctx.fillStyle = '#ff9a5a';
+    for (const p of food) { ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); }
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    t += dt;
+    update(dt);
+    drawBackground();
+    drawFood();
+    const sorted = [...fish.values()].sort((a, b) => a.size - b.size);
+    for (const f of sorted) drawFish(f);
+    drawShark();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  setInterval(() => {
+    const tt = SB.timerText();
+    $('timer').textContent = tt.value;
+    $('timer-label').textContent = tt.label;
+    $('fishcount').textContent = fish.size;
+    $('mpm').textContent = SB.mpm();
+  }, 500);
+
+  SB.start();
+})();
+</script>
+</body>
+</html>

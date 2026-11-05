@@ -1,0 +1,2027 @@
+<!doctype html>
+<!--
+  DINK DONK - SCENE 2: the auditorium (Screen 1), shown while the picked film downloads.
+
+  Background = the latest approved Codex draft (roxy3d/qa11/cinema_draft_NN.png) with its layout JSON
+  (seats, tiers, stairs, the entrance tunnel route). Every chatter who walks in comes through the tunnel
+  from the back of the hall, climbs the stairs and takes a seat; their own row's seat backs hide their
+  lower body. Chatters speak once visible; tunnel messages are bounded until they emerge.
+  Options: draft=09 (which qa11 draft), tag= / everyone=1 (who walks in, see shared/cinema.js), demo=1,
+  live=1 (auto-reload on file change), phase=seating|dim|film|up, screen=green (always OBS green),
+  director=0|<seconds>, zoom=<1.2-3>, ctl=0 (no control panel connection). Keys F/R/W/D as in the lobby.
+  Testing: janidle=<s> (janny clocks off), doze=<s> (quiet time before a chatter nods off), chatty=<n> (messages a
+  minute that get the phone out and a shush in the dark), qb=<0-1> (pretend a download at that progress, for the
+  loading slide) and qbname=<torrent name> (its name), kick=<0-1> (chance the usher's flashlight visit ends in a kick, default 0.5).
+  leave=<minutes> (off by default): in a full house with people waiting outside, the longest-dozing chatter (quiet that long)
+  heads home to free a seat. maxres=<height>: cap the art resolution (e.g. 1080: no 4K art). slidefade=seq: pre-show slides fade out, then in (no cross-fade).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DINK DONK - Screen 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage { background: #0b0a12; font-family: Oswald, 'Arial Narrow', Arial, sans-serif; color: #fff; }
+  #world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 0; }
+  #cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  #names { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 1; pointer-events: none; }
+  #bg, #bg-dim { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  .slice, .sheet { position: absolute; pointer-events: none; }
+  .sheet { left: 0; top: 0; }
+  #screenq { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; display: none; z-index: 70000; }
+  /* No filter at rest: an identity brightness(1) on every slice, sheet and emote made each one its own offscreen
+     pass whenever its tiles re-rasterised (QA 04 Nov: 66 -> 170 fps uncapped with ~60 chatters). The filter (and its
+     6 s fade from/to none) only applies where it does something: art without dim twins, emotes while dark. */
+  #stage:not(.has-dim-art) #bg, #stage:not(.has-dim-art) .slice, #stage:not(.has-dim-art) .sheet { transition: filter 6s ease-in-out; }
+  .w .em { transition: filter 6s ease-in-out; }
+  .lights-down:not(.has-dim-art) #bg, .lights-down:not(.has-dim-art) .slice, .lights-down:not(.has-dim-art) .sheet { filter: brightness(.45); }
+  .dim-art { opacity: 0; transition: opacity 6s ease-in-out; pointer-events: none; }
+  .lights-down.dim-ready .dim-art { opacity: 1; }
+  .dim-done #bg, .dim-done img.slice:not(.dim-art) { visibility: hidden; }
+  .lights-down .w .em { filter: brightness(.5); }
+
+  /* A flat projection, clipped before its affine mapping into the matte screen. */
+  #preshow { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden;
+    transform-origin: 0 0; display: none; pointer-events: none; color: #eadbb9; background: #282224; z-index: 70000;
+    filter: brightness(.85) sepia(.13); }
+  #preshow::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse, transparent 25%, rgba(8,5,6,.56)); box-shadow: inset 0 0 38px #171315; }
+  .ps-slide { position: absolute; inset: 0; padding: 42px 64px; box-sizing: border-box; display: flex;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px;
+    opacity: 0; transition: opacity .8s; text-shadow: 0 0 3px #d8c39444; }
+  .ps-slide.active { opacity: 1; }
+  .ps-small { font-size: 26px; letter-spacing: .16em; text-transform: uppercase; }
+  .ps-slide h2 { margin: 0; font-size: 72px; font-weight: 500; line-height: 1.08; }
+  .ps-slide p { margin: 0; font-size: 34px; line-height: 1.25; }
+  .ps-feature { display: flex; align-items: center; justify-content: center; gap: 30px; width: 100%; min-height: 220px; }
+  #ps-title { font-size: 54px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical; overflow: hidden; }
+  #ps-poster { width: 140px; height: 210px; object-fit: contain; opacity: .85; flex-shrink: 0; }
+  /* room around the bar, and not much wider than the text: on the slanted screen a long bar flush against
+     the digits reads as striking through them */
+  #ps-progress { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  #ps-progress[hidden] { display: none; }
+  #ps-percent { font-size: 80px; line-height: 1; }
+  #ps-bar { position: relative; width: 340px; height: 12px; background: #a798752b; }
+  #ps-fill { height: 100%; width: 0; background: #c7b585; transition: width 2s linear; }
+  /* while downloading: what it is (poster, title, IMDb rating) on the left, a DGG meme (emote + caption) on the
+     right, chat's top emote riding the bar, and the emotes chat posts floating up the screen's edges.
+     The row stays within about 12-88 % of the screen so the floating emotes keep clear of it. */
+  .ps-loadrow { display: flex; align-items: center; justify-content: center; gap: 36px; }
+  .ps-loadcol { display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 340px; }
+  #ps-film { width: 130px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #ps-film[hidden], #ps-film-poster[hidden], #ps-ftitle[hidden], #ps-fsub[hidden] { display: none; }
+  #ps-film-poster { width: 130px; height: 195px; object-fit: cover; opacity: .88; box-shadow: 0 0 0 2px #c7b58533; }
+  .ps-slide #ps-rating { font-size: 24px; letter-spacing: .04em; white-space: nowrap; }
+  #ps-rating b { color: #f2c94c; font-weight: 500; }
+  .ps-slide #ps-ftitle { margin: 0; font-size: 42px; font-weight: 500; line-height: 1.08; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ps-slide #ps-fsub { font-size: 22px; letter-spacing: .06em; opacity: .8; }
+  #ps-meme { width: 180px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  #ps-meme[hidden] { display: none; }
+  #ps-meme-em { height: 112px; display: flex; align-items: flex-end; }
+  .ps-slide #ps-meme-cap { font-size: 27px; line-height: 1.2; font-style: italic; }
+  #ps-rider { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); transition: left 2s linear; }
+  #ps-rider > * { display: block; animation: ps-hop .8s ease-in-out infinite; }
+  @keyframes ps-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  #ps-pops { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .ps-pop { position: absolute; bottom: -70px; animation: ps-rise 5s ease-out forwards; }
+  @keyframes ps-rise { 0% { transform: translateY(0); opacity: 0; } 12% { opacity: .9; } 70% { opacity: .9; }
+    100% { transform: translateY(-330px); opacity: 0; } }
+  #ps-eta { font-size: 28px; }
+  #ps-audience { position: relative; width: 100%; height: 280px; overflow: hidden; }
+  #ps-credits { position: absolute; top: 0; width: 100%; font-size: 38px; line-height: 1.6;
+    animation: ps-roll 24s linear infinite; }
+  @keyframes ps-roll { from { transform: translateY(280px); } to { transform: translateY(-100%); } }
+  @media (prefers-reduced-motion: reduce) { .ps-slide, #ps-fill { transition: none; } }
+
+  /* no will-change: a GPU layer per chatter forces the depth slices between them onto layers too, which thrash
+     tile memory when the director zooms in (3 fps at 1.85x with 60 chatters; ~95 fps without) */
+  .w { position: absolute; left: 0; top: 0; }
+  .w .sh { position: absolute; left: -14px; top: -5px; width: 28px; height: 10px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,0)); }
+  .w.sit .sh { display: none; }
+  .w .bod { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+  .w .em { position: absolute; bottom: 0; }
+  /* popcorn / soda (the lobby's rendered item sprites) and the phone some seated chatters check */
+  .w .item { position: absolute; pointer-events: none; transition: filter 6s ease-in-out; }
+  .lights-down .w .item { filter: brightness(.5); }
+  .w .phone { position: absolute; width: 5px; height: 8px; border-radius: 1px; background: #0d0f14; display: none;
+    border: 1px solid #0d0f14; box-sizing: content-box; }
+  .w .phone::after { content: ''; position: absolute; inset: 0; border-radius: 1px; background: #bfe0ff;
+    box-shadow: 0 0 5px 2px rgba(130, 190, 255, .55), 0 0 14px 5px rgba(110, 170, 255, .22); }
+  .w .phone.on { display: block; }
+  #names .fl { position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 16px/1 Oswald, sans-serif; letter-spacing: .04em;
+    text-shadow: 0 0 6px rgba(255, 140, 200, .8), 0 1px 2px #000; }
+  /* dozing chatters: little z's drifting up from the head */
+  #names .zz { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+  #names .zz span { position: absolute; left: 0; bottom: 0; font: 600 12px/1 Oswald, sans-serif; color: #d8e6ff; opacity: 0;
+    text-shadow: 0 0 4px rgba(120, 160, 255, .8), 0 1px 2px #000; animation: zz 3.6s linear infinite; }
+  #names .zz span:nth-child(2) { font-size: 15px; animation-delay: 1.2s; }
+  #names .zz span:nth-child(3) { font-size: 18px; animation-delay: 2.4s; }
+  @keyframes zz { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: .95; } 100% { transform: translate(16px, -32px); opacity: 0; } }
+  /* the usher's flashlight (lights down only) */
+  #names .beam { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; display: none; }
+  #names .nm { position: absolute; left: 0; top: 5px; transform: translateX(-50%); white-space: nowrap;
+    font: 500 12px/1 Oswald, 'Arial Narrow', sans-serif; letter-spacing: .02em; padding: 0 4px 1px; border-radius: 2px;
+    background: rgba(8, 6, 18, .5); text-shadow: 0 1px 2px #000, 0 0 4px #000; transition: opacity .6s; }
+
+  /* DGG tier 5 subs: the moving rainbow name of DGG chat (same gradient as the DSA script) */
+  .rbt { background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bff95, #67d8ff, #b28dff, #ff78c6, #ff6b6b);
+    background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-fill-color: transparent; animation: rbt 4s linear infinite; }
+  @keyframes rbt { to { background-position: -220% 0; } }
+  #bubbles { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 86000; pointer-events: none; }
+  /* the lobby's dialog box: square, plain 90s game style */
+  .bub { position: absolute; left: 0; top: 0; max-width: 300px; padding: 5px 10px 6px; border-radius: 3px;
+    background: rgba(10, 9, 22, .9); border: 1px solid rgba(200, 220, 255, .6); color: #f4f4ff;
+    font: 700 16px/1.28 Verdana, Tahoma, 'Segoe UI', sans-serif; white-space: normal; overflow-wrap: anywhere;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, .55); }
+  .bub .bn { font: 700 12px/1.2 Verdana, Tahoma, sans-serif; margin-bottom: 1px; letter-spacing: .02em; }
+  .bub .bt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .bub::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -8px; margin-left: -7px;
+    border: 7px solid transparent; border-top-color: rgba(200, 220, 255, .6); border-bottom: 0; }
+  .bub.below::after { bottom: auto; top: -8px; border-top-color: transparent; border-bottom: 7px solid rgba(200, 220, 255, .6); border-top: 0; }
+  .bub .sb-emote { vertical-align: middle; margin: 0 2px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- everything in the world zooms together; speech stays screen-sized -->
+  <div id="cam">
+  <div id="world">
+    <img id="bg" alt="">
+    <svg id="screenq" viewBox="0 0 1920 1080"><polygon id="screenpoly"/></svg>
+    <div id="preshow">
+      <div class="ps-slide active"><div class="ps-small">DINK DONK presents</div>
+        <div class="ps-feature"><img id="ps-poster" alt="" hidden><h2 id="ps-title">Tonight: Feature Presentation</h2></div>
+        <p>Moobies starting soon, take a seat...</p></div>
+      <div class="ps-slide"><div class="ps-loadrow">
+          <div id="ps-film" hidden><img id="ps-film-poster" alt="" hidden><p id="ps-rating" hidden></p></div>
+          <div class="ps-loadcol"><p id="ps-loading">The feature will begin shortly</p>
+            <h2 id="ps-ftitle" hidden></h2><p id="ps-fsub" class="ps-small" hidden></p>
+            <div id="ps-progress" hidden><div id="ps-percent"></div><div id="ps-bar"><div id="ps-fill"></div><div id="ps-rider"></div></div><p id="ps-eta"></p></div></div>
+          <div id="ps-meme" hidden><div id="ps-meme-em"></div><p id="ps-meme-cap"></p></div>
+        </div>
+        <div class="ps-small">Thank you for your patience</div></div>
+      <div class="ps-slide"><div class="ps-small">Tonight's movie chatters</div><div id="ps-audience"><div id="ps-credits"></div></div></div>
+      <div id="ps-pops"></div>
+    </div>
+  </div>
+  <div id="names"></div>
+  </div>
+  <div id="bubbles"></div>
+</div>
+<script src="shared/core.js"></script>
+<script src="shared/cinema.js"></script>
+<script src="shared/live.js"></script>
+<script>
+(() => {
+  'use strict';
+  const q = new URLSearchParams(location.search);
+  const QB_TEST = q.has('qb') && Number.isFinite(Number(q.get('qb'))) ? Math.max(0, Math.min(1, Number(q.get('qb')))) : null;
+  const $ = (id) => document.getElementById(id);
+  const h = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text != null) el.textContent = text; return el; };
+  const drawn = new WeakMap();
+  const style = (el, prop, value) => {
+    let cache = drawn.get(el);
+    if (!cache) { cache = Object.create(null); drawn.set(el, cache); }
+    if (cache[prop] !== value) { cache[prop] = value; el.style[prop] = value; }
+  };
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  const DRAFT = /^\d{2}$/.test(q.get('draft') || '') ? q.get('draft') : '13';   // draft 13 = draft 12 (lobby's padded door) + re-seated step lights at 45 % (04 Nov)
+  const ART = 'roxy3d/qa11/';
+  const world = $('world');
+  const nameLayer = $('names');
+  const bubLayer = $('bubbles');
+
+  // ---------- pre-show + house lights ----------
+  const phases = ['seating', 'dim', 'film', 'up'];
+  const show = { phase: phases.includes(q.get('phase')) ? q.get('phase') : 'seating', auto: true,
+    download: { available: false }, completedAt: 0, name: '', slide: 0, audience: '' };
+  const alwaysGreen = q.get('screen') === 'green';
+  // Once the dim art has fully faded in, the lit art under it stops being drawn, so only one set is decoded.
+  let dimDoneTimer = 0;
+  function scheduleDimDone() {
+    clearTimeout(dimDoneTimer);
+    const st = $('stage').classList;
+    if (!st.contains('lights-down')) { st.remove('dim-done'); return; }
+    if (st.contains('dim-ready')) dimDoneTimer = setTimeout(() => { if (st.contains('lights-down')) st.add('dim-done'); }, 6500);
+  }
+  function applyPhase() {
+    const down = show.phase === 'dim' || show.phase === 'film';
+    if (down !== $('stage').classList.contains('lights-down')) {
+      $('stage').classList.toggle('lights-down', down);
+      scheduleDimDone();
+      director.screenAt = down ? performance.now() + 10000 : 0;   // the director moves onto the screen 10 s in
+    }
+    const green = alwaysGreen || show.phase === 'film';
+    $('screenq').style.display = screenPoly && green ? 'block' : 'none';
+    $('preshow').style.display = screenPoly && !green ? 'block' : 'none';
+    $('stage').dataset.phase = show.phase;
+  }
+  function setPhase(phase, manual = false) {
+    if (!phases.includes(phase)) return;
+    if (manual) { show.auto = false; show.completedAt = 0; }
+    show.phase = phase;
+    applyPhase();
+  }
+  function autoPhase(now) {
+    const d = show.download;
+    if (!show.auto || !d.available) return;
+    if (d.progress >= .9 && (show.phase === 'seating' || show.phase === 'up')) setPhase('dim');
+    if (d.completed && show.completedAt && now - show.completedAt >= 10000 && show.phase !== 'film') setPhase('film');
+  }
+  function eta(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '';
+    if (seconds < 60) return 'Less than a minute';
+    const mins = Math.ceil(seconds / 60);
+    return mins < 60 ? `About ${mins} min` : `About ${Math.floor(mins / 60)} h ${mins % 60} min`;
+  }
+  // polls forever: a throw while showing the result (below) no longer stops the polling, and with it the automatic
+  // dim and film phases (QA 05 Nov)
+  async function pollDownload() {
+    try { await pollDownloadOnce(); } catch (error) { console.error('[auditorium] download', error); }
+    setTimeout(pollDownload, 2000);
+  }
+  async function pollDownloadOnce() {
+    let d = { available: false };
+    try {
+      const r = await fetch('/qb/progress', { cache: 'no-store', signal: AbortSignal.timeout(3500) });
+      const j = r.ok && await r.json();
+      if (j?.available && typeof j.name === 'string' && Number.isFinite(j.progress)) {
+        d = { available: true, name: j.name, progress: clamp(j.progress, 0, 1),
+          eta_s: Number.isFinite(j.eta_s) ? j.eta_s : null, state: String(j.state || ''), completed: j.completed === true };
+      }
+    } catch { /* old server or Web UI offline: keep a calm, useful pre-show */ }
+    if (QB_TEST !== null) d = { available: true, name: q.get('qbname') || 'Test feature', progress: QB_TEST, eta_s: 240, state: 'downloading', completed: false };
+    const now = performance.now();
+    if (!show.auto || !d.available || !d.completed || d.name !== show.name) show.completedAt = 0;
+    if (show.auto && d.completed && !show.completedAt) show.completedAt = now;
+    show.name = d.name || '';
+    show.download = d;
+    $('ps-progress').hidden = !d.available;
+    // Stay below 100 until qBittorrent actually reports completion.
+    $('ps-percent').textContent = d.available ? `${d.completed ? 100 : Math.min(99, Math.floor(d.progress * 100))}%` : '';
+    $('ps-fill').style.width = `${d.available ? d.progress * 100 : 0}%`;
+    $('ps-eta').textContent = d.available ? (d.completed ? 'The feature is ready. Settle in...' : eta(d.eta_s)) : '';
+    $('ps-meme').hidden = !d.available;
+    if (d.available) ride(d.progress);
+    showFeature(d.available ? d.name : '');
+    autoPhase(now);
+  }
+
+  // ---------- what's downloading: title, poster and IMDb rating ----------
+  // From the torrent name: the English title(s) and year of a tracker-style name
+  // ("Телефонная будка / Phone Booth (Джоэл Шумахер / Joel Schumacher) [2002, США, триллер, BDRip]") or the title,
+  // season and year of a scene-style one ("Black.Mirror.S03.1080p.BluRay.x265-KONTRAST"). Looked up on Cinemeta
+  // (Stremio's open IMDb mirror: no key, CORS open); with no match the cleaned-up title still shows.
+  function parseRelease(name) {
+    const s = String(name || '');
+    const yearM = s.match(/[[(]\s*((?:19|20)\d\d)\b/) || s.match(/\b((?:19|20)\d\d)\b/);
+    const year = yearM ? +yearM[1] : null;
+    if (s.includes(' / ')) {
+      const parts = s.split(/\s[[(]/)[0].split(' / ').map((p) => p.trim()).filter(Boolean);
+      const latin = parts.filter((p) => /[a-z]/i.test(p) && !/[а-яё]/i.test(p));
+      const seasonM = s.match(/(?:Сезон|Season)\s*:?\s*(\d{1,2})/i);
+      const series = !!seasonM || /Сери[ия]|Спецэпизод|Episode/i.test(s) || latin.length > 1;
+      return { title: latin[0] || parts[0] || s, extra: latin.length > 1 ? latin.slice(1).join(' · ') : '',
+        season: seasonM ? +seasonM[1] : null, year, series };
+    }
+    const clean = s.replace(/\.(mkv|mp4|avi|m4v|ts)$/i, '').replace(/[._]+/g, ' ');
+    const cut = clean.search(/\b(S\d{1,2}(E\d{1,3})?|(19|20)\d\d|\d{3,4}p|BluRay|BDRip|BRRip|WEB|WEBRip|HDTV|DVDRip|REMUX|x26[45]|HEVC|UHD|4K)\b/i);
+    const se = clean.match(/\bS(\d{1,2})(?:E(\d{1,3}))?\b/i);
+    return { title: (cut > 0 ? clean.slice(0, cut) : clean).replace(/[\s([-]+$/, '').trim() || s, extra: '',
+      season: se ? +se[1] : null, episode: se?.[2] ? +se[2] : null, year, series: !!se };
+  }
+  const CINEMETA = 'https://v3-cinemeta.strem.io';
+  const norm = (t) => String(t || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
+  async function cinemeta(path) {
+    const r = await fetch(`${CINEMETA}/${path}`, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }
+  async function lookupRelease(rel) {
+    const startYear = (m) => parseInt(m.releaseInfo || m.year, 10);
+    for (const type of rel.series ? ['series', 'movie'] : ['movie', 'series']) {
+      const found = (await cinemeta(`catalog/${type}/top/search=${encodeURIComponent(rel.title)}.json`)).metas || [];
+      const named = found.filter((m) => norm(m.name) === norm(rel.title));
+      // a film's year within one (release dates differ by country); a series started on or before the release
+      const fits = (m) => !rel.year || (type === 'movie' ? Math.abs(startYear(m) - rel.year) <= 1 : !(startYear(m) > rel.year));
+      const pick = named.find(fits) || (!rel.year && named[0]) || found.find((m) => fits(m) && norm(m.name).includes(norm(rel.title)));
+      if (!pick) continue;
+      const meta = (await cinemeta(`meta/${type}/${pick.id}.json`)).meta || pick;
+      return { type, name: meta.name || pick.name, year: meta.releaseInfo || meta.year || pick.releaseInfo || '',
+        rating: Number(meta.imdbRating) > 0 ? Number(meta.imdbRating).toFixed(1) : '',
+        genres: (meta.genres || []).slice(0, 2), poster: `https://images.metahub.space/poster/medium/${pick.id}/img` };
+    }
+    return null;
+  }
+  // one lookup per release name, remembered for a week across reloads
+  const featureCache = new Map();
+  function featureInfo(name) {
+    if (!featureCache.has(name)) {
+      featureCache.set(name, (async () => {
+        const key = `auditorium-feature:${name}`;
+        try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.at < 7 * 86400000) return c.info; } catch { /* no storage */ }
+        const rel = parseRelease(name);
+        let found = null;
+        try { found = await lookupRelease(rel); } catch { featureCache.delete(name); }   // offline: try again next poll
+        const info = { rel, found };
+        if (found) try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), info })); } catch { /* no storage */ }
+        return info;
+      })());
+    }
+    return featureCache.get(name);
+  }
+  let featureShown = null, tonightFeature = null;
+  async function showFeature(name) {
+    if (name === featureShown) return;
+    featureShown = name;
+    const info = name ? await featureInfo(name) : null;
+    if (name !== featureShown) return;   // the download changed while this was looked up
+    // the lookup failed (offline; featureInfo dropped it from the cache): look again in a minute. It never retried,
+    // since the next poll returned early on the same name (QA 05 Nov)
+    if (name && !featureCache.has(name)) setTimeout(() => { if (featureShown === name) featureShown = null; }, 60000);
+    const { rel, found } = info || {};
+    $('ps-loading').textContent = name ? 'Now loading' : 'The feature will begin shortly';
+    $('ps-ftitle').hidden = !info;
+    $('ps-ftitle').textContent = found?.name || rel?.title || '';
+    const sub = [];
+    if (rel?.extra) sub.push(rel.extra);
+    else if (rel?.season) sub.push(`Season ${rel.season}${rel.episode ? `, episode ${rel.episode}` : ''}`);
+    // the release's own year first (a season or special, not when the series started); genres when there's room
+    const year = rel?.year || (found?.type === 'series' ? '' : found?.year);
+    if (year) sub.push(String(year));
+    if (found?.genres?.length && sub.length < 2) sub.push(found.genres.join(', '));
+    $('ps-fsub').hidden = !sub.length;
+    $('ps-fsub').textContent = sub.join(' · ');
+    $('ps-film').hidden = !found;
+    const im = $('ps-film-poster');
+    im.hidden = !found?.poster;
+    im.onerror = () => { im.hidden = true; };
+    if (found?.poster) im.src = found.poster; else im.removeAttribute('src');
+    $('ps-rating').hidden = !found?.rating;
+    // (text nodes, not innerHTML: the rating comes from an outside API)
+    $('ps-rating').replaceChildren(...(found?.rating ? [h('b', '', `★ ${found.rating}`), ' IMDb'] : []));
+    tonightFeature = found;
+    tonight();
+  }
+
+  // ---------- download memes ----------
+  // DGG jokes (from roxy3d/memes/SHORTLIST.md), each with an emote that fits: a new one each time the loading
+  // slide comes round
+  const MEMES = [
+    ['WWWWaiting', 'Feature in 5™'],
+    ['Hmm', 'The slow blade penetrates the shield.'],
+    ['DinkDonk', 'BREAKING NEWS: still loading'],
+    ['NOTHINGBURGER', 'Nothing ever happens.'],
+    ['YesHoney', 'YES OR NO: is it done yet?'],
+    ['Clueless', 'Seeding after the movie, right?'],
+    ['CINEMA', 'Absolute cinema. Soon.'],
+    ['glorp', 'It came from the chat.'],
+  ];
+  let memeAt = Math.floor(Math.random() * MEMES.length);
+  // an emote at most `height` tall and `maxW` wide
+  const emoteFit = (name, height, maxW) => { const { w, h: eh } = SB.emoteSize(name); return SB.emoteEl(name, Math.min(height, maxW * eh / w)); };
+  function nextMeme(step = 1) {
+    memeAt += step;
+    const [emote, cap] = MEMES[memeAt % MEMES.length];
+    $('ps-meme-em').replaceChildren(emoteFit(emote, 96, 170));
+    $('ps-meme-cap').textContent = cap;
+  }
+  // chat's most-posted emote of the last 3 minutes rides the progress bar (Buddy when chat is quiet)
+  const chatEmotes = [];
+  let riderName = '';
+  function topEmote(now) {
+    while (chatEmotes.length && now - chatEmotes[0][0] > 180000) chatEmotes.shift();
+    const count = new Map();
+    for (const [, e] of chatEmotes) count.set(e, (count.get(e) || 0) + 1);
+    let best = 'dggL', n = 0;
+    for (const [e, c] of count) if (c > n) { best = e; n = c; }
+    return best;
+  }
+  function ride(progress) {
+    const name = topEmote(performance.now());
+    if (name !== riderName) {
+      riderName = name;
+      const el = emoteFit(name, 30, 70);
+      SB.faceEmote(el, name, 1);   // looks the way the bar fills
+      $('ps-rider').replaceChildren(el);
+    }
+    $('ps-rider').style.left = `${progress * 100}%`;
+  }
+  // every emote chat posts while the feature loads floats up one of the screen's edges, a few at a time
+  let lastPop = 0;
+  function popEmote(name) {
+    const now = performance.now(), pops = $('ps-pops');
+    if (!name || now - lastPop < 900 || pops.childElementCount >= 6) return;
+    lastPop = now;
+    const el = h('div', 'ps-pop');
+    // the outer strips only, clear of the meme and the progress (the row spans about 13-87 % of the screen)
+    el.appendChild(emoteFit(name, 46, 70));
+    el.style.left = `${Math.random() < 0.5 ? rand(1, 5) : rand(88, 92)}%`;
+    el.addEventListener('animationend', () => el.remove());
+    pops.appendChild(el);
+  }
+  SB.on('msg', (m) => {
+    const names = [...new Set(m.emotes || [])];
+    const now = performance.now();
+    for (const e of names) chatEmotes.push([now, e]);
+    // trimmed here too: topEmote() only runs while a download shows, and hours without one grew this without end
+    while (chatEmotes.length && now - chatEmotes[0][0] > 180000) chatEmotes.shift();
+    if (show.download.available && $('preshow').style.display === 'block') popEmote(names[0]);
+  });
+  nextMeme(0);
+  // emote art arrives after the page starts: redraw the meme and the rider with it
+  SB.on('emotes', () => { nextMeme(0); riderName = ''; });
+  // The film coming up = the winner of the newest film poll, unless it has been played already. A played poll winner
+  // shows up in the ratings (and in history with that poll's id), so "Tonight" never names the film that just ended.
+  // A conductor's pick without a poll can't be known in advance: then the screen stays on the generic title.
+  const titleKey = (t) => String(t || '').replace(/\s*\(\d{4}\)\s*$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  function upcomingFilm(data) {
+    const ended = (p) => data?.details?.polls?.[p.id]?.endedAt || 0;
+    const polls = (data?.polls || []).map((p, i) => ({ p, i, w: p.winners?.[0] }))
+      .filter(({ w }) => w && (w.poster || /\(\d{4}\)\s*$/.test(w.title || '')))   // film polls only (not "Yes", "Conductor choice")
+      .sort((a, b) => ended(b.p) - ended(a.p) || a.i - b.i);                         // newest first; the list order breaks ties
+    const latest = polls[0];
+    if (!latest) return null;
+    const key = titleKey(latest.w.title);
+    const rated = [...(data?.ratings || []), ...Object.values(data?.details?.ratings || {})].some((r) => titleKey(r.title) === key);
+    const played = (data?.history || []).some((h) => h.polls?.includes(latest.p.id) || (titleKey(h.title) === key && h.watchedTs >= ended(latest.p)));
+    if (rated || played) return null;
+    return { title: latest.w.title.replace(/\s*\(\d{4}\)\s*$/, ''), poster: latest.w.poster };
+  }
+  // "Tonight": the poll winner; without one, what is downloading (once it is found on Cinemeta)
+  let pollFilm = null;
+  Cinema.onRooms((rooms, data) => {
+    const film = upcomingFilm(data);
+    const card = film && [...(data?.ratings || []), ...(data?.best || []), ...(data?.worst || [])].find((r) => titleKey(r.title) === titleKey(film.title));
+    pollFilm = film && { title: film.title, poster: film.poster || card?.poster };
+    tonight();
+  });
+  function tonight() {
+    const film = pollFilm || (tonightFeature && { title: tonightFeature.name, poster: tonightFeature.poster });
+    $('ps-title').textContent = film ? `Tonight: ${film.title}` : 'Tonight: Feature Presentation';
+    const poster = film?.poster;
+    const im = $('ps-poster');
+    im.hidden = !poster;
+    im.onerror = () => { im.hidden = true; };
+    if (poster) im.src = poster; else im.removeAttribute('src');
+  }
+  // ?slidefade=seq: the old slide fades out (0.4 s) before the next fades in (0.4 s), so two are never half visible
+  // together (default: the 0.8 s cross-fade)
+  const SEQ_FADE = q.get('slidefade') === 'seq';
+  if (SEQ_FADE) document.querySelectorAll('.ps-slide').forEach((el) => { el.style.transition = 'opacity .4s'; });
+  setInterval(() => {
+    const slides = document.querySelectorAll('.ps-slide');
+    slides[show.slide].classList.remove('active');
+    show.slide = (show.slide + 1) % slides.length;
+    if (slides[show.slide].contains($('ps-meme'))) nextMeme();
+    const next = slides[show.slide];
+    if (SEQ_FADE) setTimeout(() => next.classList.add('active'), 400); else next.classList.add('active');
+  }, 8000);
+  function audience() {
+    const seated = [...walkers.values()].filter((w) => w.sitting);
+    const key = seated.map((w) => `${w.key}:${w.nm.style.color}:${w.rainbow}`).join('|');
+    if (key === show.audience) return;
+    show.audience = key;
+    const credits = $('ps-credits');
+    credits.replaceChildren();
+    for (const w of seated) {
+      const line = h('div');
+      line.style.color = w.nm.style.color;
+      line.append(h('span', w.rainbow ? 'rbt' : '', w.nick));
+      credits.append(line);
+    }
+    credits.style.animationDuration = `${Math.max(24, seated.length * 1.6)}s`;
+  }
+  let scale = 1;
+  const ZOOM = clamp(Number(q.get('zoom')) || 1.85, 1.2, 3);
+  const DIRECTOR_ON = q.get('director') !== '0';
+  // ?maxres=<px height> (off by default): never pick art sharper than this output height needs, zoom included
+  const MAXK = q.has('maxres') ? clamp((Number(q.get('maxres')) || 1080) / 1080, 0.5, 4) : Infinity;
+  const dpr = () => Math.min(MAXK, scale * (devicePixelRatio || 1) *
+    (director.on || director.follow || director.wantNext || director.screenAt ? director.zoom : 1));
+  const artImgs = [];           // { im, file, file_2x }; geometry always stays in 1920x1080 coordinates
+  const dimImgs = [];           // paired directly above their lit image, at the same depth
+  let artTwo = null;
+  let doorFile = '';
+  let dimDoorFile = '';
+  let artRequest = 0;
+  async function preloadArt(file, file_2x, two) {
+    const im = new Image();
+    im.src = ART + (two && file_2x ? file_2x : file);
+    try { await im.decode(); }
+    catch {
+      if (!two || !file_2x) throw new Error('Art unavailable');
+      im.src = ART + file;
+      await im.decode();
+    }
+    return im;
+  }
+  function applyArtRes() {
+    const two = dpr() > 1.3;
+    if (artTwo === two) return;
+    artTwo = two;
+    for (const { im, file, file_2x } of artImgs) {
+      const src = ART + (two && file_2x ? file_2x : file);
+      im.onerror = () => { im.onerror = null; im.src = ART + file; };
+      im.src = src;
+    }
+    // Preload the sheet: a missing 4K export keeps the working 1x door, without a broken animation.
+    const request = ++artRequest;
+    const file = two && door?.file_2x ? door.file_2x : door?.file;
+    doorFile = door?.file || '';
+    if (file && file !== doorFile) {
+      const im = new Image();
+      im.onload = () => { if (request === artRequest) doorFile = file; };
+      im.onerror = () => {};
+      im.src = ART + file;
+    }
+    // Warm and decode the entire dim set while lit, including the animated sheet. Commit together so
+    // an early phase change or a slow resize cannot expose partially loaded dim art.
+    if (dimImgs.length) {
+      const dim = layers.dim;
+      Promise.all([
+        // slice pieces are only drawn near chatters: fetch them, but don't decode thousands up front
+        ...dimImgs.map(({ file, file_2x, piece }) => piece ? { src: ART + (two && file_2x ? file_2x : file) } : preloadArt(file, file_2x, two)),
+        dim.door_file ? preloadArt(dim.door_file, dim.door_file_2x, two) : null
+      ]).then((loaded) => {
+        if (request !== artRequest) return;
+        dimImgs.forEach(({ im }, i) => { im.src = loaded[i].src; });
+        dimDoorFile = loaded[dimImgs.length]?.src || '';
+        if (doorShot?.dim && dimDoorFile) doorShot.dim.style.backgroundImage = `url("${dimDoorFile}")`;
+        if (!$('stage').classList.contains('dim-ready')) { $('stage').classList.add('dim-ready'); scheduleDimDone(); }
+      }).catch(() => { /* retain the last complete set if a replacement cannot load */ });
+    }
+  }
+  SB.on('resize', (s) => { scale = s; artTwo = null; applyArtRes(); });
+
+  // ---------- projection (filled from the layout JSON's camera) ----------
+  let K = 0.7071067811875, OX = 890, OY = 370;
+  const P = (u, v, z) => [OX + (u - v) * 60 * K, OY + ((u + v) * 30 - z) * K];
+  let EH = 31.5;    // emote height: 90% of the lobby's 50 px, scaled with this camera
+  let MAXW = 47;
+
+  // seat geometry from the draft reports: cushion anchor tier+36, back top tier+62 at v+0.29
+  // the sitter is drawn a little back from the seat line, so the head sits centred over its own backrest
+  // ?sitz= (cushion lift, zpx) and ?sitscale= (seated emote size) are for comparing looks
+  const SIT_Z = Number(q.get('sitz')) || 48, SIT_DV = 0.2, BACK_Z = 62, BACK_DV = 0.29, LEG_DV = 0.45;
+  const SIT_SCALE = clamp(Number(q.get('sitscale')) || 1.2, 0.5, 2);   // owner picked 1.2x + backrest cut (04 Nov)
+  const SPEED = 1.35;          // tiles per second on the flat
+  const STAIR_SPEED = 0.85;    // climbing
+
+  let L = null;                 // the layout JSON
+  let rows = [];                // { name, v, z, flat }
+  let seats = [];               // { row, u, v, z, block, taken }
+  let treads = [];              // [v0, v1, z] of the stair aisles
+  let screenPoly = null;
+
+  // Draft 10+: pre-rendered depth slices do the occlusion. Walkers and slices share one camera-depth order:
+  // key = (u + v) + z / KZ, bigger = nearer the camera. Without layers the page falls back to hiding walkers
+  // in the tunnel and cutting seated emotes at their backrest line.
+  let layers = null;
+  let KZ = 90;
+  const depthZ = (u, v, z) => 1000 + Math.round(((u + v) + z / KZ) * 100);
+  let door = null;              // the entrance door's one-shot animation sheet
+  let doorShot = null;          // { el, dim, t } while both sheets play in sync
+  let DOOR_WAIT = 0.3;          // seconds a newcomer waits outside while the door swings open
+
+  function playDoor() {
+    if (!door) return;
+    const hold = (door.open_hold_frames?.[0] ?? 6) / (door.fps || 18);
+    if (doorShot) { if (doorShot.t > hold) doorShot.t = hold; return; }   // someone else is coming: keep it open
+    const el = h('div', 'sheet');
+    Object.assign(el.style, { width: `${door.frame_width}px`, height: `${door.frame_height}px`,
+      backgroundImage: `url("${ART}${doorFile || door.file}")`, backgroundSize: `${door.columns * door.frame_width}px ${(door.rows || Math.ceil(door.frames / door.columns)) * door.frame_height}px`,
+      transform: `translate(${door.x}px, ${door.y}px)`, zIndex: String(door.z_index) });
+    let dim = null;
+    if (layers?.dim?.door_file) {
+      dim = h('div', 'sheet dim-art');
+      Object.assign(dim.style, { width: el.style.width, height: el.style.height,
+        backgroundImage: dimDoorFile ? `url("${dimDoorFile}")` : '', backgroundSize: el.style.backgroundSize });
+      el.append(dim);
+    }
+    world.append(el);
+    doorShot = { el, dim, t: 0 };
+    doorCutout(true);
+  }
+  // ---------- drawing only the slice pieces that cover something ----------
+  // The background already holds every slice's pixels, so a piece only has to be drawn where a chatter (or the
+  // moving door) is behind it; anywhere else it is hidden and looks the same. Chrome then keeps a few hundred
+  // small images decoded instead of every slice of the room (thousands of images / ~25 screens of pixels, which
+  // overflowed its image cache and re-decoded PNGs every frame: 4-15 fps with a full house).
+  const CELL = 64;
+  const pieces = [];
+  const pieceGrid = new Map();
+  let cullStamp = 0;
+  function addPiece(p) {
+    p.on = false; p.dimOn = false; p.stamp = 0;
+    pieces.push(p);
+    for (let cy = Math.floor(p.y0 / CELL); cy <= Math.floor((p.y1 - 1) / CELL); cy++) {
+      for (let cx = Math.floor(p.x0 / CELL); cx <= Math.floor((p.x1 - 1) / CELL); cx++) {
+        const k = cy * 1000 + cx;
+        if (!pieceGrid.has(k)) pieceGrid.set(k, []);
+        pieceGrid.get(k).push(p);
+      }
+    }
+  }
+  function cullPieces() {
+    if (!pieces.length) return;
+    const stamp = ++cullStamp;
+    const cover = (x0, y0, x1, y1, z) => {
+      for (let cy = Math.floor(y0 / CELL); cy <= Math.floor(y1 / CELL); cy++) {
+        for (let cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++) {
+          const list = pieceGrid.get(cy * 1000 + cx);
+          if (list) for (const p of list) if (p.z > z && p.x0 < x1 && p.x1 > x0 && p.y0 < y1 && p.y1 > y0) p.stamp = stamp;
+        }
+      }
+    };
+    for (const w of walkers.values()) if (w.box) cover(...w.box);
+    if (doorShot) cover(door.x, door.y, door.x + door.frame_width, door.y + door.frame_height, door.z_index);
+    const st = $('stage').classList;
+    const dimOn = st.contains('lights-down') && st.contains('dim-ready');
+    for (const p of pieces) {
+      const on = p.stamp === stamp;
+      if (on !== p.on) { p.on = on; p.im.style.display = on ? '' : 'none'; }
+      const d = on && dimOn;
+      if (p.dim && d !== p.dimOn) { p.dimOn = d; p.dim.style.display = d ? '' : 'none'; }
+    }
+  }
+
+  // The closed door is also in the static depth slices; while the door moves, those pixels are cut out of
+  // them (mask = everything minus the door's cutout, placed in stage coordinates) so the animation shows.
+  const doorSlices = [];
+  function doorCutout(on) {
+    const c = door?.static_slice_cutout;
+    if (!c) return;
+    for (const im of doorSlices) {
+      const m = on ? `linear-gradient(#000, #000), url("${ART}${c.file}")` : '';
+      im.style.maskImage = m;
+      im.style.webkitMaskImage = m;
+      if (!on) continue;
+      const pos = `0 0, ${c.x - parseFloat(im.style.left)}px ${c.y - parseFloat(im.style.top)}px`;
+      const size = `100% 100%, ${c.w}px ${c.h}px`;
+      Object.assign(im.style, { maskPosition: pos, webkitMaskPosition: pos, maskSize: size, webkitMaskSize: size,
+        maskRepeat: 'no-repeat', webkitMaskRepeat: 'no-repeat', maskComposite: 'exclude', webkitMaskComposite: 'xor' });
+    }
+  }
+  function stepDoor(dt) {
+    if (!doorShot) return;
+    doorShot.t += dt;
+    const f = Math.floor(doorShot.t * (door.fps || 18));
+    if (f >= door.frames) { doorShot.el.remove(); doorShot = null; doorCutout(false); return; }
+    doorShot.el.style.backgroundPosition = `${-(f % door.columns) * door.frame_width}px ${-Math.floor(f / door.columns) * door.frame_height}px`;
+    if (doorShot.dim) doorShot.dim.style.backgroundPosition = doorShot.el.style.backgroundPosition;
+  }
+
+  // ---------- walkers ----------
+  const walkers = new Map();   // nick (lower case) -> walker
+  const arrivals = [];         // spawn queue: one at a time through the tunnel
+  const MAX_QUEUE = 270;       // two houses wait outside; excess new nicks can retry on a later message
+  const QUEUE_QUIET_MS = 10 * 60000;   // a queued arrival quiet this long leaves the queue (tick)
+  let lastQueueTrim = 0;
+  // ?leave=<minutes> (off by default): with a full house and people waiting outside, whoever has been dozing longest
+  // (quiet in chat at least that long) heads home, one every 5 s, so the hall turns over during a long night
+  const LEAVE_MS = q.has('leave') ? clamp(Number(q.get('leave')) || 0, 1, 240) * 60000 : 0;
+  let lastLeave = 0;
+  const WALK_GAP = 0.9;        // route tiles, including around bends; earlier walkers have right of way
+  const avatarChecks = new Map();
+  const failedAvatars = new Set();   // emote images that failed at least once this page load
+  let nextArrival = 0;
+  const bubOrder = [];
+
+  // Keep the first and most recent tunnel messages, never an hours-long speech backlog.
+  function pendingSpeech(w, tokens) {
+    if (!tokens?.length) return;
+    if (w.pending.length >= 2) w.pending.pop();
+    w.pending.push(tokens);
+  }
+  function shortTokens(tokens = []) {
+    const out = [];
+    let left = 128;
+    for (const t of tokens) {
+      if (left <= 0) break;
+      if (t.t === 'emote') { out.push({ t: 'emote', name: String(t.name).slice(0, 80) }); left -= 4; }
+      else if (typeof t.v === 'string') { const v = t.v.slice(0, left); out.push({ t: 'text', v }); left -= Math.max(1, v.length); }
+    }
+    return out;
+  }
+  function nameStyle(w, m) {
+    w.nm.style.color = m.color || '#fff';
+    const rainbow = !!m.rainbow;
+    if (w.rainbow !== rainbow) {
+      w.rainbow = rainbow;
+      w.nm.replaceChildren(h('span', rainbow ? 'rbt' : '', w.nick));
+    }
+  }
+  // Only successes are remembered: a full house arriving at once asks cdn.destiny.gg for ~100 images, and a slow or
+  // failed one used to stay a "?" for good. Now the "?" is temporary and the emote comes back once its image loads.
+  function avatarLoads(src) {
+    if (!avatarChecks.has(src)) {
+      if (avatarChecks.size >= 256) avatarChecks.delete(avatarChecks.keys().next().value);
+      const p = new Promise((resolve) => {
+        const im = new Image();
+        const done = (ok) => { clearTimeout(timer); im.onload = im.onerror = null; resolve(ok); };
+        const timer = setTimeout(() => done(false), 12000);
+        im.onload = () => done(true);
+        im.onerror = () => done(false);
+        im.src = src;
+      });
+      p.then((ok) => { if (!ok && avatarChecks.get(src) === p) avatarChecks.delete(src); });
+      avatarChecks.set(src, p);
+    }
+    return avatarChecks.get(src);
+  }
+  function checkAvatar(w, tries = 0, sprite = w.em.firstElementChild,
+    src = getComputedStyle(sprite).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1]) {
+    if (!src) return;  // core already supplies a text fallback when no emote CSS is available
+    avatarLoads(src).then((ok) => {
+      if (!w.em.isConnected) return;
+      if (ok) {
+        // Chrome keeps a failed CSS background broken for every element of that emote class; an inline copy of the
+        // same url is fetched afresh (from the cache the check just filled)
+        if (failedAvatars.has(src)) sprite.style.backgroundImage = `url("${src}")`;
+        if (w.em.firstElementChild !== sprite) w.em.replaceChildren(sprite);
+        return;
+      }
+      failedAvatars.add(src);
+      if (w.em.firstElementChild === sprite) {
+        const fallback = h('span', 'sb-emote-text', '?');
+        fallback.title = w.emName;
+        Object.assign(fallback.style, { fontSize: `${w.emH * .55}px`, width: `${w.emW}px`, height: `${w.emH}px`,
+          padding: '0', lineHeight: `${w.emH}px`, textAlign: 'center' });
+        w.em.replaceChildren(fallback);
+      }
+      if (tries < 6) setTimeout(() => checkAvatar(w, tries + 1, sprite, src), [5, 15, 30, 60, 120, 300][tries] * 1000);
+    });
+  }
+
+  // ---------- carried things: the lobby's rendered popcorn / soda (out10 items), scaled to this camera ----------
+  const PHONE_SHARE = clamp(Number(q.get('phones') ?? NaN) >= 0 ? Number(q.get('phones')) : 0.3, 0, 1);   // ?phones=0..1 share of phone users
+  const ITEM_ART = 'roxy3d/out10/';
+  let ITEMS = null;
+  fetch(`${ITEM_ART}manifest.json`, { cache: 'no-store' }).then((r) => r.json()).then((m) => {
+    ITEMS = m.items || null;
+    for (const w of walkers.values()) {
+      if (w.item) setItemSrc(w.item);
+      if (w.cap) setItemSrc(w.cap);
+      if (w.item || w.cap) placeItem(w);
+    }
+  }).catch(() => {});
+  function setItemSrc(im) {
+    const it = ITEMS?.[im.dataset.item];
+    if (!it) return;
+    im.src = ITEM_ART + (dpr() > 1.3 && it.file_2x ? it.file_2x : it.file);
+    im.style.width = `${it.w * K}px`;
+    im.style.height = `${it.h * K}px`;
+  }
+  function itemEl(name) {
+    const im = h('img', 'item');
+    im.alt = '';
+    im.dataset.item = name;
+    im.onerror = () => { im.style.display = 'none'; };
+    setItemSrc(im);
+    return im;
+  }
+  // Walking: held at the lower right (the lobby's attach point). Seated: raised over the backrest top so it shows;
+  // the phone sits in front of the lower body, just above the backrest.
+  function placeItem(w) {
+    const ew = w.emW, up = w.sitting ? w.hideLocal + 2 : 4 * K;
+    const it = w.item && ITEMS?.[w.item.dataset.item];
+    if (it) {
+      w.item.style.left = `${ew / 2 - 2 * K - it.anchor[0] * K}px`;
+      w.item.style.top = `${-up - it.anchor[1] * K}px`;
+    }
+    if (w.phone) { w.phone.style.left = `${-ew * 0.18 - 3}px`; w.phone.style.top = `${-up - 11}px`; }
+    // the usher's cap sits on the emote's actual top (the lobby's 'cap' attach point)
+    const cap = w.cap && ITEMS?.[w.cap.dataset.item];
+    if (cap) {
+      w.cap.style.left = `${-cap.anchor[0] * K}px`;
+      w.cap.style.top = `${-w.emH + 6 * K - cap.anchor[1] * K}px`;
+    }
+  }
+  function makeWalker(m) {
+    const key = m.nick.toLowerCase();
+    const el = h('div', 'w');
+    const sh = el.appendChild(h('div', 'sh'));
+    const bod = el.appendChild(h('div', 'bod'));
+    const { w: ew, h: eh } = SB.emoteSize(m.emote);
+    const em = SB.emoteEl(m.emote, Math.min(EH, MAXW * eh / ew));
+    em.classList.add('em');
+    em.style.left = `${-parseFloat(em.style.width) / 2}px`;
+    bod.append(em);
+    // most bring something from the snack bar (owner: most should have popcorn); some check their phone once seated
+    const item = Math.random() < 0.85 ? itemEl(Math.random() < 0.2 ? 'soda' : 'popcorn') : null;
+    if (item) bod.append(item);
+    const phone = Math.random() < PHONE_SHARE ? bod.appendChild(h('div', 'phone')) : null;
+    const nm = nameLayer.appendChild(h('div', 'nm', m.nick));
+    nm.style.visibility = 'hidden';
+    world.append(el);
+    const w = { key, nick: m.nick, el, sh, bod, em, emName: m.emote, nm, bounce: 0, emW: parseFloat(em.style.width) || EH, emH: parseFloat(em.style.height) || EH, path: [], seg: 0, t: 0, pos: [0, 0, 0], seat: null, sitting: false,
+      pending: [], bub: null, bubT: 0, alpha: 0, phase: rand(0, 6.28), nameT: 0, lookT: 0, seen: false,
+      item, phone, phoneT: rand(8, 40), hideLocal: 0, lastMsg: performance.now(), dozeAfter: DOZE * rand(0.8, 1.6), recent: [] };
+    placeItem(w);
+    nameStyle(w, m);
+    checkAvatar(w);
+    return w;
+  }
+
+  // a free seat: friends you mention first, then the middle of the hall, leaving a gap to strangers
+  // The front row is the wheelchair row (owner's joke): YEE chatters sit there and only there, everyone else
+  // keeps out of it - unless their side of the hall is full.
+  // every yee emote counts: the source names of the DSA userscript's IDEOLOGICAL_EMOTE_MAP
+  const YEE_EMOTES = new Set(['YEE', 'diNoThanks', 'YeeMODS', 'YeeLaugh', 'YeeSmug', 'nathanYee', 'TeddYEE', 'ComfYEE',
+    'diNOWAY', 'YEEHAW', 'FeelsPeekMan', 'KYEK', 'YAM']);
+  function chooseSeat(m) {
+    const front = (s) => s.row === rows[0];
+    const yee = YEE_EMOTES.has(m.emote);
+    let free = seats.filter((s) => !s.taken && front(s) === yee);
+    if (!free.length) free = seats.filter((s) => !s.taken);
+    if (!free.length) return null;
+    const text = (m.text || '').toLowerCase();
+    for (const w of walkers.values()) {
+      if (!w.seat || !text.includes(w.key)) continue;
+      const near = free.filter((s) => s.row === w.seat.row && Math.abs(s.u - w.seat.u) < 0.9);
+      if (near.length) return near[0];
+    }
+    const full = 1 - free.length / seats.length;
+    const mid = (14.1 + 4.5) / 2;
+    const weight = (s) => {
+      let wgt = { B: 0.5, C: 0.8, D: 1.1, E: 1.4, F: 1.5, G: 1.3, H: 1, I: 0.8 }[s.row.name] ?? 1;
+      wgt *= s.block === 'main' ? 1.6 - Math.abs(s.u - mid) / 8 : 0.55;
+      if (full < 0.5 && seats.some((o) => o.taken && o.row === s.row && Math.abs(o.u - s.u) < 0.9)) wgt *= 0.3;
+      return Math.max(0.02, wgt);
+    };
+    let total = 0;
+    const ws = free.map((s) => (total += weight(s)));
+    const r = Math.random() * total;
+    return free[ws.findIndex((x) => x >= r)];
+  }
+
+  // tunnel -> cross-aisle -> stair aisle (left, or right for the right edge block) -> legroom -> seat
+  function routeTo(seat) {
+    const pts = L.walk_route.rear_portal_to_cross_aisle.map((p) => [...p]);
+    const row = seat.row;
+    const right = seat.block === 'right';
+    const aisleU = right ? 15.15 : 3.475;
+    const cross = pts[pts.length - 1];
+    if (right) pts.push([aisleU, cross[1], 24]);
+    const legV = row.v - LEG_DV;
+    if (row.flat) {
+      pts.push([aisleU, legV, row.z]);
+    } else {
+      for (const [a, b, z] of treads) {
+        const mv = (a + b) / 2;
+        if (mv > legV) break;
+        pts.push([aisleU, mv, z]);
+      }
+      pts.push([aisleU, legV, row.z]);
+    }
+    pts.push([seat.u, legV, row.z]);
+    return pts;
+  }
+
+  function spawn(m) {
+    if (guests() >= seats.length) return false;
+    const portal = L.walk_route.rear_portal_to_cross_aisle[0];
+    for (const w of walkers.values()) {
+      if (!w.sitting && Math.hypot(w.pos[0] - portal[0], w.pos[1] - portal[1], (w.pos[2] - portal[2]) / 60) < WALK_GAP) return false;
+    }
+    const seat = chooseSeat(m);
+    if (!seat) return false;   // full house: retain the head of the FIFO outside the portal
+    seat.taken = true;
+    const w = makeWalker(m);
+    w.seat = seat;
+    w.path = routeTo(seat);
+    w.pos = [...w.path[0]];
+    // the entrance door opens for them; they wait outside until it's open
+    if (door) { playDoor(); w.wait = DOOR_WAIT; }
+    pendingSpeech(w, m.tokens);
+    pendingSpeech(w, m.more);
+    walkers.set(w.key, w);
+    directorArrival(w);
+    return true;
+  }
+
+  function onMessage(m) {
+    const nick = String(m.nick || '').trim().slice(0, 25);
+    if (!nick) return;
+    if (m.features?.includes('moderator')) return;   // mods are the jannies (onModMessage): they never take a seat
+    m = { nick, emote: m.emote || Cinema.defaultEmote(nick), text: String(m.text || '').slice(0, 512),
+      tokens: shortTokens(m.tokens), color: m.color, rainbow: !!m.rainbow };
+    const key = nick.toLowerCase();
+    const w = walkers.get(key);
+    if (!w) {
+      const queued = arrivals.find((a) => a.nick.toLowerCase() === key);
+      const now = performance.now();
+      if (!queued) {
+        // a full queue makes room by dropping whoever has been quiet longest (it used to refuse every new nick, so a
+        // long night locked the queue to its first 270 chatters; QA 05 Nov)
+        if (arrivals.length >= MAX_QUEUE) arrivals.splice(arrivals.reduce((o, x, i) => (x.at < arrivals[o].at ? i : o), 0), 1);
+        m.at = now;
+        arrivals.push(m);
+      } else { if (m.tokens.length) queued.more = m.tokens; queued.color = m.color; queued.rainbow = m.rainbow; queued.at = now; }
+      return;
+    }
+    if (w.out) return;   // on their way out (banned / muted)
+    nameStyle(w, m);
+    if (!m.tokens?.length) return;
+    // they talk wherever they are; only someone out of sight (in the tunnel) saves it for when they come out
+    if (w.seen) say(w, m.tokens);
+    else pendingSpeech(w, m.tokens);
+  }
+
+  function removeWalker(w) {
+    if (director.follow?.w === w) endFollow();
+    dropBubble(w);
+    w.el.remove();
+    w.nm.remove();
+    if (w.seat) w.seat.taken = false;
+    walkers.delete(w.key);
+    if (w.jan) jannies.delete(w.key);
+    // a janny removed on its way to escort someone (purged, panel): they leave alone instead of waiting in their seat
+    // for good (onPurge ignores anyone already on the way out; QA 05 Nov)
+    const et = w.jan && w.escortT;
+    if (et && et !== w && walkers.get(et.key) === et && et.sitting && et.out) standUp(et);
+    doze(w, false);
+    if (w === usher) { if (w.queued) w.queued.shushBy = null; if (w.spotQ) w.spotQ.spotBy = null; usher = null; }
+    w.pending.length = 0;
+    w.path.length = 0;
+  }
+  function removeNick(key) {
+    const w = walkers.get(key);
+    if (w) removeWalker(w);
+    for (let i = arrivals.length - 1; i >= 0; i--) if (arrivals[i].nick.toLowerCase() === key) arrivals.splice(i, 1);
+  }
+
+  // ---------- jannies: DGG mods mop the front of the hall ----------
+  // Same as the lobby (lobby.html "jannies"): no janitor at the start; any chat message from a DGG moderator (tagged
+  // or not) brings a cpMOP penguin wearing their name in through the entrance. Owner (04 Nov): here they mop the
+  // front part (the floor between the screen and row B) and never sit down. One janny per spot, 10-18 s per spot,
+  // their messages are said as bubbles, and 10 min without a message they clock off the way they came.
+  const JAN_IDLE = clamp(Number(q.get('janidle')) || 600, 20, 3600) * 1000;   // ?janidle=<s> for testing
+  const JAN_IMG = 'assets/cpMOP.webp';
+  const JAN_U = [1.4, 5.0, 7.6, 10.2, 12.8, 16.2];   // front floor spots; row B's own aisle (u 3.475) leads down to it
+  const JAN_V = 1.55;
+  const jannies = new Map();   // nick (lower case) -> walker with jan: true
+  function onModMessage(m) {
+    if (!L || !m.features?.includes('moderator')) return;
+    const key = String(m.nick || '').trim().toLowerCase();
+    if (!key) return;
+    let j = jannies.get(key);   // one already clocking off still leaves; the next message brings them back
+    if (!j) {
+      const seated = walkers.get(key);   // came in as a chatter before they spoke as a mod
+      if (seated) removeWalker(seated);
+      j = addJanny(m);
+    }
+    if (!j) return;
+    j.lastMsg = performance.now();
+    nameStyle(j, m);
+    const tokens = shortTokens(m.tokens);
+    if (!tokens.length) return;
+    if (j.seen) say(j, tokens); else pendingSpeech(j, tokens);
+  }
+  function addJanny(m) {
+    if (jannies.size >= JAN_U.length) return null;   // every spot has its janny
+    const key = m.nick.toLowerCase();
+    const el = h('div', 'w jan');
+    const sh = el.appendChild(h('div', 'sh'));
+    const bod = el.appendChild(h('div', 'bod'));
+    // the cpMOP penguin (mop and bucket) instead of an emote, at the lobby's size for this camera (52 of its 50 px)
+    const emH = EH * 52 / 50, emW = Math.round(emH * 144 / 128);
+    const em = bod.appendChild(h('img', 'em'));
+    em.alt = '';
+    em.src = JAN_IMG;
+    Object.assign(em.style, { height: `${emH}px`, width: `${emW}px`, left: `${-emW / 2}px` });
+    Object.assign(sh.style, { width: '30px', left: '-15px' });
+    const nm = nameLayer.appendChild(h('div', 'nm', m.nick));
+    nm.style.visibility = 'hidden';
+    world.append(el);
+    const portal = L.walk_route.rear_portal_to_cross_aisle;
+    const w = { key, nick: m.nick, el, sh, bod, em, emName: 'cpMOP', nm, bounce: 0, emW, emH, path: [...portal.map((p) => [...p])], seg: 0, t: 0,
+      pos: [...portal[0]], seat: null, sitting: false, pending: [], bub: null, bubT: 0, alpha: 0, phase: rand(0, 6.28), nameT: 8,
+      lookT: 0, seen: false, item: null, phone: null, phoneT: 0, hideLocal: 0, jan: true, spot: null, mopUntil: 0, lastMsg: performance.now() };
+    if (door) { playDoor(); w.wait = DOOR_WAIT; }
+    w.onArrive = janNext;
+    walkers.set(key, w);
+    jannies.set(key, w);
+    return w;
+  }
+  // from the cross-aisle down row B's aisle to the front floor, then along it to a free spot, and mop it
+  function janNext(j) {
+    if (j.leaving) return;
+    if (j.queued) { const next = j.queued; j.queued = null; next(j); return; }   // called in to escort someone out
+    if (performance.now() - j.lastMsg > JAN_IDLE) { janLeave(j); return; }
+    const taken = new Set([...jannies.values()].filter((o) => o !== j && !o.leaving).map((o) => o.spot));
+    const free = JAN_U.map((_, i) => i).filter((i) => i !== j.spot && !taken.has(i));
+    const next = free.length ? free[Math.floor(Math.random() * free.length)] : j.spot ?? 0;
+    const z = rows[0]?.z ?? 24;
+    const at = [JAN_U[next] + rand(-0.3, 0.3), JAN_V + rand(-0.25, 0.25), z];
+    const path = [[...j.pos]];
+    if (j.spot == null) path.push([3.475, 2.9, z], [3.475, JAN_V, z]);   // first time: down from the cross-aisle
+    path.push(at);
+    j.spot = next;
+    j.mopUntil = 0;
+    j.path = path;
+    j.seg = 0;
+    j.t = 0;
+    j.onArrive = (x) => { x.mopUntil = performance.now() + rand(10, 18) * 1000; SB.faceEmote(x.em, x.emName, Math.random() < 0.5 ? 1 : -1); };
+  }
+  // clocks off: back up the aisle and out through the entrance
+  function janLeave(j) {
+    j.leaving = true;
+    j.mopUntil = 0;
+    const z = rows[0]?.z ?? 24;
+    // down the aisle to the front first only from the rows: from the cross aisle that was a detour down and back up
+    const crossV = L.walk_route.rear_portal_to_cross_aisle.at(-1)[1];
+    const down = j.pos[1] < crossV - 0.5 ? [[3.475, j.pos[1], z], [3.475, 2.9, z]] : [];
+    j.path = [[...j.pos], ...down, ...[...L.walk_route.rear_portal_to_cross_aisle].reverse().map((p) => [...p])];
+    j.seg = 0;
+    j.t = 0;
+    j.onArrive = (x) => removeWalker(x);
+  }
+  // the lobby's floating text, in world space (it zooms with the camera, like the names)
+  function floatAt(w, text, color) {
+    const [x, y] = P(...w.pos);
+    const el = nameLayer.appendChild(h('div', 'fl', text));
+    el.style.color = color;
+    const top = y - w.emH - 30;
+    el.animate([
+      { transform: `translate(${x}px, ${top}px) translate(-50%, 0)`, opacity: 0 },
+      { transform: `translate(${x}px, ${top - 10}px) translate(-50%, 0)`, opacity: 1, offset: 0.15 },
+      { transform: `translate(${x}px, ${top - 38}px) translate(-50%, 0)`, opacity: 0 },
+    ], { duration: 1500, easing: 'ease-out' }).onfinish = () => el.remove();
+  }
+  function stepJannies(now) {
+    for (const j of jannies.values()) if (j.mopUntil && now > j.mopUntil) janNext(j);
+  }
+  SB.on('msg', onModMessage);
+
+  // ---------- staff errands: walking into a row and back ----------
+  const dark = () => show.phase === 'dim' || show.phase === 'film';
+  function go(w, path, next) { w.path = path; w.seg = 0; w.t = 0; w.onArrive = next; }
+  function hold(w, secs, next) { go(w, [[...w.pos], [...w.pos]], next); w.wait = secs; }
+  // from the cross-aisle, up the stair aisle of that block (the right one for the right edge block) to the row's
+  // legroom, then along it to u - the same way chatters go to their seats (routeTo)
+  function aisleTo(row, block, u) {
+    const aisleU = block === 'right' ? 15.15 : 3.475;
+    const crossV = L.walk_route.rear_portal_to_cross_aisle.at(-1)[1];
+    const legV = row.v - LEG_DV;
+    const pts = [[aisleU, crossV, 24]];
+    if (!row.flat) for (const [a, b, z] of treads) { const mv = (a + b) / 2; if (mv > legV) break; pts.push([aisleU, mv, z]); }
+    pts.push([aisleU, legV, row.z], [u, legV, row.z]);
+    return pts;
+  }
+  // a spot in the legroom beside a seated chatter: on the far side from the aisle (so the chatter leads the way
+  // out), or on the aisle side at the end of a block
+  function besideU(t) {
+    const seat = t.seat;
+    const us = seats.filter((s) => s.row === seat.row && s.block === seat.block).map((s) => s.u);
+    const toAisle = seat.block === 'left' ? 1 : -1;
+    const far = seat.u - toAisle * 0.75;
+    return far >= Math.min(...us) - 0.2 && far <= Math.max(...us) + 0.2 ? far : seat.u + toAisle * 0.75;
+  }
+  // a janny starts on the front floor (row B's legroom is that floor), the usher on the cross-aisle
+  function visitPath(s, t) {
+    const row = t.seat.row, u = besideU(t);
+    const crossV = L.walk_route.rear_portal_to_cross_aisle.at(-1)[1];
+    if (s.jan && row === rows[0] && s.pos[1] < crossV - 0.5) return [[...s.pos], [u, row.v - LEG_DV, row.z]];
+    const pre = s.jan ? [[...s.pos], [3.475, s.pos[1], 24], [3.475, crossV, 24]] : [[...s.pos]];
+    return [...pre, ...aisleTo(row, t.seat.block, u)];
+  }
+  const freeJanny = (j) => !j.leaving && !j.task && !j.queued && j.spot != null && j.seen;
+  function nearestJanny(t) {
+    let best = null, bd = Infinity;
+    for (const j of jannies.values()) {
+      if (!freeJanny(j)) continue;
+      const d = Math.hypot(j.pos[0] - t.pos[0], j.pos[1] - t.pos[1]);
+      if (d < bd) { bd = d; best = j; }
+    }
+    return best;
+  }
+  function faceToward(s, t) { SB.faceEmote(s.em, s.emName, P(...t.pos)[0] - P(...s.pos)[0]); }
+  // back to the spot it left, mopping again for a bit
+  function janBack(j) { j.task = null; if (!j.leaving) j.mopUntil = performance.now() + rand(6, 12) * 1000; }
+
+  // ---------- dozing: quiet chatters nod off; their next message wakes them ----------
+  const DOZE = clamp(Number(q.get('doze')) || 600, 10, 7200) * 1000;   // ?doze=<s> for testing
+  const ZZ_MAX = 12;   // z's on at most this many sleepers (the rest just nod)
+  let zzCount = 0;
+  function doze(w, on) {
+    if (!!w.dozing === on) return;
+    w.dozing = on;
+    if (on) {
+      if (w.phone) { w.phone.classList.remove('on'); w.texting = false; }
+      if (zzCount < ZZ_MAX) {
+        w.zz = nameLayer.appendChild(h('div', 'zz'));
+        w.zz.append(h('span', '', 'z'), h('span', '', 'z'), h('span', '', 'Z'));
+        zzCount += 1;
+      }
+    } else if (w.zz) { w.zz.remove(); w.zz = null; zzCount -= 1; }
+  }
+
+  // ---------- phones in the dark: a chatter who keeps talking gets the phone out and a shush ----------
+  const CHATTY = clamp(Number(q.get('chatty')) || 3, 2, 20);   // messages within a minute
+  // Every chat message of someone already inside counts, tagged or not (only tagged ones become bubbles):
+  // quiet in chat = nodding off, busy in chat in the dark = on their phone.
+  SB.on('msg', (m) => {
+    const w = walkers.get(String(m.nick || '').trim().toLowerCase());
+    if (w && !w.jan && !w.usher && !w.out) noteMessage(w);
+  });
+  function noteMessage(w) {
+    const now = performance.now();
+    w.lastMsg = now;
+    w.dozeAfter = DOZE * rand(0.8, 1.6);
+    doze(w, false);
+    w.recent = w.recent.filter((t) => now - t < 60000);
+    w.recent.push(now);
+    if (dark() && w.sitting && !w.texting && w.recent.length >= CHATTY && !(w.shushCool > now)) {
+      if (!w.phone) w.phone = w.bod.appendChild(h('div', 'phone'));
+      w.phone.classList.add('on');
+      w.texting = true;
+      w.phoneT = 30;
+      placeItem(w);
+      requestShush(w);
+    }
+  }
+  // the nearest free janny walks over; with none on duty the usher does it after the current round
+  function requestShush(t) {
+    if (t.shushBy && walkers.get(t.shushBy.key) === t.shushBy) return;
+    t.shushBy = null;
+    const j = nearestJanny(t);
+    if (j) shush(j, t);
+    else if (usher && !usher.leaving && !usher.queued) { usher.queued = t; t.shushBy = usher; }
+  }
+  function shush(s, t) {
+    s.task = 'shush';
+    s.mopUntil = 0;
+    s.sweep = null;
+    t.shushBy = s;
+    const there = visitPath(s, t);
+    go(s, there, (x) => {
+      if (walkers.get(t.key) === t && t.sitting && !t.out) {
+        faceToward(x, t);
+        floatAt(t, '🤫 shh!', '#ffd27a');
+        if (t.phone) t.phone.classList.remove('on');
+        t.texting = false;
+        t.phoneT = rand(60, 120);
+        t.shushCool = performance.now() + 120000;
+        if (x.usher) x.spot = { w: t, until: performance.now() + 2500 };
+      }
+      t.shushBy = null;
+      hold(x, 2, (y) => go(y, [...there].reverse(), y.jan ? janBack : usherNext));
+    });
+  }
+
+  // ---------- bans / mutes: a janny walks them out ----------
+  // The mod who did it comes over if they're on duty (or is called in through the entrance if there's a free
+  // spot), else the nearest janny; with no janny at all the chatter gets up and leaves alone.
+  const modActs = new Map();   // target (lower case) -> { kind, by }: shared/core.js sends it just before 'purge'
+  SB.on('modAction', (a) => {
+    if (modActs.size > 50) modActs.delete(modActs.keys().next().value);
+    modActs.set(String(a.nick || '').toLowerCase(), a);
+  });
+  function onPurge(nick) {
+    const key = String(nick).trim().toLowerCase();
+    const info = modActs.get(key);
+    modActs.delete(key);
+    const w = walkers.get(key);
+    if (w?.out) return;
+    if (!L || !w || !w.sitting || w.jan || w.usher) { removeNick(key); return; }
+    for (let i = arrivals.length - 1; i >= 0; i--) if (arrivals[i].nick.toLowerCase() === key) arrivals.splice(i, 1);
+    escort(w, info);
+  }
+  function escort(t, info) {
+    goingOut(t, info?.kind === 'MUTE' ? '🔇 muted' : '🚫 banned');
+    const by = String(info?.by || '').toLowerCase();
+    let j = by && jannies.get(by);
+    if (!j || !freeJanny(j)) j = nearestJanny(t);
+    if (j) { escortWalk(j, t); return; }
+    if (by && !jannies.has(by)) {
+      // the mod came in as a chatter first: that figure goes (as in onModMessage), else the janny replaced it in
+      // `walkers` and it stayed frozen in its seat for good, seat taken, drawn through the rows (QA 05 Nov)
+      const seated = walkers.get(by);
+      if (seated === t) { standUp(t); return; }   // banned / muted themselves: they just walk out
+      if (seated && seated !== t && !seated.jan && jannies.size < JAN_U.length) removeWalker(seated);   // (only if one can come)
+      const called = addJanny({ nick: String(info.by).slice(0, 25) });
+      if (called) { called.queued = (x) => escortWalk(x, t); called.escortT = t; return; }
+    }
+    standUp(t);
+  }
+  function escortWalk(j, t) {
+    j.task = 'escort';
+    j.escortT = t;   // if this janny is removed on the way, t leaves alone (removeWalker)
+    j.mopUntil = 0;
+    if (walkers.get(t.key) !== t || !t.sitting) { j.task = null; if (j.spot == null) janNext(j); else janBack(j); return; }
+    const there = visitPath(j, t);
+    go(j, there, (x) => {
+      if (walkers.get(t.key) !== t || !t.sitting) { go(x, [...there].reverse(), janBack); return; }
+      faceToward(x, t);
+      floatAt(x, '👉 out', '#7ff7f0');
+      hold(x, 1.2, (y) => leadOut(y, t, (a) => { a.task = null; janNext(a); }));   // then back in to mop
+    });
+  }
+  // the chatter gets up and walks out; s follows them through the entrance, comes back in, then done(s)
+  function leadOut(s, t, done) {
+    const exit = standUp(t);
+    // behind the chatter in the walker order, so it waits for them instead of walking through them
+    walkers.delete(s.key);
+    walkers.set(s.key, s);
+    const closer = Math.abs(s.pos[0] - exit[1][0]) < Math.abs(exit[0][0] - exit[1][0]);   // already on the aisle side
+    go(s, [[...s.pos], ...(closer ? exit.slice(1) : exit)], (z) => {
+      z.spot = null;
+      if (door) { playDoor(); z.wait = DOOR_WAIT; }
+      go(z, L.walk_route.rear_portal_to_cross_aisle.map((p) => [...p]), done);
+    });
+  }
+  // stops whatever they're doing to be led out (bans, mutes, the usher's kicks)
+  function goingOut(t, text) {
+    t.out = true;
+    doze(t, false);
+    dropBubble(t);
+    t.pending.length = 0;
+    if (t.phone) t.phone.classList.remove('on');
+    t.texting = false;
+    floatAt(t, text, '#ff6b6b');
+  }
+  // gets up and walks out the way they came in
+  function standUp(t) {
+    const seat = t.seat;
+    t.sitting = false;
+    t.el.classList.remove('sit');
+    t.lookT = 0;
+    t.pos = [seat.u, seat.v - LEG_DV, seat.z];
+    placeItem(t);
+    const exit = routeTo(seat).reverse();
+    go(t, exit, removeWalker);
+    return exit;
+  }
+
+  // ---------- the usher: a flashlight patrol while the lights are down ----------
+  // Comes in through the entrance a few seconds after the lights go down, walks the cross-aisle and goes up the
+  // stair aisles shining along the rows. Whoever talks in the dark gets a visit: the usher walks over, shines the
+  // light on them up close, and half the time walks them out through the entrance (kicked).
+  // Never blocks anyone (and isn't blocked); leaves when the lights come up.
+  let usher = null;
+  let usherDue = 0;
+  const guests = () => walkers.size - jannies.size - (usher ? 1 : 0);
+  function addUsher() {
+    const w = makeWalker({ nick: 'usher', emote: Cinema.defaultEmote('roxy-usher'), color: '#fff' });   // the lobby usher's emote
+    w.key = '#usher';   // never a chat nick
+    w.usher = true;
+    w.pace = 0.7;
+    w.nm.style.display = 'none';
+    w.item?.remove();
+    w.phone?.remove();
+    w.item = w.phone = null;
+    w.cap = w.bod.appendChild(itemEl('cap_usher'));
+    placeItem(w);
+    const portal = L.walk_route.rear_portal_to_cross_aisle;
+    go(w, portal.map((p) => [...p]), usherNext);
+    w.pos = [...portal[0]];
+    if (door) { playDoor(); w.wait = DOOR_WAIT; }
+    walkers.set(w.key, w);
+    return w;
+  }
+  function usherNext(w) {
+    w.sweep = null;
+    if (w.leaving || !dark()) { usherLeave(w); return; }
+    if (w.queued) {
+      const t = w.queued;
+      w.queued = null;
+      t.shushBy = null;
+      if (walkers.get(t.key) === t && t.sitting && !t.out && t.texting) { shush(w, t); return; }
+    }
+    if (w.spotQ) {
+      const t = w.spotQ;
+      w.spotQ = null;
+      t.spotBy = null;
+      if (walkers.get(t.key) === t && t.sitting && !t.out) { spotVisit(w, t); return; }
+    }
+    w.task = null;
+    w.pace = 0.7;   // a slow patrol
+    if (Math.random() < 0.45) {
+      // up a stair aisle to a row, shine along it, back down
+      const row = rows[1 + Math.floor(Math.random() * (rows.length - 1))];
+      const right = Math.random() < 0.3;
+      const there = [[...w.pos], ...aisleTo(row, right ? 'right' : 'main', right ? 15.15 : 3.475)];
+      w.round = { out: there };
+      go(w, there, (x) => {
+        x.sweep = right ? { row, u0: 16.0, u1: 17.0, t0: performance.now() } : { row, u0: 4.5, u1: 14.1, t0: performance.now() };
+        hold(x, rand(4, 7), (y) => { y.sweep = null; y.round = null; go(y, [...there].reverse(), usherNext); });
+      });
+    } else {
+      // along the cross-aisle, then a look over the rows ahead
+      const crossV = L.walk_route.rear_portal_to_cross_aisle.at(-1)[1];
+      const u = rand(3.475, 15.15);
+      w.round = { out: null };   // on the cross-aisle the whole time: can head off from wherever it is
+      go(w, [[...w.pos], [u, crossV, 24]], (x) => {
+        x.sweep = { row: rows[1 + Math.floor(Math.random() * 2)], u0: u - 2.5, u1: u + 2.5, t0: performance.now() };
+        hold(x, rand(3, 6), (y) => { y.round = null; usherNext(y); });
+      });
+    }
+  }
+  // a talker needs a visit: break off the look round, back to the cross-aisle the way it came, and go
+  function usherRecall(u) {
+    const r = u.round;
+    if (!r) return;   // coming in, heading back already, or busy: the visit waits for usherNext
+    u.round = null;
+    u.sweep = null;
+    u.wait = 0;
+    const walked = r.out && u.path === r.out ? r.out.slice(0, u.seg + 1) : r.out || [];
+    go(u, [[...u.pos], ...[...walked].reverse()], usherNext);
+  }
+  function usherLeave(w) {
+    w.leaving = true;
+    w.round = null;
+    w.sweep = null;
+    w.spot = null;
+    if (w.queued) { w.queued.shushBy = null; w.queued = null; }
+    if (w.spotQ) { w.spotQ.spotBy = null; w.spotQ = null; }
+    go(w, [[...w.pos], ...[...L.walk_route.rear_portal_to_cross_aisle].reverse().map((p) => [...p])], removeWalker);
+  }
+  function stepUsher(now) {
+    if (!L) return;
+    if (dark()) {
+      if (!usher && !usherDue) usherDue = now + 4000;
+      if (!usher && now >= usherDue) { usherDue = 0; usher = addUsher(); }
+    } else {
+      usherDue = 0;
+      if (usher) usher.leaving = true;   // finishes this round, then goes (usherNext)
+    }
+  }
+  const KICK = q.has('kick') ? clamp(Number(q.get('kick')) || 0, 0, 1) : 0.5;   // ?kick=<0-1> for testing
+  // someone talked in the dark: the usher breaks off its look round and goes over
+  function spotlight(w) {
+    const u = usher;
+    if (!u || u.leaving || !u.seen || !dark() || w.out || w.spotBy || u.spotQ) return;
+    u.spotQ = w;   // next in line after a visit, shush or kick in progress
+    w.spotBy = u;
+    if (!u.task) u.pace = 1;   // on its way back from a round: hurries
+    usherRecall(u);
+  }
+  function spotVisit(s, t) {
+    s.task = 'spot';
+    s.pace = 1;   // hurries over
+    t.spotBy = s;
+    const there = visitPath(s, t);
+    go(s, there, (x) => {
+      t.spotBy = null;
+      if (walkers.get(t.key) !== t || !t.sitting || t.out || !dark()) { go(x, [...there].reverse(), usherNext); return; }
+      faceToward(x, t);
+      x.spot = { w: t, until: performance.now() + 3000 };
+      hold(x, 2.5, (y) => {
+        // (no kick once the lights are back up or the usher is clocking off)
+        if (walkers.get(t.key) !== t || !t.sitting || t.out || !dark() || y.leaving || Math.random() >= KICK) { go(y, [...there].reverse(), usherNext); return; }
+        // kicked: out through the entrance with the usher behind them
+        y.task = 'kick';
+        t.outWhy = 'kicked';
+        goingOut(t, '🔦 kicked');
+        hold(y, 1.2, (z) => leadOut(z, t, usherNext));
+      });
+    });
+  }
+  const beam = (() => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'beam');
+    svg.setAttribute('viewBox', '0 0 1920 1080');
+    svg.innerHTML = '<defs><linearGradient id="beam-g" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff1c8" stop-opacity=".5"/>' +
+      '<stop offset="1" stop-color="#fff1c8" stop-opacity=".1"/></linearGradient><radialGradient id="beam-s"><stop offset="0" stop-color="#fff4d6" stop-opacity=".45"/>' +
+      '<stop offset="1" stop-color="#fff4d6" stop-opacity="0"/></radialGradient></defs><polygon fill="url(#beam-g)"/><ellipse fill="url(#beam-s)"/><circle r="2.5" fill="#fffbe8"/>';
+    nameLayer.prepend(svg);
+    return { svg, g: svg.querySelector('linearGradient'), poly: svg.querySelector('polygon'), spot: svg.querySelector('ellipse'),
+      lens: svg.querySelector('circle'), shown: false, key: '' };
+  })();
+  function updateBeam(now) {
+    const w = usher;
+    let t = null;
+    if (w && w.seen && w.box && dark() && !w.leaving) {
+      const s = w.spot && now < w.spot.until && walkers.get(w.spot.w.key) === w.spot.w ? w.spot.w : null;
+      if (s) {
+        const [sx, sy] = P(...s.pos);
+        t = [sx, sy - s.emH * (s.sitting ? SIT_SCALE : 1) * 0.55];
+        w.wait = Math.max(w.wait || 0, 0.05);   // stops to shine on them
+      } else if (w.sweep) {
+        const sw = w.sweep, k = 0.5 - 0.5 * Math.cos((now - sw.t0) / 1000 * 0.9);
+        t = P(sw.u0 + (sw.u1 - sw.u0) * k, sw.row.v + SIT_DV, sw.row.z + SIT_Z + 36);
+      } else {
+        // walking: the light on the floor a little ahead
+        const a = w.path[w.seg], b = w.path[w.seg + 1];
+        const du = b ? b[0] - a[0] : 0, dv = b ? b[1] - a[1] : 0, n = Math.hypot(du, dv);
+        if (n > 0.01) w.fwd = [du / n, dv / n];
+        const f = w.fwd || [1, 0];
+        t = P(w.pos[0] + f[0] * 1.6, w.pos[1] + f[1] * 1.6, w.pos[2]);
+      }
+    }
+    if (!t) { if (beam.shown) { beam.svg.style.display = 'none'; beam.shown = false; } return; }
+    const [x, y] = P(...w.pos);
+    if (s0(w)) SB.faceEmote(w.em, w.emName, t[0] - x);
+    const side = Math.sign(t[0] - x) || 1;
+    const hx = x + side * w.emW * 0.3, hy = y - w.emH * 0.45;
+    const dx = t[0] - hx, dy = t[1] - hy, len = Math.hypot(dx, dy);
+    if (len < 6) return;
+    const nx = -dy / len, ny = dx / len, r = clamp(len * 0.12, 14, 34);
+    const f1 = (v) => v.toFixed(1);
+    const key = `${f1(hx)},${f1(hy)},${f1(t[0])},${f1(t[1])}`;
+    if (!beam.shown) { beam.svg.style.display = 'block'; beam.shown = true; }
+    beam.svg.style.opacity = w.alpha.toFixed(2);
+    if (key === beam.key) return;
+    beam.key = key;
+    beam.g.setAttribute('x1', f1(hx)); beam.g.setAttribute('y1', f1(hy));
+    beam.g.setAttribute('x2', f1(t[0])); beam.g.setAttribute('y2', f1(t[1]));
+    beam.poly.setAttribute('points', [[hx + nx * 2, hy + ny * 2], [hx - nx * 2, hy - ny * 2], [t[0] - nx * r, t[1] - ny * r], [t[0] + nx * r, t[1] + ny * r]]
+      .map((p) => p.map(f1).join(',')).join(' '));
+    Object.entries({ cx: t[0], cy: t[1], rx: r * 1.2, ry: r * 0.8 }).forEach(([k, v]) => beam.spot.setAttribute(k, f1(v)));
+    beam.lens.setAttribute('cx', f1(hx)); beam.lens.setAttribute('cy', f1(hy));
+  }
+  // standing still (a pause or a stop to shine on someone): the usher turns to the light; walking, the step does
+  const s0 = (w) => w.wait > 0 || !w.path[w.seg + 1];
+
+  // ---------- speech ----------
+  function say(w, tokens) {
+    dropBubble(w);
+    const b = h('div', 'bub');
+    const who = b.appendChild(h('div', 'bn', w.nick));
+    who.style.color = w.nm.style.color;
+    if (w.rainbow) { who.textContent = ''; who.append(h('span', 'rbt', w.nick)); }
+    SB.renderTokens(b.appendChild(h('div', 'bt')), tokens, 22, 64);
+    bubLayer.append(b);
+    w.bub = b;
+    w.bubT = 6;
+    w.nameT = 6;
+    if (w.sitting) { w.bounce = 1; turnNeighbours(w); spotlight(w); }
+    w.idleT = 0;
+    bubOrder.push(w);
+    capBubbles();
+  }
+  function turnNeighbours(speaker) {
+    const seat = speaker.seat;
+    const row = rows.indexOf(seat.row);
+    const sx = P(...speaker.pos)[0];
+    for (const w of walkers.values()) {
+      if (w === speaker || !w.sitting || w.dozing) continue;
+      const other = w.seat;
+      const du = Math.abs(other.u - seat.u);
+      const beside = other.row === seat.row && other.block === seat.block && du <= 1.6 + 0.01;
+      const aheadBehind = Math.abs(rows.indexOf(other.row) - row) === 1 && du < 0.01;
+      if (!beside && !aheadBehind) continue;
+      SB.faceEmote(w.em, w.emName, Math.sign(sx - P(...w.pos)[0]));
+      w.lookT = rand(4, 6);
+    }
+  }
+  // at most 4 bubbles on screen; ones waiting in the tunnel (hidden) don't count until they come out
+  function capBubbles() {
+    const shown = bubOrder.filter((o) => o.seen);
+    // off-view ones (zoomed in, hidden) go first, so the bubble on screen is not dropped for them
+    while (shown.length > 4) { const i = Math.max(0, shown.findIndex((o) => o.bub?.style.visibility === 'hidden')); dropBubble(shown.splice(i, 1)[0]); }
+  }
+  function dropBubble(w) {
+    if (!w.bub) return;
+    w.bub.remove();
+    w.bub = null;
+    w.bubbleMeasured = null;
+    const i = bubOrder.indexOf(w);
+    if (i >= 0) bubOrder.splice(i, 1);
+  }
+  function inScreen(x, y) {
+    if (!screenPoly) return false;
+    x = (x - 960) / cam.z + cam.x;
+    y = (y - 540) / cam.z + cam.y;
+    let inside = false;
+    for (let i = 0, j = screenPoly.length - 1; i < screenPoly.length; j = i++) {
+      const [xi, yi] = screenPoly[i];
+      const [xj, yj] = screenPoly[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  // Above the head; below the seat instead when it would cover the film screen. Bubbles placed earlier
+  // this frame are avoided: a later one moves past them (up when above the head, down when below).
+  function placeBubble(w, placed) {
+    const b = w.bub;
+    const [x, y] = toScreen(w.bx, w.by);
+    const head = toScreen(w.bx, w.by - w.emH)[1];
+    const bw = w.bw;
+    const bh = w.bh;
+    const left = clamp(x - bw / 2, 8, 1912 - bw);
+    const coversScreen = (t) => [[left, t], [left + bw, t], [left, t + bh], [left + bw, t + bh], [left + bw / 2, t]].some(([px, py]) => inScreen(px, py));
+    const below = coversScreen(head - bh - 14);
+    let top = below ? y + 18 : head - bh - 14;
+    for (let i = 0; i < 6; i++) {
+      const hit = placed.find((r) => left < r.x1 + 6 && left + bw > r.x0 - 6 && top < r.y1 + 6 && top + bh > r.y0 - 6);
+      if (!hit) break;
+      top = below ? hit.y1 + 6 : hit.y0 - bh - 6;
+    }
+    top = clamp(top, 8, 1072 - bh);
+    placed.push({ x0: left, y0: top, x1: left + bw, y1: top + bh });
+    b.classList.toggle('below', below);
+    b.style.transform = `translate(${left}px, ${top}px)`;
+    b.style.setProperty('--tail', `${clamp(x - (left + bw / 2), -bw / 2 + 12, bw / 2 - 12)}px`);
+  }
+
+  // ---------- frame ----------
+  let last = performance.now();
+  function frame(now) {
+    // the next frame first: an exception in tick() ended the rAF loop and left the 40 ms fallback (~6 fps, slow
+    // motion) for the rest of the stream (QA 05 Nov); the lobby does the same
+    requestAnimationFrame(frame);
+    try { tick(now); } catch (error) { console.error('[auditorium] frame', error); }
+  }
+  // fallback for throttled/background tabs (headless screenshots): drive the loop if rAF stalls
+  setInterval(() => {
+    if (performance.now() - last <= 150) return;
+    try { tick(performance.now()); } catch (error) { console.error('[auditorium] frame', error); }
+  }, 40);
+  function tick(now) {
+    const dt = clamp((now - last) / 1000, 0, 0.1);
+    last = Math.max(last, now);  // the timer fallback can run just before an older rAF timestamp arrives
+    // waiting outside (full house) only while still chatting: 10 min quiet and they go home, so whoever finally gets a
+    // free seat does not walk in with an hour-old message
+    if (now - lastQueueTrim > 1000) {
+      lastQueueTrim = now;
+      for (let i = arrivals.length - 1; i >= 0; i--) if (now - (arrivals[i].at ?? now) > QUEUE_QUIET_MS) arrivals.splice(i, 1);
+      if (LEAVE_MS && L && arrivals.length && guests() >= seats.length && now - lastLeave > 5000) {
+        let best = null;
+        for (const w of walkers.values()) {
+          if (!w.sitting || !w.dozing || w.out || w.jan || w.usher || director.follow?.w === w || now - w.lastMsg < LEAVE_MS) continue;
+          if (!best || w.lastMsg < best.lastMsg) best = w;
+        }
+        if (best) { lastLeave = now; goingOut(best, '💤 heading home'); standUp(best); }
+      }
+    }
+    if (L && arrivals.length && now >= nextArrival) {
+      if (spawn(arrivals[0])) { arrivals.shift(); nextArrival = now + rand(900, 1600); }
+    }
+    stepDoor(dt);
+    stepJannies(now);
+    stepUsher(now);
+    const ahead = [];
+    for (const w of walkers.values()) { step(w, dt, w.usher ? [] : ahead); if (!w.sitting && !w.usher) ahead.push(w); }
+    showNames();
+    updateBeam(now);
+    cullPieces();
+    stepCamera(dt);
+    autoPhase(now);
+    capBubbles();
+    // Read all new bubble sizes together after the writes; unchanged bubbles never force layout per frame.
+    for (const w of bubOrder) if (w.bub && w.bubbleMeasured !== w.bub) {
+      w.bw = w.bub.offsetWidth; w.bh = w.bub.offsetHeight; w.bubbleMeasured = w.bub;
+    }
+    const placed = [];
+    for (const w of bubOrder) if (w.bub && w.bub.style.visibility !== 'hidden') placeBubble(w, placed);
+  }
+
+  // Neighbours who sit down together both showed their names on top of each other (QA 04 Nov: 16 clashes in 5 min,
+  // unreadable). Names are placed in order (followed, jannies, then the most recent arrival) and one that would
+  // overlap a name already shown waits (fades out) until it is clear.
+  const nameRank = (w) => (director.follow?.w === w ? 1e6 : 0) + (w.jan ? 1e5 : 0) + w.nameT;
+  function showNames() {
+    const shown = [];
+    const list = [];
+    for (const w of walkers.values()) if (w.nameWant) list.push(w);
+    list.sort((a, b) => nameRank(b) - nameRank(a));
+    for (const w of list) {
+      w.nmW ??= w.nm.offsetWidth;   // the text never changes: measured once
+      const r = [w.nx - w.nmW / 2, w.ny + 5, w.nx + w.nmW / 2, w.ny + 19];   // #names .nm: top 5px, 12px font
+      const clash = shown.some((s) => r[0] < s[2] + 2 && r[2] > s[0] - 2 && r[1] < s[3] && r[3] > s[1]);
+      if (!clash) shown.push(r);
+      style(w.nm, 'opacity', clash ? '0' : w.alpha.toFixed(3));
+    }
+  }
+
+  // Project earlier walkers onto the next stretch of this route. Looking past short tread segments and
+  // corners preserves the gap at bends; height separates the tunnel from the seats above it. Seated
+  // people never block the legroom. Only earlier arrivals block, so branches cannot create a wait cycle.
+  function blockedAhead(w, travel, ahead) {
+    let allowed = travel;
+    let along = 0;
+    for (let i = w.seg; i < w.path.length - 1 && along < WALK_GAP + travel; i++) {
+      const a = i === w.seg ? w.pos : w.path[i];
+      const b = w.path[i + 1];
+      const du = b[0] - a[0], dv = b[1] - a[1], dz = (b[2] - a[2]) / 60;
+      const len = Math.hypot(du, dv, dz);
+      if (len < .00001) continue;
+      for (const o of ahead) {
+        const ru = o.pos[0] - a[0], rv = o.pos[1] - a[1], rz = (o.pos[2] - a[2]) / 60;
+        const t = (ru * du + rv * dv + rz * dz) / (len * len);
+        if (t < 0 || t > 1) continue;
+        const distance = along + t * len;
+        if (distance <= .00001 || distance >= WALK_GAP + allowed) continue;
+        if (Math.hypot(ru - t * du, rv - t * dv, rz - t * dz) < .18) allowed = Math.min(allowed, Math.max(0, distance - WALK_GAP));
+      }
+      along += len;
+    }
+    return allowed;
+  }
+  function step(w, dt, ahead) {
+    let lift = 0;
+    let tilt = 0;
+    let sq = 1;
+    if (!w.sitting) {
+      const a = w.path[w.seg];
+      const b = w.path[w.seg + 1];
+      if (!b && (w.jan || w.usher || w.out)) {
+        // staff never sit (a janny mops, moves on or clocks off; the usher patrols), and nor does someone leaving
+        const next = w.onArrive;
+        w.onArrive = null;
+        next?.(w);
+      } else if (!b) {
+        // arrived at the legroom in front of the seat: sit down, facing the screen (up and to the right)
+        w.sitting = true;
+        w.el.classList.add('sit');
+        w.pos = [w.seat.u, w.seat.v + SIT_DV, w.seat.z + SIT_Z];
+        w.nameT = 3;
+        SB.faceEmote(w.em, w.emName, 1);
+      } else if (w.wait > 0) {
+        w.wait -= dt;
+      } else {
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] - a[2]) / 60) || 0.01;
+        const climbing = Math.abs(b[2] - a[2]) > 0.5;
+        const travel = blockedAhead(w, dt * (climbing ? STAIR_SPEED : SPEED) * (w.pace || 1), ahead);
+        w.t += travel / len;
+        if (w.t >= 1) { w.seg += 1; w.t = 0; w.pos = [...b]; } else w.pos = a.map((c, i) => c + (b[i] - c) * w.t);
+        SB.faceEmote(w.em, w.emName, (b[0] - a[0]) - (b[1] - a[1]));   // looks the way it walks (screen x = u - v)
+        // the lobby's walk: one lazy hop every ~0.8 s, waddling along in between, a little squash on landing
+        if (travel > .00001) w.phase += dt * 3.9;
+        const c = (w.phase / Math.PI) % 1;
+        const s = c < 0.5 ? Math.sin((c / 0.5) * Math.PI) : 0;
+        lift = travel > .00001 ? s * 13 * K : 0;
+        tilt = travel > .00001 && c >= 0.5 ? Math.sin((c - 0.5) * 4 * Math.PI) * 3.5 : 0;
+        sq = travel > .00001 && c < 0.5 && s < 0.2 ? 0.9 : 1;
+      }
+    } else {
+      if (!w.dozing && !w.out && performance.now() - w.lastMsg > w.dozeAfter) doze(w, true);
+      if (w.phone && !w.dozing && !w.out) {   // (not while waiting to be led out)
+        // the phone joke: out for a few seconds every so often (glowing in the dark), then back in the pocket
+        w.phoneT -= dt;
+        if (w.phoneT <= 0) {
+          const on = !w.phone.classList.contains('on');
+          w.phone.classList.toggle('on', on);
+          w.phoneT = on ? rand(8, 18) : rand(15, 45);
+          if (on) placeItem(w); else w.texting = false;
+        }
+      }
+    }
+    if (w.sitting && w.bounce > 0) {
+      // seated: a small bounce in the seat when they say something
+      w.bounce = Math.max(0, w.bounce - dt * 2.4);
+      lift = Math.sin(w.bounce * Math.PI) * 9 * K;
+    }
+    if (w.sitting && w.lookT > 0) {
+      w.lookT = Math.max(0, w.lookT - dt);
+      if (!w.lookT) SB.faceEmote(w.em, w.emName, 1);
+    }
+    // dozing: leans over and sinks a little into the seat, breathing slowly
+    w.dozeK = (w.dozeK || 0) + ((w.dozing ? 1 : 0) - (w.dozeK || 0)) * Math.min(1, dt * 1.2);
+    if (w.dozeK > 0.01) {
+      tilt += 11 * w.dozeK;
+      lift -= 3 * K * w.dozeK;
+      sq = 1 - 0.035 * w.dozeK * (0.5 + 0.5 * Math.sin(performance.now() / 700));
+    }
+    const [u, v, z] = w.pos;
+    // in the tunnel (under the left seat block, between the rear portal and the mouth) nobody is seen:
+    // the depth slices cover them; without slices they fade out
+    // (the mouth is at v 9.4, but the guard post and stair cheek still cover most of them until v ~8.8)
+    const inTunnel = u < 2.9 && v > 8.8 && z < 10;
+    if (!w.seen && !inTunnel) { w.nameT = 5; if (w.jan && !w.leaving && !w.onDuty) { w.onDuty = true; floatAt(w, '🧹 janny on duty', '#7ff7f0'); } }
+    w.seen = !inTunnel;
+    w.alpha += ((w.seen || layers ? 1 : 0) - w.alpha) * Math.min(1, dt * 8);
+    // saved messages come out one by one while they can be seen
+    w.sayNext = (w.sayNext || 0) - dt;
+    if (w.pending.length && w.seen && w.sayNext <= 0) {
+      say(w, w.pending.shift());
+      w.sayNext = 2.5;
+    }
+    // in their row (legroom or seat) the row's own seat backs cover the lower body. Seated, this cut also applies
+    // with the depth slices: an emote wider than its backrest would otherwise show its flat bottom beside it.
+    const inRow = w.sitting || (!layers && w.seat && w.seg >= w.path.length - 2 && Math.abs(v - (w.seat.v - LEG_DV)) < 0.05);
+    const [x, y] = P(u, v, z);
+    const grow = w.sitting ? SIT_SCALE : 1;   // seated emotes can be drawn larger, growing up from the seat
+    let cut = 0;
+    if (inRow) {
+      const yb = P(u, w.seat.v + BACK_DV, w.seat.z + BACK_Z)[1];
+      cut = clamp(y - yb, 0, w.emH * grow - 6);
+    }
+    // The backrest top runs along the row, which slopes down to the right on screen (30 px down per 60 across),
+    // so the emote is cut on that diagonal, not on a level line. A hop lifts it out from behind the backs.
+    const hide = Math.max(0, cut - lift) / grow;   // in the emote's own (unscaled) pixels
+    if (w.sitting && !lift && Math.abs(hide - w.hideLocal) > 0.5) { w.hideLocal = hide; placeItem(w); }
+    if (hide > 0) {
+      const edge = w.emH - hide;   // backrest top at the emote's centre, in its own pixels from the top
+      const slope = w.em.dataset.flip === 'true' ? -0.5 : 0.5;   // a mirrored emote mirrors its clip too
+      const at = (xl) => (edge + slope * (xl - w.emW / 2)).toFixed(1);
+      style(w.em, 'clipPath', `polygon(-40px -40px, ${w.emW + 40}px -40px, ${w.emW + 40}px ${at(w.emW + 40)}px, -40px ${at(-40)}px)`);
+    } else style(w.em, 'clipPath', '');
+    style(w.el, 'transform', `translate(${x.toFixed(1)}px, ${(y - lift).toFixed(1)}px)`);
+    style(w.bod, 'transform', tilt || sq !== 1 || grow !== 1 ? `rotate(${tilt.toFixed(1)}deg) scale(${((2 - sq) * grow).toFixed(3)}, ${(sq * grow).toFixed(3)})` : '');
+    // the contact shadow stays on the floor, smaller and fainter while they're in the air
+    const shS = 1 - Math.min(lift, 18) / 36;
+    style(w.sh, 'transform', `translateY(${lift.toFixed(1)}px) scale(${shS.toFixed(2)})`);
+    style(w.sh, 'opacity', shS.toFixed(2));
+    style(w.el, 'opacity', w.alpha.toFixed(3));
+    const zi = layers ? depthZ(u, v, z) : Math.round((u + v) * 100) + 10;
+    style(w.el, 'zIndex', String(zi));
+    // what this chatter covers in the world (emote, waddle, shadow) and its depth, for cullPieces
+    w.box = [x - w.emW * grow / 2 - 10, y - lift - w.emH * grow - 10, x + w.emW * grow / 2 + 10, y + 8, zi];
+    w.nameT = Math.max(0, w.nameT - dt);
+    if (w.bub) {
+      // a bubble waits (hidden, clock stopped) while its speaker walks through the tunnel; outside the zoomed-in view
+      // it is hidden but its clock runs (the camera can hold on the screen for a whole film): off-view bubbles were
+      // clamped into the screen's corner and piled up there (QA 04 Nov)
+      const [vx, vy] = toScreen(x, y - lift);
+      w.bub.style.visibility = w.seen && vx > 10 && vx < 1910 && vy > 10 && vy < 1075 ? '' : 'hidden';
+      if (w.seen) w.bubT -= dt;
+      if (w.bubT <= 0) dropBubble(w); else { w.bx = x; w.by = y - lift; }
+    }
+    if (w.zz) {
+      style(w.zz, 'transform', `translate(${(x + w.emW * grow * 0.3).toFixed(1)}px, ${(y - lift - w.emH * grow + 6).toFixed(1)}px)`);
+      style(w.zz, 'opacity', (w.alpha * w.dozeK).toFixed(2));
+      style(w.zz, 'visibility', w.bub ? 'hidden' : '');
+    }
+    style(w.nm, 'transform', `translate(${x.toFixed(1)}px, ${(y - lift).toFixed(1)}px) translateX(-50%)`);
+    style(w.nm, 'visibility', w.seen && !w.bub ? '' : 'hidden');
+    // shown (or not) in tick(), after every walker has moved: names that would land on each other show one at a time
+    w.nameWant = (w.nameT > 0 || w.jan || director.follow?.w === w) && !w.bub && w.seen && !w.usher;   // (the usher has none)
+    w.nx = x; w.ny = y - lift;
+    if (!w.nameWant) style(w.nm, 'opacity', '0');
+  }
+
+  // ---------- camera + zoom director ----------
+  // The lobby's spring and edge clamping. Follow an arrival from the entrance to their seat, hold a moment,
+  // then ease back out. Inside the tunnel they are hidden: frame the mouth until they emerge.
+  const camEl = $('cam');
+  const cam = { x: 960, y: 540, z: 1, vx: 0, vy: 0, vz: 0, key: '' };
+  const director = { on: DIRECTOR_ON, every: clamp(Number(q.get('director')) || 150, 30, 1800), zoom: ZOOM,
+    follow: null, next: performance.now() + rand(45, 75) * 1000, wantNext: false, screenAt: 0 };
+  // Lights down: 10 s in, the camera eases onto the screen and stays while the lights are down. Always the same
+  // framing, so OBS's corner-pin of the film can use these zoomed corners. No automatic follows meanwhile (F, R and
+  // the control panel still cut away; W / "wide" cancels the shot until the lights go down again).
+  const onScreen = (now) => director.on && director.screenAt > 0 && now >= director.screenAt && !!screenPoly;
+  function screenShot() {
+    const xs = screenPoly.map((p) => p[0]), ys = screenPoly.map((p) => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    return [(x0 + x1) / 2, (y0 + y1) / 2, clamp(Math.min(1920 / (x1 - x0), 1080 / (y1 - y0)) * 0.94, 1, 3)];
+  }
+  function toScreen(x, y) { return [(x - cam.x) * cam.z + 960, (y - cam.y) * cam.z + 540]; }
+  // critically damped spring: smooth start and stop, no overshoot, frame-rate independent
+  function damp(c, v, target, time, dt) {
+    const o = 2 / time;
+    const x = o * dt;
+    const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    const ch = c - target;
+    const tmp = (v + o * ch) * dt;
+    return [target + (ch + tmp) * e, (v - o * tmp) * e];
+  }
+  function startFollow(w, manual = true) {
+    if (!w || !walkers.has(w.key)) return;
+    director.follow = { w, manual, since: performance.now(), lx: null, ly: null, ax: 0, ay: 0, tx: null, ty: null, endAt: 0 };
+    director.wantNext = false;
+  }
+  function endFollow() {
+    if (!director.follow) return;
+    director.follow = null;
+    director.next = performance.now() + director.every * 1000 * rand(0.85, 1.2);
+  }
+  function directorArrival(w) {
+    if (director.follow) return;
+    const now = performance.now();
+    if (director.wantNext || (director.on && !director.screenAt && now >= director.next)) startFollow(w, director.wantNext);
+  }
+  function followSomeone(nick) {
+    const key = nick?.toLowerCase();
+    const list = [...walkers.values()].filter((w) => (!key || w.key === key));
+    if (list.length) startFollow(list[Math.floor(Math.random() * list.length)]);
+    return list.length > 0;
+  }
+  function stepCamera(dt) {
+    const now = performance.now();
+    const f = director.follow;
+    let tx = 960;
+    let ty = 540;
+    let tz = 1;
+    if (f && !f.manual && onScreen(now)) endFollow();
+    else if (f) {
+      const w = f.w;
+      if (!f.endAt && (w.sitting || !walkers.has(w.key) || now - f.since > 150000)) f.endAt = now + (w.sitting ? 3200 : 0);
+      if (f.endAt && now >= f.endAt) endFollow();
+      else {
+        const pos = w.seen === false ? [2.1, 9.4, 8] : w.pos;
+        const [x, foot] = P(...pos);
+        const y = foot - w.emH * 0.7;
+        // lead the shot a little in the walking direction (smoothed velocity)
+        if (f.lx != null && dt > 0) {
+          f.ax = f.ax * 0.9 + ((x - f.lx) / dt) * 0.1;
+          f.ay = f.ay * 0.9 + ((y - f.ly) / dt) * 0.1;
+        }
+        f.lx = x;
+        f.ly = y;
+        f.tx = x + clamp(f.ax * 0.35, -60, 60);
+        f.ty = y + clamp(f.ay * 0.35, -40, 40);
+        tx = f.tx; ty = f.ty; tz = director.zoom;
+      }
+    }
+    // a slow push onto the screen
+    const slow = !director.follow && onScreen(now);
+    if (slow) [tx, ty, tz] = screenShot();
+    const fit = (c, half, size) => clamp(c, half, size - half);
+    tx = fit(tx, 960 / tz, 1920);
+    ty = fit(ty, 540 / tz, 1080);
+    [cam.z, cam.vz] = damp(cam.z, cam.vz, tz, slow ? 3.5 : 1.5, dt);
+    [cam.x, cam.vx] = damp(cam.x, cam.vx, tx, slow ? 3.5 : director.follow ? 0.75 : 1.4, dt);
+    [cam.y, cam.vy] = damp(cam.y, cam.vy, ty, slow ? 3.5 : director.follow ? 0.75 : 1.4, dt);
+    cam.x = fit(cam.x, 960 / cam.z, 1920);
+    cam.y = fit(cam.y, 540 / cam.z, 1080);
+    // a bad target must never freeze the camera for good (a NaN never leaves the springs; the lobby had one): wide shot
+    if (![cam.x, cam.y, cam.z].every(Number.isFinite)) { Object.assign(cam, { x: 960, y: 540, z: 1, vx: 0, vy: 0, vz: 0 }); endFollow(); }
+    const key = `translate(${(960 - cam.x * cam.z).toFixed(2)}px, ${(540 - cam.y * cam.z).toFixed(2)}px) scale(${cam.z.toFixed(4)})`;
+    if (key !== cam.key) { cam.key = key; camEl.style.transform = key; }
+    applyArtRes();
+  }
+  // keys work while the page has focus (OBS: right-click the source -> Interact)
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'f') director.wantNext = true;
+    else if (k === 'r') followSomeone();
+    else if (k === 'w' || k === 'escape') { director.wantNext = false; director.screenAt = 0; endFollow(); }
+    else if (k === 'd') director.on = !director.on;
+  });
+
+  // ---------- control panel (control.html) through the standby server ----------
+  function statusOf(w) {
+    if (w.usher) return w.task === 'kick' ? 'usher, kicking someone out' : w.task === 'spot' ? 'usher, going to a talker' : w.leaving ? 'usher, leaving' : 'usher';
+    if (w.jan) return w.task === 'escort' ? 'janny, escorting' : w.task === 'shush' ? 'janny, shushing' : w.leaving ? 'janny, clocking off' : 'janny';
+    if (w.out) return w.outWhy === 'kicked' ? 'kicked by the usher' : w.sitting ? 'banned/muted, waiting for a janny' : 'banned/muted, leaving';
+    return w.sitting ? `seat ${w.seat.row.name}${w.dozing ? ', dozing' : ''}` : w.seen === false ? 'tunnel' : 'walking in';
+  }
+  function control(c) {
+    // Older servers broadcast everything. Untargeted commands belong to the lobby, never this scene.
+    if (c.page !== 'auditorium' || (c.id && c.id !== pageId)) return;
+    const now = performance.now();
+    const key = typeof c.nick === 'string' ? c.nick.trim().toLowerCase() : '';
+    switch (c.cmd) {
+      case 'phase': setPhase(c.value, true); break;
+      case 'phaseAuto':
+        show.auto = !!c.on;
+        show.completedAt = show.auto && show.download.completed ? now : 0;
+        autoPhase(now);
+        break;
+      case 'follow': followSomeone(key); break;
+      case 'random': followSomeone(); break;
+      case 'next': director.wantNext = true; break;
+      case 'wide': director.wantNext = false; director.screenAt = 0; endFollow(); break;
+      case 'director': director.on = !!c.on; if (director.on) director.next = Math.min(director.next, now + 20000); break;
+      case 'every': if (Number.isFinite(+c.value)) director.every = clamp(+c.value, 30, 1800); break;
+      case 'zoom': if (Number.isFinite(+c.value)) director.zoom = clamp(+c.value, 1.2, 3); break;
+      case 'reset':
+        director.wantNext = false;
+        endFollow();
+        arrivals.length = 0;
+        nextArrival = 0;
+        for (const w of [...walkers.values()]) removeWalker(w);
+        for (const s of seats) s.taken = false;
+        bubOrder.length = 0;
+        bubLayer.replaceChildren();
+        audience();
+        if (doorShot) { doorShot.el.remove(); doorShot = null; doorCutout(false); }
+        break;
+      case 'remove': removeNick(key); break;
+      case 'add':
+      case 'say': {
+        const nick = String(c.nick || '').trim().slice(0, 25);
+        if (!nick) break;
+        const text = String(c.text || '').slice(0, 200);
+        const tokens = SB.tokenize(text);
+        const emote = tokens.find((t) => t.t === 'emote')?.name || Cinema.defaultEmote(nick);
+        onMessage({ nick, text, tokens, emote, color: SB.nickColor(nick) });
+        break;
+      }
+      default: break;
+    }
+  }
+  const pageId = Math.random().toString(36).slice(2, 8);
+  if (q.get('ctl') !== '0' && location.protocol.startsWith('http')) {
+    let alive = true;
+    let statePending = false;
+    const es = new EventSource(`/ctl/events?page=auditorium&id=${pageId}`);
+    es.onmessage = (e) => { try { control(JSON.parse(e.data)); } catch (error) { console.error('[auditorium] control', error); } };
+    const postState = () => {
+      if (!alive || statePending) return;
+      const f = director.follow;
+      // obs: this screen is the OBS source (the panel shows it before a bigger preview tab)
+      const body = { id: pageId, page: 'auditorium', ts: Date.now(), size: [innerWidth, innerHeight], obs: !!window.obsstudio,
+        preshow: { phase: show.phase, auto: show.auto, download: show.download, alwaysGreen },
+        house: { capacity: seats.length, occupied: guests(), waiting: arrivals.length, queueLimit: MAX_QUEUE },
+        director: { on: director.on, every: director.every, zoom: director.zoom, wantNext: director.wantNext,
+          following: f?.w.nick || null, nextIn: Math.max(0, Math.round((director.next - performance.now()) / 1000)) },
+        chatters: [...walkers.values()].map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w }))
+          .concat(arrivals.map((m) => ({ nick: m.nick, emote: m.emote, status: 'waiting outside', followed: false }))) };
+      statePending = true;
+      fetch('/ctl/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(3500) })
+        .then((r) => { if (r.status === 404) { alive = false; es.close(); } })
+        .catch(() => {}).finally(() => { statePending = false; });
+    };
+    postState();
+    setInterval(postState, 1500);
+  }
+
+  // ---------- start ----------
+  Cinema.onWalkIn(onMessage);
+  Cinema.onPurge(onPurge);
+
+  (async () => {
+    try {
+      const res = await fetch(`${ART}cinema_layout_${DRAFT}.json`, { cache: 'no-store' });
+      L = await res.json();
+    } catch (error) { console.error('[auditorium] layout', error); }
+    if (L) {
+      ({ k: K, Ox: OX, Oy: OY } = L.camera);
+      EH = 45 * K;
+      MAXW = 66.6 * K;
+      treads = L.stairs.treads_v0_v1_zpx_world;
+      rows = L.rows.map((r) => ({ name: r.row, v: r.v, z: r.floor_zpx_world, flat: r.floor_zpx_world <= 24 }));
+      for (const [i, r] of L.rows.entries()) {
+        for (const [block, us] of Object.entries(r.seat_u_by_block)) {
+          for (const u of us) seats.push({ row: rows[i], u, v: r.v, z: r.floor_zpx_world, block, taken: false });
+        }
+      }
+      if (L.page_layers && Array.isArray(L.page_layers.slices)) {
+        layers = L.page_layers;
+        $('stage').classList.toggle('has-dim-art', !!layers.dim);
+        const dimSlices = new Map((layers.dim?.slices || []).map((s) => [s.name, s]));
+        if (Number.isFinite(layers.key_z_divisor)) KZ = layers.key_z_divisor;
+        const okRect = (p) => p && typeof p.file === 'string' && [p.x, p.y, p.w, p.h].every(Number.isFinite);
+        for (const s of layers.slices) {
+          if (!okRect(s) || !Number.isFinite(s.z_index)) continue;   // skip broken entries
+          const twin = dimSlices.get(s.name);
+          // Banded slices (roxy3d/tools/band-slices.mjs): the same picture as horizontal bands trimmed to their
+          // visible pixels. A diagonal row's bounding box is mostly empty, and Chrome decodes all of it: the
+          // whole slices are ~25 screens of pixels (they overflow the image cache at 4K), the bands ~5.
+          const banded = Array.isArray(s.pieces) && s.pieces.length && s.pieces.every(okRect) &&
+            (!twin || (Array.isArray(twin.pieces) && twin.pieces.length === s.pieces.length && twin.pieces.every(okRect)));
+          const parts = banded ? s.pieces : [s];
+          const twinParts = twin ? (banded ? twin.pieces : [twin]) : [];
+          const sc = layers.entrance_door?.static_slice_cutout;
+          const inSlice = sc?.slices?.includes(s.name);
+          for (const [n, p] of parts.entries()) {
+            // only the pieces over the door's cutout get its mask: outside that rect the mask is fully opaque anyway,
+            // and masking all of them (497 pieces + dim twins) made every door opening re-render ~1000 masked
+            // images (QA 04 Nov: 95 of the 497 touch the cutout)
+            const cut = inSlice && (![sc.x, sc.y, sc.w, sc.h].every(Number.isFinite)
+              || (p.x < sc.x + sc.w && p.x + p.w > sc.x && p.y < sc.y + sc.h && p.y + p.h > sc.y));
+            const im = h('img', 'slice');
+            im.alt = '';
+            im.decoding = 'async';
+            artImgs.push({ im, file: p.file, file_2x: p.file_2x });
+            Object.assign(im.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px`, zIndex: String(s.z_index), display: 'none' });
+            world.append(im);
+            if (cut) doorSlices.push(im);
+            const tp = twinParts[n];
+            let dim = null;
+            if (tp) {
+              dim = im.cloneNode();
+              dim.classList.add('dim-art');
+              world.append(dim);
+              dimImgs.push({ im: dim, file: tp.file, file_2x: tp.file_2x, piece: true });
+              if (cut) doorSlices.push(dim);
+            }
+            addPiece({ im, dim, x0: p.x, y0: p.y, x1: p.x + p.w, y1: p.y + p.h, z: s.z_index });
+          }
+        }
+        const d = layers.entrance_door;
+        if (d && typeof d.file === 'string' && [d.x, d.y, d.frame_width, d.frame_height, d.frames, d.columns, d.z_index].every(Number.isFinite)) door = d;
+        if (Number.isFinite(layers.spawn?.wait_seconds)) DOOR_WAIT = layers.spawn.wait_seconds;
+      }
+      const c = L.screen.corners_1920x1080;
+      screenPoly = [c.TL, c.TR, c.BR, c.BL];
+      $('screenpoly').setAttribute('points', screenPoly.map((p) => p.join(',')).join(' '));
+      $('screenpoly').setAttribute('fill', Cinema.green === 'off' ? '#00ff00' : Cinema.green);
+      // Columns are TL->TR / 960 and TL->BL / 540: all four corners match the layout exactly.
+      $('preshow').style.transform = `matrix(${(c.TR[0] - c.TL[0]) / 960}, ${(c.TR[1] - c.TL[1]) / 960}, ${(c.BL[0] - c.TL[0]) / 540}, ${(c.BL[1] - c.TL[1]) / 540}, ${c.TL[0]}, ${c.TL[1]})`;
+    }
+    applyPhase();
+    artImgs.push({ im: $('bg'), file: layers?.image || `cinema_draft_${DRAFT}.png`, file_2x: layers?.image_2x });
+    if (layers?.dim?.image) {
+      const im = h('img', 'dim-art');
+      im.id = 'bg-dim';
+      im.alt = '';
+      $('bg').after(im);
+      dimImgs.push({ im, file: layers.dim.image, file_2x: layers.dim.image_2x });
+    }
+    SB.mountStage($('stage'));
+    requestAnimationFrame(frame);
+    SB.start();
+    pollDownload();
+    setInterval(audience, 2000);
+  })();
+})();
+</script>
+</body>
+</html>

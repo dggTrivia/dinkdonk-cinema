@@ -1,0 +1,1618 @@
+<!doctype html>
+<!--
+  Cinema standby, design 4: "Tiny Tower Cinema" - side-view pixel-art cross-section.
+  GREEN SCREEN (chroma key): x=1344 y=64 w=544 h=306 on the 1920x1080 stage (16:9 billboard, top right).
+  ?green=off shows showtimes there instead; ?green=00b140 changes the key colour.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tiny Tower Cinema</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  :root { --ink: #fff4dc; --gold: #e8b04b; --gold-d: #a87a2c; --pink: #ff73b5; --teal: #62e8d4; --night: #0c0b1c; --dark: #140b16; }
+  #stage { background: #0b0c24; color: var(--ink); font-family: 'Pixelify Sans', sans-serif; }
+  canvas.px { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; image-rendering: crisp-edges; image-rendering: pixelated; }
+  #bg { z-index: 1; }
+  #fx { z-index: 2; }
+  #fx2 { z-index: 4; }
+  .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+  #decor { z-index: 3; }
+  #crowd { z-index: 10; }
+  #bubbles { z-index: 20; }
+  #marquees { z-index: 22; } /* room titles stay readable over bubbles */
+
+  /* ---------- rooftop neon ---------- */
+  #sign { position: absolute; left: 388px; top: 164px; width: 568px; height: 124px; text-align: center; }
+  #sign .big { margin-top: 22px; font: 60px/1 'Press Start 2P'; letter-spacing: 6px; color: #ffe3f1;
+    text-shadow: 0 0 4px var(--pink), 0 0 14px var(--pink), 0 0 30px rgba(255, 115, 181, .7); animation: breathe 5s ease-in-out infinite alternate; }
+  #sign .sub { margin-top: 16px; font: 16px/1 'Press Start 2P'; letter-spacing: 2px; color: #c8fbf2; text-shadow: 0 0 6px var(--teal), 0 0 14px var(--teal); }
+  @keyframes breathe { from { opacity: .86; } to { opacity: 1; } }
+
+  /* ---------- screening rooms ---------- */
+  .screen { position: absolute; width: 224px; height: 112px; image-rendering: pixelated; box-shadow: 0 0 18px rgba(255, 220, 160, .22); }
+  .marq { position: absolute; width: 496px; height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 8px;
+    background: var(--dark); border: 3px solid var(--gold); box-shadow: inset 0 0 0 2px #3a2010, 0 0 10px rgba(232, 176, 75, .25);
+    font: 700 20px/1 'Pixelify Sans'; color: #fff2cc; white-space: nowrap; }
+  .marq .no { flex: none; padding: 3px 5px; background: var(--gold); color: var(--dark); font: 14px/1 'Press Start 2P'; }
+  .marq .ti { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 0 6px rgba(255, 200, 120, .45); }
+  .marq .yr { flex: none; color: #c9a46a; font-weight: 400; font-size: 17px; }
+  .marq .meta { flex: none; margin-left: auto; display: flex; gap: 10px; font: 400 24px/1 'VT323'; }
+  .marq .star { color: var(--gold); }
+  .marq .cnt { min-width: 5ch; text-align: right; color: var(--teal); }
+
+  /* ---------- labels and lobby props ---------- */
+  .lbl { position: absolute; font: 14px/1 'Press Start 2P'; color: var(--gold); text-align: center; white-space: nowrap; }
+  .lbl.pxf { font: 600 20px/1 'Pixelify Sans'; }
+  .plate { padding: 5px 6px; background: var(--dark); border: 2px solid var(--gold-d); }
+  #tickets { left: 1088px; top: 828px; width: 152px; padding: 5px 0; background: var(--dark); border: 3px solid var(--gold); font-size: 16px;
+    color: #ffe3f1; text-shadow: 0 0 6px var(--pink), 0 0 12px var(--pink); }
+  #clerk { position: absolute; left: 1164px; top: 944px; }
+  #clerk .sb-emote { position: absolute; bottom: 0; }
+  #counter { position: absolute; left: 1080px; top: 928px; width: 168px; height: 56px;
+    background: linear-gradient(var(--gold) 0 6px, var(--gold-d) 6px 10px, #8a2a3a 10px); box-shadow: inset 0 -4px 0 #5a1a26; }
+  #counter::after { content: 'ADMIT ONE'; position: absolute; left: 0; right: 0; top: 22px; text-align: center; font: 14px/1 'Press Start 2P'; color: #ffd9a0; }
+  #wc { left: 104px; top: 856px; width: 72px; height: 24px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #1a1424; border: 3px solid var(--gold-d); font-size: 16px; color: #fff2cc; }
+  #wc i { width: 10px; height: 10px; background: #5ee67a; box-shadow: 0 0 6px #5ee67a; }
+  #wc.busy i { background: #ff5a5a; box-shadow: 0 0 6px #ff5a5a; }
+  #clock { left: 792px; top: 836px; width: 92px; padding: 2px 0 0; background: #0c0b14; border: 3px solid #3a2a30; font: 28px/1 'VT323'; color: #ffcf6e;
+    text-shadow: 0 0 6px rgba(255, 180, 58, .6); }
+  /* Doors swing open (stepped) as people pass: glass entrance opens inward, the WC door opens into a dark doorway. */
+  #door { position: absolute; left: 1256px; top: 880px; width: 40px; height: 104px; transform: scaleX(.2); transform-origin: 100% 50%;
+    background: linear-gradient(#e8b04b, #e8b04b) 6px 48px / 4px 14px no-repeat, #5a8aa0; box-shadow: inset 0 0 0 2px #3f6a80;
+    transition: transform .2s steps(3); }
+  #door.open { transform: scaleX(1); }
+  #wcdoor { position: absolute; left: 112px; top: 888px; width: 56px; height: 96px; background: #120c18; }
+  #wcdoor > div { position: absolute; inset: 0; transform-origin: 0 50%; transition: transform .2s steps(3);
+    background: linear-gradient(#e8b04b, #e8b04b) 44px 44px / 4px 4px no-repeat, linear-gradient(#557a9a, #557a9a) 8px 8px / 40px 32px no-repeat,
+      linear-gradient(#557a9a, #557a9a) 8px 48px / 40px 36px no-repeat, #4a6a8a; }
+  #wcdoor.open > div { transform: scaleX(.18); }
+
+  /* ---------- chat board ---------- */
+  #chatboard { position: absolute; left: 1344px; top: 404px; width: 544px; height: 512px; z-index: 5; background: var(--night);
+    border: 8px solid #3a3d52; box-shadow: inset 0 0 0 3px #1a1a2c, 0 0 0 3px #5a5f78, 8px 8px 0 rgba(0, 0, 0, .35); }
+  #chatboard .cap { position: absolute; left: 0; right: 0; top: 0; height: 36px; display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 12px 0; background: #16142c; border-bottom: 3px solid #3a3d52; font: 28px/1 'VT323'; letter-spacing: 2px; color: #ffcf6e; }
+  #chatboard .cap span:last-child { color: var(--teal); }
+  #chat { position: absolute; left: 6px; right: 6px; top: 42px; bottom: 6px; }
+  #chat .sb-chat-line { font-size: 20px; }
+
+  /* ---------- elevator gate (over riders) ---------- */
+  #gate { position: absolute; left: 580px; top: 0; width: 88px; height: 140px; z-index: 12; pointer-events: none; will-change: transform; }
+  #gate .bars { position: absolute; inset: 0; transform-origin: 100% 50%;
+    background: repeating-linear-gradient(90deg, rgba(214, 176, 92, .9) 0 4px, transparent 4px 14px);
+    border-top: 4px solid #d6b05c; border-bottom: 4px solid #d6b05c; }
+
+  /* ---------- cinema-goers ---------- */
+  .w { position: absolute; left: 0; top: 0; will-change: transform; }
+  .w.hid, .w.behind { visibility: hidden; } /* in the WC / passing behind the elevator shaft */
+  .w .bod { position: absolute; left: 0; bottom: 0; transform-origin: 50% 100%; }
+  .w .bod .sb-emote { position: absolute; bottom: 0; transform-origin: 50% 100%; }
+  .w .carry { position: absolute; bottom: 4px; line-height: 0; }
+  .w .tag { position: absolute; left: 0; top: 4px; transform: translateX(-50%); white-space: nowrap; padding: 2px 5px 3px;
+    background: rgba(14, 10, 24, .78); font: 600 16px/1 'Pixelify Sans'; }
+  .w.seated .tag { opacity: .8; }
+  /* Above the lobby the tag sits over the head so it never hangs into the room below. */
+  .w.up .tag { top: auto; bottom: 68px; }
+  .w.up.seated .tag { bottom: 56px; }
+  .w.riding .tag { visibility: hidden; }
+  .pop { position: absolute; left: 0; bottom: 66px; transform: translateX(-50%); line-height: 0; animation: rise 1.2s steps(12) forwards; }
+  @keyframes rise { to { transform: translate(-50%, -40px); opacity: 0; } }
+  .puff { position: absolute; left: -4px; bottom: 22px; width: 8px; height: 8px; background: #fff;
+    box-shadow: -16px -8px 0 #fff, 16px -8px 0 #fff, -12px 10px 0 #e8e4f0, 12px 10px 0 #e8e4f0, 0 -18px 0 #fff;
+    animation: puff .4s steps(4) forwards; }
+  @keyframes puff { from { transform: scale(.6); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+
+  .bub { position: absolute; left: 0; top: 0; will-change: transform; }
+  .bub .bin { position: absolute; left: 0; bottom: 12px; z-index: 1; width: max-content; max-width: 300px; padding: 5px 9px 6px;
+    background: #fff6dc; color: #2a1a2a; border: 3px solid #2a1a2a; box-shadow: 4px 4px 0 rgba(0, 0, 0, .35);
+    font: 500 18px/1.25 'Pixelify Sans'; overflow-wrap: anywhere; transform-origin: 50% 100%; }
+  .bub .bin.in { animation: bub-in .2s steps(3); }
+  .bub .bin .sb-emote { margin: 0 2px; }
+  .bub .tail { position: absolute; bottom: 4px; width: 14px; height: 14px; margin-left: -7px; background: #fff6dc;
+    border-right: 3px solid #2a1a2a; border-bottom: 3px solid #2a1a2a; transform: rotate(45deg); }
+  @keyframes bub-in { from { transform: scale(.5); opacity: 0; } }
+
+  #combo { position: absolute; left: 672px; top: 96px; z-index: 30; display: flex; align-items: center; gap: 14px; padding: 8px 18px;
+    background: var(--dark); border: 4px solid var(--gold); box-shadow: 6px 6px 0 rgba(0, 0, 0, .4);
+    font: 22px/1 'Press Start 2P'; color: #ffe3a0; white-space: nowrap; transform: translate(-50%, -50%) scale(.5); opacity: 0;
+    transition: transform .25s steps(4), opacity .25s; }
+  #combo.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  #shade { z-index: 40; background:
+    radial-gradient(ellipse at 50% 45%, transparent 62%, rgba(5, 4, 16, .32) 100%),
+    repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, .05) 2px 4px); }
+
+  /* The chroma-key screen: pure colour, nothing above it, no filter. */
+  #green { position: absolute; left: 1344px; top: 64px; width: 544px; height: 306px; z-index: 100; background: #00ff00; }
+  #green.off { background: var(--night); padding: 16px 22px; font: 30px/1.2 'VT323'; color: #ffcf6e; overflow: hidden; }
+  #green .ir { display: flex; justify-content: space-between; gap: 16px; white-space: nowrap; }
+  #green .ir span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  #green .hd { color: #fff2d0; margin-bottom: 6px; }
+  #green .ft { color: var(--teal); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" class="px"></canvas>
+  <canvas id="fx" class="px"></canvas>
+  <div id="decor" class="layer">
+    <div id="sign"><div class="big">CINEMA</div><div class="sub">&#9733; 5 SCREENS &middot; DINKDONK.MOV &#9733;</div></div>
+    <div id="tickets" class="lbl">TICKETS</div>
+    <div id="clerk"></div>
+    <div id="counter"></div>
+    <div id="door"></div>
+    <div id="wcdoor"><div></div></div>
+    <div id="wc" class="lbl">WC<i></i></div>
+    <div id="clock" class="lbl">--:--</div>
+    <div class="lbl pxf plate" style="left:888px;top:942px;width:96px">POPCORN</div>
+    <div class="lbl pxf plate" style="left:792px;top:332px">LOUNGE &middot; ARCADE</div>
+  </div>
+  <canvas id="fx2" class="px"></canvas>
+  <div id="chatboard"><div class="cap"><span>LOBBY CHAT</span><span id="rate"></span></div><div id="chat"></div></div>
+  <div id="crowd" class="layer"></div>
+  <div id="gate"><div class="bars"></div></div>
+  <div id="bubbles" class="layer"></div>
+  <div id="marquees" class="layer"></div>
+  <div id="combo"></div>
+  <div id="shade" class="layer"></div>
+  <div id="green"></div>
+</div>
+
+<script src="shared/core.js"></script>
+<script src="shared/cinema.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const h = (tag, cls, ...kids) => { const el = document.createElement(tag); if (cls) el.className = cls; el.append(...kids); return el; };
+  const rand = SB.rand;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  SB.mountStage($('stage'));
+  if (!q.has('f')) SB.cfg.f = '3'; // the chat board is a bit over a quarter of the stage wide
+  SB.mountChat($('chat'), { emoteHeight: 24, max: 30 });
+  if (SB.cfg.chat === 'off') $('chatboard').remove();
+
+  // ---------- layout (stage px; the pixel grid is 4 px) ----------
+  const PX = 4;
+  const FLOOR_Y = [984, 816, 648, 480];      // feet level: lobby, floors 1-3
+  const ROW_X = [268, 220, 172, 124, 76];     // seat rows in left-room coordinates, screen side first
+  const SEAT_DX = [-10, 10];                  // two seats per row (side view: one behind the other)
+  const SCREEN = { x: 320, w: 224, top: -120, h: 112 };
+  const LENS = { x: 88, y: -106 };
+  const DOOR_X = 1300;
+  const GLASS_X = 1292;
+  const BOOTH_X = 1164;
+  const POP_X = 936;
+  const WC_X = 140;
+  const CLOSET_X = 260;
+  const SPAWN_X = 1990;
+  const EMOTE_H = 52;
+  const MAX_ON = 45;
+  const CAP = 4;                              // what the 80 px car really holds
+  const QUEUE_MAX = 5;                        // lobby queue fits between the stairs and the popcorn machine
+  const CAR_H = 140;
+  const CAR_SPEED = 380;
+  const LOUNGE_Y = FLOOR_Y[3];
+  // Rooms 1-5: floors 1-3, left and right of the elevator core; floor 3 right is the lounge.
+  const ROOMS = [[1, 'L'], [1, 'R'], [2, 'L'], [2, 'R'], [3, 'L']]
+    .map(([floor, side], i) => ({ i, floor, side, Y: FLOOR_Y[floor], entries: [], recentN: 0, info: null, marq: null, pctx: null, posterUrl: undefined,
+      seats: new Array(ROW_X.length * SEAT_DX.length).fill(null) }));
+  const mx = (room, x) => (room.side === 'L' ? x : 1344 - x); // right rooms are mirrored
+
+  let tNow = performance.now();
+
+  // ---------- pixel canvases ----------
+  function lowres(id) {
+    const c = $(id);
+    c.width = 1920 / PX;
+    c.height = 1080 / PX;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    return ctx;
+  }
+  const bg = lowres('bg');
+  const fx = lowres('fx');
+  const fx2 = lowres('fx2'); // janitor: in front of the lobby props
+  const u = (v) => Math.round(v / PX);
+
+  function rect(ctx, x, y, w, hh, col) {
+    const x0 = u(x);
+    const y0 = u(y);
+    ctx.fillStyle = col;
+    ctx.fillRect(x0, y0, Math.max(1, u(x + w) - x0), Math.max(1, u(y + hh) - y0));
+  }
+
+  function sprite(ctx, rows, pal, x, y, flip = false) {
+    const x0 = u(x);
+    const y0 = u(y);
+    const w = rows[0].length;
+    rows.forEach((row, j) => {
+      for (let i = 0; i < w; i++) {
+        const col = pal[row[i]];
+        if (!col) continue;
+        ctx.fillStyle = col;
+        ctx.fillRect(x0 + (flip ? w - 1 - i : i), y0 + j, 1, 1);
+      }
+    });
+  }
+
+  function rng(seed) {
+    return () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- sprites ----------
+  const JANITOR = [
+    '..ccc...',
+    '.ccccc..',
+    '..sss...',
+    '..ses...',
+    '...s....',
+    '.bbbbb..',
+    'bbbbbbb.',
+    's.bbb.s.',
+    '..bbb...',
+    '..ppp...',
+    '..p.p...',
+    '..p.p...',
+    '.kk.kk..',
+  ];
+  const JANITOR_PAL = { c: '#3a6a8a', s: '#e8b890', e: '#2a1a1a', b: '#4a7ab0', p: '#2e3a5a', k: '#1a1a22' };
+  const CAT = [
+    '.o.o.......',
+    'ooooo.ooo..',
+    'oeoooooooo.',
+    'ooooososooo',
+    '.ooooooooot',
+  ];
+  const CAT_PAL = { o: '#e8924a', s: '#b8642a', e: '#3a2010', t: '#b8642a' };
+  const ZED = ['####', '..#.', '.#..', '####'];
+  const WET = ['.yy.', '.yy.', 'ykky', 'yyyy', 'y..y', 'y..y'];
+  const CAR = [
+    '......bbbbbbbbbb........',
+    '.....bwwwwbbwwwwb.......',
+    '....bwwwwwbbwwwwwb......',
+    'Rbbbbbbbbbbbbbbbbbbbbbbb',
+    'bbbbbbbbbbbbbbbbbbbbbbbL',
+    'dddkkkdddddddddddkkkdddd',
+    '...kkk...........kkk....',
+  ];
+  const CAR_COLORS = [['#3a6a9a', '#284a6e'], ['#9a3a4a', '#6e2834'], ['#4a8a6a', '#33624a'], ['#c09040', '#8a6628'], ['#6a5a9a', '#4a3e6e']];
+
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function pixelSvg(rows, pal, scale) {
+    const svg = document.createElementNS(SVGNS, 'svg');
+    const w = rows[0].length;
+    svg.setAttribute('width', String(w * scale));
+    svg.setAttribute('height', String(rows.length * scale));
+    svg.setAttribute('viewBox', `0 0 ${w} ${rows.length}`);
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    rows.forEach((row, y) => {
+      for (let x = 0; x < w; x++) {
+        if (!pal[row[x]]) continue;
+        const r = document.createElementNS(SVGNS, 'rect');
+        r.setAttribute('x', String(x));
+        r.setAttribute('y', String(y));
+        r.setAttribute('width', '1');
+        r.setAttribute('height', '1');
+        r.setAttribute('fill', pal[row[x]]);
+        svg.append(r);
+      }
+    });
+    return svg;
+  }
+  const BUCKET = pixelSvg(['.y.w.y.', 'wywywyw', 'ywywywy', 'rcrcrcr', 'rcrcrcr', '.rcrcr.', '.rcrcr.'],
+    { y: '#ffe28a', w: '#fff7d6', r: '#d8283c', c: '#fff1e6' }, 3);
+  const TICKET = pixelSvg(['.oooooo.', 'oodoodoo', 'oooooooo', 'oodoodoo', '.oooooo.'], { o: '#ffb43a', d: '#8a4a10' }, 3);
+
+  // ---------- static scenery, drawn once ----------
+  function drawSky(r) {
+    const bands = ['#0b0c24', '#0f1130', '#14163b', '#1b1a45', '#231e4e', '#2c2356', '#35285c'];
+    const bh = 1000 / bands.length;
+    bands.forEach((col, i) => rect(bg, 0, i * bh, 1920, bh + 8, col));
+    for (let i = 1; i < bands.length; i++) { // checker dither on each seam
+      const y = u(i * bh);
+      bg.fillStyle = bands[i];
+      for (let x = 0; x < 480; x += 2) bg.fillRect(x, y - 1, 1, 1);
+      bg.fillStyle = bands[i - 1];
+      for (let x = 1; x < 480; x += 2) bg.fillRect(x, y, 1, 1);
+    }
+    for (let i = 0; i < 170; i++) {
+      bg.fillStyle = r() < 0.2 ? '#fff3c8' : 'rgba(220, 220, 255, .5)';
+      bg.fillRect(r() * 480 | 0, r() * 110 | 0, 1, 1);
+    }
+    const cx = 52;
+    const cy = 22;
+    bg.fillStyle = 'rgba(246, 231, 176, .06)';
+    for (let y = -13; y <= 13; y++) for (let x = -13; x <= 13; x++) if (x * x + y * y <= 170) bg.fillRect(cx + x, cy + y, 1, 1);
+    for (let y = -8; y <= 8; y++) {
+      for (let x = -8; x <= 8; x++) {
+        if (x * x + y * y > 66) continue;
+        bg.fillStyle = x + y > 5 ? '#d9c98c' : '#f6e7b0';
+        bg.fillRect(cx + x, cy + y, 1, 1);
+      }
+    }
+    bg.fillStyle = '#d4c389';
+    bg.fillRect(cx - 3, cy - 2, 2, 2);
+    bg.fillRect(cx + 2, cy + 3, 2, 1);
+    bg.fillRect(cx - 1, cy + 4, 1, 1);
+  }
+
+  function windows(r, x, top, w, bottom) {
+    for (let wy = top + 3; wy < bottom - 2; wy += 4) {
+      for (let wx = x + 2; wx < x + w - 1; wx += 3) {
+        const v = r();
+        if (v < 0.16) bg.fillStyle = '#d9a85a';
+        else if (v < 0.4) bg.fillStyle = '#2c2a54';
+        else continue;
+        bg.fillRect(wx, wy, 1, 2);
+      }
+    }
+  }
+
+  function drawSkyline(r) {
+    let x = -6;
+    while (x < 480) {
+      const w = 10 + (r() * 22 | 0);
+      const top = 52 + (r() * 60 | 0);
+      bg.fillStyle = '#17183a';
+      bg.fillRect(x, top, w, 250 - top);
+      windows(r, x, top, w, 246);
+      x += w + (r() * 3 | 0);
+    }
+    x = 322;
+    while (x < 480) {
+      const w = 14 + (r() * 20 | 0);
+      const top = 95 + (r() * 70 | 0);
+      bg.fillStyle = '#211e47';
+      bg.fillRect(x, top, w, 248 - top);
+      bg.fillStyle = '#2b2756';
+      bg.fillRect(x, top, w, 1);
+      windows(r, x, top, w, 246);
+      x += w + 2;
+    }
+  }
+
+  function drawStreet() {
+    rect(bg, 0, 984, 1920, 24, '#57506a');
+    rect(bg, 0, 984, 1920, 4, '#6e6886');
+    for (let x = 0; x < 1920; x += 64) rect(bg, x, 988, 4, 20, '#48425a');
+    rect(bg, 0, 1008, 1920, 8, '#8a84a0');
+    rect(bg, 0, 1016, 1920, 64, '#24223a');
+    for (let x = 16; x < 1920; x += 112) rect(bg, x, 1046, 48, 4, '#8f7f4a');
+    // street lamp, bin and hydrant
+    rect(bg, 1316, 860, 8, 124, '#3a3d52');
+    rect(bg, 1304, 852, 32, 8, '#5a5f78');
+    rect(bg, 1308, 860, 24, 4, '#ffe9b0');
+    rect(bg, 1288, 864, 64, 120, 'rgba(255, 233, 176, .05)');
+    rect(bg, 1496, 944, 32, 40, '#3a4a3a');
+    rect(bg, 1492, 940, 40, 8, '#4a5a4a');
+    rect(bg, 1704, 956, 20, 28, '#b0283e');
+    rect(bg, 1700, 964, 28, 8, '#8a1e30');
+    rect(bg, 1708, 948, 12, 8, '#b0283e');
+  }
+
+  function drawTower() {
+    for (const x of [1392, 1832]) {
+      rect(bg, x, 376, 16, 608, '#2e3044');
+      rect(bg, x, 376, 4, 608, '#4a4e66');
+    }
+    for (let s = 0; s < 106; s++) { // cross bracing under the chat board
+      rect(bg, 1408 + s * 4, 920 + Math.round(s * 0.56) * 1, 4, 4, '#2e3044');
+      rect(bg, 1828 - s * 4, 920 + Math.round(s * 0.56) * 1, 4, 4, '#2e3044');
+    }
+    rect(bg, 1332, 52, 568, 328, '#3a3d52');
+    rect(bg, 1336, 56, 560, 320, '#5a5f78');
+    rect(bg, 1340, 60, 552, 314, '#1a1a2c');
+    rect(bg, 1328, 380, 576, 8, '#5a5f78');
+    rect(bg, 1328, 392, 576, 4, '#3a3d52');
+    for (let x = 1336; x < 1904; x += 48) rect(bg, x, 380, 4, 16, '#3a3d52');
+    for (const x of [1440, 1616, 1792]) {
+      rect(bg, x, 384, 16, 8, '#8a90aa');
+      rect(bg, x + 4, 392, 8, 8, '#3a3d52');
+    }
+  }
+
+  function drawShell() {
+    rect(bg, 48, 300, 1248, 692, '#6a2f3c');
+    let row = 0;
+    for (let y = u(300); y < u(992); y += 3, row++) {
+      bg.fillStyle = '#4f2230';
+      bg.fillRect(u(48), y, u(1296) - u(48), 1);
+      for (let x = u(48) + (row % 2) * 2; x < u(1296); x += 4) bg.fillRect(x, y + 1, 1, 2);
+    }
+    rect(bg, 40, 292, 1264, 8, '#a87a2c');
+    rect(bg, 40, 292, 1264, 4, '#e8b04b');
+    rect(bg, 48, 312, 1248, 8, '#2b1c28');
+  }
+
+  function drawLobby() {
+    const Y = FLOOR_Y[0];
+    rect(bg, 56, Y - 160, 1232, 160, '#7a4a3e');
+    for (let y = Y - 148, k = 0; y < Y - 64; y += 16, k++) {
+      for (let x = 64 + (k % 2) * 8; x < 1288; x += 16) rect(bg, x, y, 4, 4, '#86554a');
+    }
+    rect(bg, 56, Y - 160, 1232, 8, '#3a2030');
+    rect(bg, 56, Y - 60, 1232, 4, '#e8b04b');
+    rect(bg, 56, Y - 56, 1232, 48, '#5a3420');
+    for (let x = 80; x < 1288; x += 48) rect(bg, x, Y - 52, 4, 40, '#4a2a18');
+    for (let x = 56; x < 1288; x += 8) {
+      rect(bg, x, Y - 8, 4, 4, '#e8d8b0');
+      rect(bg, x + 4, Y - 8, 4, 4, '#3b2a3a');
+      rect(bg, x, Y - 4, 4, 4, '#3b2a3a');
+      rect(bg, x + 4, Y - 4, 4, 4, '#e8d8b0');
+    }
+    for (const x of [300, 476, 1028]) { // pendant lamps
+      rect(bg, x - 40, Y - 124, 84, 64, 'rgba(255, 220, 150, .06)');
+      rect(bg, x, Y - 152, 4, 20, '#2a1a20');
+      rect(bg, x - 12, Y - 132, 28, 8, '#e8b04b');
+      rect(bg, x - 8, Y - 124, 20, 4, '#fff0c0');
+    }
+    // restroom
+    rect(bg, 108, Y - 100, 64, 100, '#a87a2c');
+    rect(bg, 112, Y - 96, 56, 96, '#4a6a8a');
+    rect(bg, 120, Y - 88, 40, 32, '#557a9a');
+    rect(bg, 120, Y - 48, 40, 36, '#557a9a');
+    rect(bg, 156, Y - 52, 4, 4, '#e8b04b');
+    // staff closet (the janitor lives here)
+    rect(bg, 232, Y - 92, 56, 92, '#3a2a20');
+    rect(bg, 236, Y - 88, 48, 88, '#5a4a3a');
+    rect(bg, 244, Y - 80, 32, 8, '#4a3a2a');
+    rect(bg, 244, Y - 68, 32, 4, '#4a3a2a');
+    rect(bg, 276, Y - 48, 4, 4, '#e8b04b');
+    // framed posters
+    posterFrame(320, Y - 140, ['#2a4a7a', '#ffb43a', '#1a2a4a']);
+    posterFrame(412, Y - 140, ['#5a2a4a', '#62e8d4', '#2a1430']);
+    // bench and plant
+    rect(bg, 316, Y - 40, 168, 8, '#7a4a2c');
+    rect(bg, 316, Y - 40, 168, 4, '#9a6a3c');
+    rect(bg, 324, Y - 32, 8, 24, '#3a2010');
+    rect(bg, 468, Y - 32, 8, 24, '#3a2010');
+    rect(bg, 500, Y - 36, 28, 28, '#a85a3a');
+    rect(bg, 496, Y - 40, 36, 6, '#c06a44');
+    for (const [x, y, w, hh, c] of [[504, -76, 8, 36, '#2a6a3a'], [512, -88, 8, 48, '#3a8a4a'], [520, -72, 8, 32, '#2a6a3a'], [496, -64, 8, 16, '#3a8a4a'], [528, -60, 8, 12, '#3a8a4a']]) {
+      rect(bg, x, Y + y, w, hh, c);
+    }
+    drawPopcornMachine(888, Y);
+    // box office
+    const bx = 1080;
+    rect(bg, bx, Y - 136, 168, 136, '#8a2a3a');
+    rect(bg, bx, Y - 136, 168, 4, '#e8b04b');
+    rect(bg, bx, Y - 136, 12, 136, '#6a1e2c');
+    rect(bg, bx + 156, Y - 136, 12, 136, '#6a1e2c');
+    rect(bg, bx + 16, Y - 120, 136, 72, '#e8b04b');
+    rect(bg, bx + 20, Y - 116, 128, 68, '#2a3e52');
+    for (let s = 0; s < 8; s++) rect(bg, bx + 96 + s * 4, Y - 112 + s * 8, 4, 8, 'rgba(255, 255, 255, .08)');
+    // entrance: door frame and an awning (the glass door itself is #door)
+    rect(bg, 1288, Y - 108, 8, 4, '#e8b04b');
+    for (let x = 1296; x < 1344; x += 8) rect(bg, x, Y - 124, 8, 16, (x / 8) % 2 ? '#f6e7c1' : '#b0283e');
+  }
+
+  function posterFrame(x, y, [a, b, c]) {
+    rect(bg, x, y, 64, 84, '#a87a2c');
+    rect(bg, x + 4, y + 4, 56, 76, a);
+    rect(bg, x + 20, y + 16, 24, 24, b);
+    rect(bg, x + 4, y + 52, 56, 28, c);
+    rect(bg, x + 12, y + 64, 40, 4, b);
+  }
+
+  function drawPopcornMachine(px, Y) {
+    rect(bg, px, Y - 60, 96, 4, '#e8b04b');
+    rect(bg, px, Y - 56, 96, 48, '#b0283e');
+    for (let x = px + 8; x < px + 96; x += 16) rect(bg, x, Y - 56, 8, 48, '#f6e7c1');
+    rect(bg, px + 8, Y - 8, 12, 8, '#1a1418');
+    rect(bg, px + 76, Y - 8, 12, 8, '#1a1418');
+    rect(bg, px + 4, Y - 124, 88, 64, '#e8b04b');
+    rect(bg, px + 8, Y - 120, 80, 56, '#2a2236');
+    for (let x = 0; x < 80; x += 4) {
+      const bump = ((x * 7) % 3) * 4;
+      rect(bg, px + 8 + x, Y - 76 - bump, 4, 12 + bump, x % 8 ? '#f6e7a0' : '#ffe28a');
+    }
+    rect(bg, px + 36, Y - 116, 24, 12, '#c0c0c8');
+    rect(bg, px + 12, Y - 116, 4, 36, 'rgba(255, 255, 255, .16)');
+    rect(bg, px, Y - 136, 96, 12, '#b0283e');
+    rect(bg, px + 28, Y - 144, 40, 8, '#e8b04b');
+  }
+
+  function chair(r, cx, py) {
+    r(cx - 18, py - 44, 8, 32, '#7a2236');
+    r(cx - 18, py - 44, 8, 4, '#c94a5e');
+    r(cx - 14, py - 20, 28, 8, '#a8344a');
+    r(cx - 14, py - 20, 28, 4, '#c94a5e');
+    r(cx - 10, py - 28, 16, 4, '#3a2030');
+    r(cx - 4, py - 12, 8, 12, '#3a3d52');
+  }
+
+  // Drawn in left-room coordinates; right rooms are mirrored around the core.
+  function drawRoom(room) {
+    const Y = room.Y;
+    const r = (x, y, w, hh, col) => rect(bg, room.side === 'L' ? x : 1344 - x - w, y, w, hh, col);
+    r(56, Y - 160, 512, 160, '#2b1d33');
+    for (let x = 104; x < 290; x += 32) r(x, Y - 112, 16, 60, '#33233d');
+    r(56, Y - 48, 512, 4, '#a87a2c');
+    r(56, Y - 44, 512, 44, '#22172a');
+    for (const x of [116, 212]) { // sconces and booth sit below the marquee
+      r(x - 16, Y - 124, 36, 28, 'rgba(255, 200, 120, .07)');
+      r(x, Y - 116, 4, 8, '#e8b04b');
+      r(x - 4, Y - 112, 12, 4, '#ffe2a0');
+    }
+    // projection booth window high on the back wall
+    r(56, Y - 122, 40, 32, '#120c18');
+    r(64, Y - 116, 24, 20, '#3a2c20');
+    r(84, Y - 110, 8, 8, '#ffe9b0');
+    // screen, curtains, valance
+    r(SCREEN.x - 4, Y + SCREEN.top - 4, SCREEN.w + 8, SCREEN.h + 8, '#0a0710');
+    for (let k = 0; k < 5; k++) {
+      r(300 + k * 4, Y - 128, 4, 124, k % 2 ? '#8a1e30' : '#b0283e');
+      r(548 + k * 4, Y - 128, 4, 124, k % 2 ? '#b0283e' : '#8a1e30');
+    }
+    r(296, Y - 132, 272, 12, '#b0283e');
+    r(296, Y - 124, 272, 4, '#e8b04b');
+    // stepped risers and aisle lights
+    r(56, Y - 4, 512, 4, '#5c1c2b');
+    for (let k = 1; k < 5; k++) {
+      const right = ROW_X[k] + 24;
+      r(56, Y - 8 * k, right - 56, 8, k % 2 ? '#7a2638' : '#6a2030');
+      r(right - 4, Y - 8 * k + 2, 4, 4, '#e8b04b');
+    }
+    for (let k = 0; k < 5; k++) for (const dx of SEAT_DX) chair(r, ROW_X[k] + dx, Y - 8 * k);
+    // exit lamp over the door to the core
+    r(532, Y - 104, 28, 12, '#0d3b1a');
+    r(536, Y - 100, 20, 4, '#5ee67a');
+  }
+
+  function drawLounge() {
+    const Y = LOUNGE_Y;
+    rect(bg, 776, Y - 160, 512, 160, '#3b2a3c');
+    for (let x = 776; x < 1288; x += 16) rect(bg, x, Y - 120, 8, 72, '#43304a');
+    rect(bg, 776, Y - 48, 512, 4, '#a87a2c');
+    rect(bg, 776, Y - 44, 512, 36, '#2e1f30');
+    rect(bg, 776, Y - 8, 512, 8, '#5a3420');
+    for (let x = 800; x < 1288; x += 40) rect(bg, x, Y - 8, 4, 8, '#4a2a18');
+    // window onto the night
+    rect(bg, 980, Y - 140, 84, 60, '#a87a2c');
+    rect(bg, 984, Y - 136, 76, 52, '#141640');
+    for (const [x, y] of [[992, -128], [1012, -112], [1044, -124], [1052, -100], [1000, -96]]) rect(bg, x, Y + y, 4, 4, '#fff3c8');
+    rect(bg, 1020, Y - 136, 4, 52, '#a87a2c');
+    // sofa
+    rect(bg, 816, Y - 64, 128, 28, '#3a5a7a');
+    rect(bg, 816, Y - 36, 128, 20, '#4a6a8a');
+    rect(bg, 808, Y - 52, 16, 40, '#33506e');
+    rect(bg, 936, Y - 52, 16, 40, '#33506e');
+    rect(bg, 820, Y - 16, 4, 8, '#2a1a10');
+    rect(bg, 940, Y - 16, 4, 8, '#2a1a10');
+    // floor lamp
+    rect(bg, 944, Y - 116, 52, 44, 'rgba(255, 220, 140, .08)');
+    rect(bg, 968, Y - 96, 4, 88, '#3a3d52');
+    rect(bg, 956, Y - 112, 28, 16, '#e8c070');
+    rect(bg, 960, Y - 12, 20, 4, '#3a3d52');
+    // vending machine
+    rect(bg, 1076, Y - 124, 52, 124, '#b0303c');
+    rect(bg, 1076, Y - 124, 52, 8, '#ff9aa8');
+    rect(bg, 1084, Y - 112, 32, 68, '#3a5a6a');
+    for (let k = 0; k < 4; k++) {
+      for (let j = 0; j < 3; j++) rect(bg, 1088 + j * 10, Y - 108 + k * 16, 6, 8, ['#ffe066', '#62e8d4', '#ff73b5', '#9fd6e8'][(k + j) % 4]);
+    }
+    rect(bg, 1084, Y - 36, 32, 8, '#1a1018');
+    for (const x of [1148, 1208]) cabinet(x, Y);
+  }
+
+  function cabinet(x, Y) {
+    rect(bg, x, Y - 120, 48, 120, '#2a2a60');
+    rect(bg, x, Y - 120, 6, 120, '#1e1e48');
+    rect(bg, x + 4, Y - 116, 40, 12, '#ff73b5');
+    rect(bg, x + 4, Y - 100, 40, 32, '#0a0a14');
+    rect(bg, x + 2, Y - 64, 44, 12, '#3a3a80');
+    rect(bg, x + 12, Y - 72, 4, 8, '#1a1a1a');
+    rect(bg, x + 10, Y - 76, 8, 4, '#ff5a5a');
+    rect(bg, x + 28, Y - 64, 4, 4, '#ffe066');
+    rect(bg, x + 36, Y - 64, 4, 4, '#62e8d4');
+    rect(bg, x + 16, Y - 40, 16, 12, '#1a1a40');
+    rect(bg, x + 22, Y - 36, 4, 4, '#e8b04b');
+  }
+
+  function flights(Y) {
+    for (let s = 0; s < 7; s++) {
+      rect(bg, 756 - 12 * s, Y - 12 * (s + 1), 12, 12 * (s + 1), '#6a4a5a');
+      rect(bg, 756 - 12 * s, Y - 12 * (s + 1), 12, 4, '#9a7486');
+      rect(bg, 684 + 12 * s, Y - 96 - 12 * s, 12, 16, '#6a4a5a');
+      rect(bg, 684 + 12 * s, Y - 96 - 12 * s, 12, 4, '#9a7486');
+    }
+    rect(bg, 672, Y - 84, 24, 8, '#6a4a5a');
+    for (let s = 0; s < 21; s++) {
+      rect(bg, 764 - s * 4, Y - 36 - s * 4, 4, 4, '#e8b04b');
+      rect(bg, 684 + s * 4, Y - 120 - s * 4, 4, 4, '#e8b04b');
+    }
+  }
+
+  function drawCore() {
+    rect(bg, 576, 320, 96, 664, '#1a1422');
+    rect(bg, 580, 320, 4, 664, '#2e2638');
+    rect(bg, 664, 320, 4, 664, '#2e2638');
+    rect(bg, 672, 320, 96, 664, '#4a3646');
+    for (let y = 336; y < 984; y += 24) for (let x = 680 + ((y / 24) % 2) * 12; x < 768; x += 24) rect(bg, x, y, 4, 4, '#54404f');
+    for (let f = 0; f < 3; f++) flights(FLOOR_Y[f]);
+    for (let f = 0; f <= 3; f++) {
+      const Y = FLOOR_Y[f];
+      rect(bg, 576, Y - 152, 96, 4, '#a87a2c');
+      rect(bg, 576, Y - 148, 4, 148, '#a87a2c');
+      rect(bg, 668, Y - 148, 4, 148, '#a87a2c');
+      rect(bg, 592, Y - 162, 72, 12, '#120c16');
+      if (f > 0) {
+        for (const x of [568, 768]) {
+          rect(bg, x, Y - 160, 8, 160, '#3a2632');
+          rect(bg, x, Y - 80, 8, 80, '#140c16');
+          rect(bg, x - 4, Y - 84, 16, 4, '#e8b04b');
+        }
+      }
+    }
+  }
+
+  function drawSlabs() {
+    for (const Y of FLOOR_Y) {
+      rect(bg, 48, Y, 1248, 8, '#2b1c28');
+      rect(bg, 48, Y + 4, 1248, 4, '#1e121c');
+      rect(bg, 576, Y, 96, 8, '#3a3448');
+      for (let x = 580; x < 672; x += 8) rect(bg, x, Y + 2, 4, 4, '#1a1422');
+    }
+  }
+
+  function drawRoof() {
+    rect(bg, 112, 236, 8, 60, '#3a2a20');
+    rect(bg, 184, 236, 8, 60, '#3a2a20');
+    for (let s = 0; s < 16; s++) rect(bg, 120 + s * 4, 240 + s * 3, 4, 4, '#3a2a20');
+    rect(bg, 100, 172, 104, 68, '#7a5038');
+    rect(bg, 100, 188, 104, 4, '#5a3a28');
+    rect(bg, 100, 220, 104, 4, '#5a3a28');
+    rect(bg, 108, 164, 88, 8, '#6a4430');
+    rect(bg, 124, 156, 56, 8, '#6a4430');
+    rect(bg, 144, 148, 16, 8, '#6a4430');
+    rect(bg, 1100, 264, 64, 28, '#5a5f78');
+    for (let x = 1108; x < 1160; x += 8) rect(bg, x, 268, 4, 20, '#3a3d52');
+    rect(bg, 1240, 196, 4, 96, '#3a3d52');
+    rect(bg, 1228, 220, 28, 4, '#3a3d52');
+    rect(bg, 1236, 188, 12, 8, '#8a3040');
+    // sign backing with bulbs (static; the neon text is DOM)
+    rect(bg, 384, 160, 576, 132, '#a87a2c');
+    rect(bg, 388, 164, 568, 124, '#1a0e1e');
+    for (let x = 396; x < 952; x += 16) {
+      rect(bg, x, 168, 4, 4, '#ffe2a0');
+      rect(bg, x, 280, 4, 4, '#ffe2a0');
+    }
+    for (let y = 184; y < 280; y += 16) {
+      rect(bg, 392, y, 4, 4, '#ffe2a0');
+      rect(bg, 948, y, 4, 4, '#ffe2a0');
+    }
+  }
+
+  function drawBg() {
+    const r = rng(1979);
+    drawSky(r);
+    drawSkyline(r);
+    drawStreet();
+    drawTower();
+    drawShell();
+    drawLobby();
+    ROOMS.forEach(drawRoom);
+    drawLounge();
+    drawCore();
+    drawSlabs();
+    drawRoof();
+  }
+  drawBg();
+
+  // ---------- rooms: posters and marquees ----------
+  const decor = $('decor');
+  for (const room of ROOMS) {
+    const left = room.side === 'L';
+    const ti = h('span', 'ti');
+    const yr = h('span', 'yr');
+    const star = h('span', 'star');
+    const cnt = h('span', 'cnt');
+    const marq = h('div', 'marq', h('span', 'no', String(room.i + 1)), ti, yr, h('span', 'meta', star, cnt));
+    marq.style.left = `${left ? 64 : 784}px`;
+    marq.style.top = `${room.Y - 158}px`;
+    const scr = document.createElement('canvas');
+    scr.className = 'screen';
+    scr.width = SCREEN.w / 2;
+    scr.height = SCREEN.h / 2;
+    scr.style.left = `${left ? SCREEN.x : 1344 - SCREEN.x - SCREEN.w}px`;
+    scr.style.top = `${room.Y + SCREEN.top}px`;
+    decor.append(scr);
+    $('marquees').append(marq);
+    room.marq = { ti, yr, star, cnt, key: '' };
+    room.pctx = scr.getContext('2d');
+  }
+  for (let f = 1; f <= 3; f++) {
+    const l = h('div', 'lbl', `${f}F`);
+    l.style.left = '678px';
+    l.style.top = `${FLOOR_Y[f] - 150}px`;
+    decor.append(l);
+  }
+
+  function recent(room) {
+    const cut = Date.now() - 600_000;
+    while (room.entries.length && room.entries[0] < cut) room.entries.shift();
+    return room.entries.length;
+  }
+
+  const fmtRating = (v) => (v != null ? `★${Number(v).toFixed(1)}` : '');
+
+  function renderMarq(room) {
+    const info = room.info || {};
+    const m = room.marq;
+    room.recentN = recent(room);
+    m.cnt.textContent = `${room.recentN} in`;
+    const title = info.title || 'Coming soon';
+    const year = info.year ? String(info.year) : '';
+    const star = fmtRating(info.rating);
+    const key = `${title}|${year}|${star}`;
+    if (key === m.key) return;
+    m.key = key;
+    m.ti.textContent = title;
+    m.yr.textContent = year;
+    m.star.textContent = star;
+    fitMarq(m);
+  }
+
+  // Long titles step the font down (and drop the year) instead of being cut off.
+  // Only runs when the text changes, so the layout reads are rare.
+  function fitMarq(m) {
+    for (const [px, withYear] of [[20, true], [18, true], [16, true], [16, false], [14, false]]) {
+      m.yr.hidden = !withYear;
+      m.ti.style.fontSize = `${px}px`;
+      if (m.ti.scrollWidth <= m.ti.clientWidth) return;
+    }
+  }
+  document.fonts?.ready.then(() => ROOMS.forEach((room) => { room.marq.key = ''; renderMarq(room); }));
+
+  function drawPlaceholder(room) {
+    const c = room.pctx;
+    const cw = c.canvas.width;
+    const ch = c.canvas.height;
+    c.imageSmoothingEnabled = false;
+    c.fillStyle = '#120c1c';
+    c.fillRect(0, 0, cw, ch);
+    c.fillStyle = '#1e1530';
+    c.fillRect(6, 4, cw - 12, ch - 8);
+    const ox = cw / 2 - 12;
+    const oy = Math.round(ch / 2) - 12;
+    c.fillStyle = '#e8e0d0';
+    c.fillRect(ox, oy + 5, 24, 18);
+    c.fillStyle = '#1a1420';
+    c.fillRect(ox + 2, oy + 9, 20, 12);
+    for (let x = 0; x < 24; x += 6) {
+      c.fillStyle = '#1a1420';
+      c.fillRect(ox + x, oy, 3, 4);
+      c.fillStyle = '#e8e0d0';
+      c.fillRect(ox + 3 + x, oy, 3, 4);
+    }
+    c.fillStyle = '#e8b04b';
+    ['.##.', '#..#', '..#.', '.#..', '....', '.#..'].forEach((row, y) => {
+      for (let x = 0; x < 4; x++) if (row[x] === '#') c.fillRect(ox + 10 + x, oy + 11 + y, 1, 1);
+    });
+  }
+
+  // Posters are drawn small and shown 2x pixelated, at the screen's full height; the canvas gets tainted, which is fine.
+  function drawPoster(room, img) {
+    const c = room.pctx;
+    const cw = c.canvas.width;
+    const ch = c.canvas.height;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    c.imageSmoothingEnabled = true;
+    c.fillStyle = '#0a0710';
+    c.fillRect(0, 0, cw, ch);
+    c.globalAlpha = 0.3;
+    const sh = Math.min(ih, iw * ch / cw);
+    c.drawImage(img, 0, (ih - sh) * 0.35, iw, sh, 0, 0, cw, ch);
+    c.globalAlpha = 1;
+    const pw = Math.min(cw, Math.round(ch * iw / ih));
+    const px = Math.round((cw - pw) / 2);
+    c.fillRect(px - 1, 0, pw + 2, ch);
+    c.drawImage(img, px, 0, pw, ch);
+  }
+
+  function setPoster(room, url) {
+    if (room.posterUrl === url) return;
+    room.posterUrl = url;
+    drawPlaceholder(room);
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => { if (room.posterUrl === url) drawPoster(room, img); };
+    img.src = url;
+  }
+
+  // ---------- lobby bits ----------
+  let wcOcc = 0;
+  const updateWC = () => $('wc').classList.toggle('busy', wcOcc > 0);
+
+  // Doors stay open until a moment after the last person passes (open-until timestamps, checked per frame).
+  const doors = [{ el: $('door'), until: 0, open: false }, { el: $('wcdoor'), until: 0, open: false }];
+  const [entrance, wcDoor] = doors;
+  function updateDoors() {
+    for (const d of doors) {
+      const open = tNow < d.until;
+      if (open !== d.open) { d.open = open; d.el.classList.toggle('open', open); }
+    }
+  }
+  const openWC = () => { wcDoor.until = tNow + 800; };
+
+  SB.on('emotes', () => {
+    const name = q.get('clerk') || (SB.emotes.names.has('DinkDonk') ? 'DinkDonk' : Cinema.defaultEmote('box office'));
+    const e = SB.emoteEl(name, 56);
+    e.style.left = `${-(Number(e.dataset.w) || 56) / 2}px`;
+    $('clerk').replaceChildren(e);
+  });
+
+  function clerkHop() {
+    $('clerk').animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-10px)' }, { transform: 'translateY(0)' }],
+      { duration: 360, easing: 'steps(4)' });
+  }
+
+  // ---------- elevator ----------
+  const E = { y: FLOOR_Y[0], floor: 0, dest: 0, state: 'open', t: 0, open: 1, riders: [], waiting: [], boardedAt: 0 };
+  const slotX = (i) => 597 + i * 18;
+  const spotX = (i) => 704 + i * 38;
+
+  function freeSlot() {
+    const used = new Set(E.riders.map((r) => r.path[0].slot));
+    let s = 0;
+    while (used.has(s)) s++;
+    return s;
+  }
+  const carY = () => Math.round(E.y / PX) * PX;
+
+  function updateElevator(dt) {
+    E.t += dt;
+    if (E.state === 'open') {
+      if (E.floor === 0) {
+        while (E.riders.length < CAP && E.waiting.length) {
+          const g = E.waiting.shift();
+          g.path.shift();                       // done queueing
+          if (!E.riders.length) E.t = 0;        // first one in: start the door timer now
+          g.path[0].slot = freeSlot();          // lowest free one: a purged rider may have left a gap
+          E.riders.push(g);
+          E.boardedAt = tNow;
+        }
+        const aboard = E.riders.every((g) => Math.abs(g.x - slotX(g.path[0].slot)) < 2);
+        if (E.riders.length && E.t > 1 && ((aboard && tNow - E.boardedAt > 500) || E.t > 6)) depart();
+      } else if (E.t > 0.9) depart();
+    } else if (E.state === 'closing') {
+      E.open = Math.max(0, E.open - dt / 0.35);
+      if (!E.open) E.state = 'moving';
+    } else if (E.state === 'moving') {
+      const d = FLOOR_Y[E.dest] - E.y;
+      const step = CAR_SPEED * dt;
+      if (Math.abs(d) <= step) {
+        E.y = FLOOR_Y[E.dest];
+        E.floor = E.dest;
+        E.state = 'opening';
+      } else E.y += Math.sign(d) * step;
+    } else if (E.state === 'opening') {
+      E.open = Math.min(1, E.open + dt / 0.35);
+      if (E.open === 1) {
+        E.state = 'open';
+        E.t = 0;
+        letOut(E.floor);
+      }
+    }
+  }
+
+  function depart() {
+    const ups = E.riders.map((g) => g.path[0].floor).filter((f) => f > E.floor);
+    E.dest = ups.length ? Math.min(...ups) : 0;
+    if (E.dest === E.floor) { E.t = 0; return; }
+    E.state = 'closing';
+  }
+
+  function letOut(f) {
+    for (const g of [...E.riders]) {
+      if (g.path[0]?.k !== 'ride' || g.path[0].floor !== f) continue;
+      g.path.shift();
+      g.y = FLOOR_Y[f];
+      E.riders.splice(E.riders.indexOf(g), 1);
+    }
+  }
+
+  let gateKey = '';
+  function placeGate() {
+    const key = `${carY()}|${E.open.toFixed(2)}`;
+    if (key === gateKey) return;
+    gateKey = key;
+    $('gate').style.transform = `translateY(${carY() - CAR_H}px)`;
+    $('gate').firstElementChild.style.transform = `scaleX(${(1 - E.open).toFixed(2)})`;
+  }
+
+  // ---------- paths ----------
+  function stairsPath(floor) {
+    const p = [{ k: 'walk', x: 762 }];
+    for (let f = 0; f < floor; f++) {
+      const Y = FLOOR_Y[f];
+      p.push({ k: 'walk', x: 688, y: Y - 84 }, { k: 'walk', x: 762, y: Y - 168 });
+    }
+    return p;
+  }
+
+  // Book the free seat in the emptiest row (seat i = row i >> 1, side i & 1); -1 when the house is full.
+  function takeSeat(g, room) {
+    const fill = ROW_X.map(() => 0);
+    const free = [];
+    room.seats.forEach((s, i) => { if (s) fill[i >> 1] += 1; else free.push(i); });
+    if (!free.length) return -1;
+    const low = Math.min(...free.map((i) => fill[i >> 1]));
+    const i = SB.pick(free.filter((j) => fill[j >> 1] === low));
+    room.seats[i] = g;
+    return i;
+  }
+
+  function roomPath(g, room) {
+    const Y = room.Y;
+    g.seat = takeSeat(g, room);
+    const row = g.seat >= 0 ? g.seat >> 1 : ROW_X.length - 1; // full house: stand at the back wall
+    const p = [{ k: 'walk', x: mx(room, 556) }, { k: 'do', fn: enterRoom }];
+    for (let k = 1; k <= row; k++) { // hop up the risers one row at a time
+      const edge = ROW_X[k] + 24;
+      p.push({ k: 'walk', x: mx(room, edge + 6), y: Y - 8 * (k - 1) }, { k: 'walk', x: mx(room, edge - 6), y: Y - 8 * k });
+    }
+    if (g.seat >= 0) p.push({ k: 'walk', x: mx(room, ROW_X[row] + SEAT_DX[g.seat & 1]), y: Y - 8 * row - 14 });
+    else p.push({ k: 'walk', x: mx(room, rand(64, 72)), y: Y - 8 * row });
+    p.push({ k: 'sit' });
+    return p;
+  }
+
+  function lobbyPath(g) {
+    const p = [{ k: 'walk', x: DOOR_X }, { k: 'walk', x: BOOTH_X + rand(-12, 12) }, { k: 'wait', ms: 350 }, { k: 'do', fn: buyTicket }];
+    if (g.detour === 'popcorn') p.push({ k: 'walk', x: POP_X + rand(-12, 12) }, { k: 'wait', ms: 1500 }, { k: 'do', fn: givePopcorn });
+    else if (g.detour === 'bathroom') {
+      p.push({ k: 'walk', x: WC_X }, { k: 'do', fn: openWC }, { k: 'wait', ms: 300 }, { k: 'do', fn: enterWC },
+        { k: 'wait', ms: rand(3000, 6000) }, { k: 'do', fn: openWC }, { k: 'wait', ms: 300 }, { k: 'do', fn: exitWC });
+    }
+    p.push({ k: 'walk', x: 740 + rand(0, 40) });
+    return p;
+  }
+
+  // At the core: queue for the elevator, or take the stairs when it is busy (or just because).
+  function atCore(g) {
+    const f = g.room.floor;
+    const busy = E.waiting.length >= QUEUE_MAX;
+    if (g.hurry || busy || Math.random() < 0.2) { g.path.unshift(...stairsPath(f)); return; }
+    E.waiting.push(g);
+    g.path.unshift({ k: 'queue' }, { k: 'ride', floor: f, slot: 0 });
+  }
+
+  function enterRoom(g) {
+    g.inRoom = true;
+    g.room.entries.push(Date.now());
+    renderMarq(g.room);
+  }
+
+  function buyTicket(g) { pop(g, TICKET); clerkHop(); }
+
+  function givePopcorn(g) {
+    g.popcorn = true;
+    g.carry = h('div', 'carry', BUCKET.cloneNode(true));
+    g.carry.style.left = `${g.halfW - 10}px`;
+    g.bod.append(g.carry);
+    pop(g, BUCKET);
+  }
+
+  function enterWC(g) {
+    g.inWC = true;
+    g.el.classList.add('hid');
+    if (g.bubble) { // finish the sentence after coming out, not as a bubble floating over a closed door
+      g.pending = g.bubble.tokens;
+      g.bubble.wrap.remove();
+      g.bubble = null;
+    }
+    wcOcc += 1;
+    updateWC();
+  }
+
+  function exitWC(g) {
+    if (!g.inWC) return;
+    g.inWC = false;
+    g.el.classList.remove('hid');
+    wcOcc -= 1;
+    updateWC();
+  }
+
+  // ---------- cinema-goers ----------
+  const walkers = new Map(); // lower-case nick -> walker
+  const crowd = $('crowd');
+
+  function pop(g, svg) {
+    const p = h('div', 'pop', svg.cloneNode(true));
+    g.el.append(p);
+    setTimeout(() => p.remove(), 1200);
+  }
+
+  function setEmote(g, name, poof) {
+    g.emote = name;
+    const e = SB.emoteEl(name, EMOTE_H);
+    const w = Number(e.dataset.w) || EMOTE_H;
+    e.style.left = `${-w / 2}px`;
+    g.halfW = w / 2;
+    g.bod.replaceChildren(e);
+    if (g.carry) {
+      g.carry.style.left = `${g.halfW - 10}px`;
+      g.bod.append(g.carry);
+    }
+    if (!poof) return;
+    e.animate([{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 360, easing: 'steps(4)' });
+    const p = h('div', 'puff');
+    g.el.append(p);
+    setTimeout(() => p.remove(), 420);
+  }
+
+  function spawn(w) {
+    const room = ROOMS[w.roomIndex] || ROOMS[0];
+    const g = {
+      key: w.nick.toLowerCase(), nick: w.nick, emote: w.emote, room, detour: w.detour,
+      x: SPAWN_X + rand(0, 60), y: FLOOR_Y[0], facing: -1, phase: rand(0, 6), speed: rand(150, 190),
+      path: [], hurry: false, born: tNow, popcorn: false, seated: false, inWC: false, dead: false,
+      sync: 0, idle: 0, bubble: null, bubbleUntil: 0, halfW: EMOTE_H / 2, carry: null, sitUntil: 0,
+      pending: null, inRoom: false, seat: -1, f: {}, tEl: '', tBod: '',
+    };
+    const tag = h('div', 'tag', w.nick);
+    tag.style.color = SB.nickColor(w.nick, 85, 75);
+    g.bod = h('div', 'bod');
+    g.el = h('div', 'w', g.bod, tag);
+    g.el.dataset.nick = g.key; // lets a purge find it even while it fades
+    setEmote(g, w.emote, false);
+    crowd.append(g.el);
+    g.path = lobbyPath(g).concat({ k: 'do', fn: atCore }, roomPath(g, room));
+    walkers.set(g.key, g);
+    return g;
+  }
+
+  // Bubbles wait until the walker is through the front door (street bubbles would cover the chat board)
+  // and until they are out of the WC; a newer message replaces a waiting one.
+  function talk(g, tokens) {
+    if (g.inWC || g.x > DOOR_X) { g.pending = tokens; return; }
+    g.pending = null;
+    say(g, tokens);
+  }
+
+  function say(g, tokens) {
+    if (!g.bubble) {
+      const bin = h('div', 'bin');
+      const tail = h('div', 'tail');
+      const wrap = h('div', 'bub', bin, tail);
+      $('bubbles').append(wrap);
+      g.bubble = { wrap, bin, tail, w: 0, h: 0, tailX: null, tf: '', tokens: null };
+    }
+    const b = g.bubble;
+    b.tokens = tokens;
+    b.bin.replaceChildren();
+    SB.renderTokens(b.bin, tokens, 24, 80);
+    b.w = b.bin.offsetWidth; // one layout read per message, not per frame
+    b.h = b.bin.offsetHeight;
+    b.bin.classList.remove('in');
+    void b.bin.offsetWidth;
+    b.bin.classList.add('in');
+    g.bubbleUntil = tNow + 5000;
+    placeBubble(g);
+  }
+
+  function placeBubble(g) {
+    const b = g.bubble;
+    let left;
+    let bottom; // of the bubble body
+    if (g.inRoom) {
+      // In a room: beside the head, toward the screen, and never up into the marquee.
+      const r = g.room;
+      const toRight = r.side === 'L';
+      const x0 = toRight ? 60 : 780;
+      left = toRight ? g.x + g.halfW + 4 : g.x - g.halfW - 4 - b.w;
+      left = clamp(left, x0, x0 + 504 - b.w);
+      bottom = Math.min(r.Y - 4, Math.max(g.y - 18, r.Y - 126 + b.h));
+    } else {
+      left = clamp(g.x - b.w / 2, 8, DOOR_X - b.w); // inside the building: stay inside it
+      bottom = g.y - EMOTE_H - (g.f.up && !g.f.riding ? 46 : 22); // clear of a raised name tag
+    }
+    left = Math.round(left);
+    const tf = `translate(${left}px, ${Math.round(bottom + 12)}px)`;
+    if (tf !== b.tf) { b.wrap.style.transform = tf; b.tf = tf; }
+    const tx = Math.round(clamp(g.x - left, 14, b.w - 14));
+    if (tx !== b.tailX) {
+      b.tail.style.left = `${tx}px`;
+      b.tailX = tx;
+    }
+  }
+
+  function release(g) {
+    g.dead = true;
+    walkers.delete(g.key);
+    if (g.seat >= 0 && g.room.seats[g.seat] === g) g.room.seats[g.seat] = null;
+    const i = E.waiting.indexOf(g);
+    if (i >= 0) E.waiting.splice(i, 1);
+    const j = E.riders.indexOf(g);
+    if (j >= 0) E.riders.splice(j, 1);
+    if (g.inWC) { g.inWC = false; wcOcc -= 1; updateWC(); }
+    if (g.bubble) { g.bubble.wrap.remove(); g.bubble = null; }
+  }
+
+  function fadeOut(g) {
+    if (g.dead) return;
+    release(g);
+    const el = g.el;
+    if (document.hidden) { el.remove(); return; }
+    el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, easing: 'steps(4)', fill: 'forwards' });
+    // A timer, not onfinish: animation events need rendered frames, so a hidden OBS source would pile up nodes.
+    setTimeout(() => el.remove(), 650);
+  }
+
+  function hurry(g) {
+    if (g.hurry || g.dead) return;
+    g.hurry = true;
+    if (g.seated) g.sitUntil = 0;
+    const i = E.waiting.indexOf(g);
+    if (i >= 0) {
+      E.waiting.splice(i, 1);
+      g.path.splice(0, 2, ...stairsPath(g.room.floor));
+    }
+  }
+
+  function walk(g, tx, ty, dt) {
+    const dx = tx - g.x;
+    const dy = ty - g.y;
+    const d = Math.hypot(dx, dy);
+    const step = g.speed * (g.hurry ? 2.4 : 1) * dt;
+    if (Math.abs(dx) > 0.5) g.facing = dx > 0 ? 1 : -1;
+    if (d <= step) { g.x = tx; g.y = ty; return true; }
+    g.x += (dx / d) * step;
+    g.y += (dy / d) * step;
+    return false;
+  }
+
+  function sit(g) {
+    if (!g.seated) {
+      g.seated = true;
+      const stay = g.seat < 0 ? rand(4000, 7000) : walkers.size > 30 ? rand(5000, 9000) : rand(15000, 25000); // standees leave sooner
+      g.sitUntil = g.hurry ? tNow : tNow + stay;
+      g.facing = g.room.side === 'L' ? 1 : -1; // face the screen
+      g.el.classList.add('seated');
+    }
+    if (tNow >= g.sitUntil && (g.hurry || tNow >= g.bubbleUntil)) fadeOut(g);
+  }
+
+  function updateWalker(g, dt) {
+    let moving = false;
+    for (let guard = 0; guard < 8; guard++) {
+      const s = g.path[0];
+      if (!s) break;
+      if (s.k === 'do') { g.path.shift(); s.fn(g); continue; }
+      if (s.k === 'wait') {
+        if (s.until == null) s.until = tNow + s.ms;
+        if (g.hurry) s.until = Math.min(s.until, tNow + 150);
+        if (tNow >= s.until) { g.path.shift(); continue; }
+        break;
+      }
+      if (s.k === 'walk') {
+        moving = true;
+        if (walk(g, s.x, s.y ?? g.y, dt)) g.path.shift();
+        break;
+      }
+      if (s.k === 'queue') {
+        const i = E.waiting.indexOf(g);
+        if (i < 0) { g.path.shift(); continue; }
+        moving = !walk(g, spotX(i), FLOOR_Y[0], dt);
+        break;
+      }
+      if (s.k === 'ride') {
+        if (!E.riders.includes(g)) { g.path.splice(0, 1, ...stairsPath(s.floor)); continue; }
+        g.y = carY();
+        if (E.state === 'open' && E.floor === 0) moving = !walk(g, slotX(s.slot), g.y, dt);
+        else g.x = slotX(s.slot);
+        break;
+      }
+      if (s.k === 'sit') sit(g);
+      break;
+    }
+    if (g.dead) return;
+    if (g.popcorn && moving && Math.random() < dt * 0.3) dropCrumb(g);
+    const riding = g.path[0]?.k === 'ride';
+    flag(g, 'riding', riding);
+    flag(g, 'up', g.y < FLOOR_Y[0] - 1);
+    // Off the car, the shaft is crossed through a passage behind it, unless the car stands open on this floor.
+    const carHere = E.state === 'open' && Math.abs(E.y - g.y) < 4;
+    flag(g, 'behind', !riding && g.x > 580 && g.x < 664 && !carHere);
+    if (g.y >= FLOOR_Y[0] - 1 && Math.abs(g.x - GLASS_X) < 44) entrance.until = tNow + 250;
+    render(g, moving, dt);
+    if (g.pending && !g.inWC && g.x <= DOOR_X) talk(g, g.pending);
+    if (g.bubble) {
+      if (tNow > g.bubbleUntil) { g.bubble.wrap.remove(); g.bubble = null; }
+      else placeBubble(g);
+    }
+  }
+
+  function render(g, moving, dt) {
+    let lift = 0;
+    let sq = 1;
+    if (tNow < g.sync) { // combo: everyone in that emote hops on the same beat
+      const s = Math.abs(Math.sin(tNow / 1000 * 9));
+      lift = s * 20;
+      sq = s < 0.2 ? 0.84 : 1;
+    } else if (moving) {
+      g.phase += dt * 11;
+      const s = Math.abs(Math.sin(g.phase));
+      lift = s * 14;
+      sq = s < 0.22 ? 0.86 : 1;
+    } else if (!g.seated) {
+      if (!g.idle && Math.random() < dt * 0.25) g.idle = 0.001;
+      if (g.idle) {
+        g.idle += dt * 9;
+        if (g.idle >= Math.PI) g.idle = 0;
+        else lift = Math.sin(g.idle) * 10;
+      }
+    }
+    // Only write when changed: most seated walkers do not move for many seconds.
+    const te = `translate3d(${Math.round(g.x)}px, ${Math.round(g.y)}px, 0)`;
+    if (te !== g.tEl) { g.el.style.transform = te; g.tEl = te; }
+    const tb = `translateY(${-Math.round(lift)}px) scale(${g.facing * (2 - sq)}, ${sq})`;
+    if (tb !== g.tBod) { g.bod.style.transform = tb; g.tBod = tb; }
+  }
+
+  // Class toggles cached on the walker, so the per-frame checks do not touch the DOM.
+  function flag(g, cls, on) {
+    if (g.f[cls] === on) return;
+    g.f[cls] = on;
+    g.el.classList.toggle(cls, on);
+  }
+
+  // Too many on screen: the oldest hurry to their seats; way too many simply fade.
+  function balance() {
+    const live = [...walkers.values()];
+    if (live.length <= MAX_ON) return;
+    live.sort((a, b) => a.born - b.born);
+    live.slice(0, live.length - MAX_ON).forEach(hurry);
+    if (live.length > MAX_ON + 20) live.slice(0, live.length - MAX_ON - 20).forEach(fadeOut);
+  }
+  setInterval(balance, 500);
+
+  // ---------- chat ----------
+  Cinema.onWalkIn((w) => {
+    let g = walkers.get(w.nick.toLowerCase());
+    if (g) {
+      setEmote(g, w.emote, true);
+      g.born = tNow; // talking again makes them the newest, so they are not hurried away first
+      g.hurry = false; // a stairs detour already taken stays as it is
+      if (g.seated) g.sitUntil = Math.max(g.sitUntil, tNow + 6000);
+    } else g = spawn(w);
+    // Bot commands typed for other scenes still walk the chatter in, just without a bubble.
+    if (!String(w.text || '').trimStart().startsWith('!')) talk(g, w.tokens);
+  });
+
+  Cinema.onPurge((nick) => {
+    const key = String(nick).toLowerCase();
+    const g = walkers.get(key);
+    if (g) release(g);
+    crowd.querySelectorAll(`[data-nick="${CSS.escape(key)}"]`).forEach((n) => n.remove()); // fading ones too
+  });
+
+  let comboTimer;
+  Cinema.onCombo(({ emote, count }) => {
+    for (const g of walkers.values()) if (g.emote === emote) g.sync = tNow + 2600;
+    if (count < 3) return;
+    $('combo').replaceChildren(SB.emoteEl(emote, 56), h('span', '', `${count}x COMBO`));
+    $('combo').classList.add('show');
+    clearTimeout(comboTimer);
+    comboTimer = setTimeout(() => $('combo').classList.remove('show'), 2000);
+  });
+
+  // ---------- ambient life ----------
+  const pops = [];
+  let popAcc = 0;
+  function updatePops(dt) {
+    popAcc += dt;
+    while (popAcc > 0.16) {
+      popAcc -= 0.16;
+      if (pops.length < 16) pops.push({ x: rand(900, 972), y: 916, vx: rand(-30, 30), vy: rand(-140, -70) });
+    }
+    for (let i = pops.length - 1; i >= 0; i--) {
+      const p = pops[i];
+      p.vy += 320 * dt;
+      p.x = clamp(p.x + p.vx * dt, 898, 972);
+      p.y += p.vy * dt;
+      if (p.y > 918 && p.vy > 0) pops.splice(i, 1);
+    }
+  }
+
+  // Popcorn crumbs: dropped by snackers, swept up by the janitor (upper floors: they just vanish).
+  const crumbs = [];
+  function dropCrumb(g) {
+    if (crumbs.length >= 40) crumbs.shift();
+    crumbs.push({ x: g.x + g.facing * (g.halfW - 4), y: g.y - 30, floor: g.y, vy: -60, settled: false, ground: g.y >= FLOOR_Y[0] - 1, t: tNow });
+  }
+  function updateCrumbs(dt) {
+    for (let i = crumbs.length - 1; i >= 0; i--) {
+      const c = crumbs[i];
+      if (!c.settled) {
+        c.vy += 700 * dt;
+        c.y += c.vy * dt;
+        if (c.y >= c.floor) { c.y = c.floor; c.settled = true; }
+      } else if (!c.ground && tNow - c.t > 60_000) crumbs.splice(i, 1);
+    }
+  }
+  function sweep(x, r) {
+    for (let i = crumbs.length - 1; i >= 0; i--) {
+      const c = crumbs[i];
+      if (c.ground && c.settled && Math.abs(c.x - x) < r) crumbs.splice(i, 1);
+    }
+  }
+
+  const jan = { x: CLOSET_X, tx: CLOSET_X, state: 'closet', t: 6, face: 1, signX: null, signUntil: 0 };
+  // Mopping stops stay out of the box office (x >= 1060), where the counter would hide him.
+  function janTarget() {
+    const c = crumbs.find((k) => k.ground && k.settled);
+    return c ? clamp(c.x, 300, 1040) : rand(320, 1040);
+  }
+  function updateJanitor(dt) {
+    jan.t -= dt;
+    if (jan.state === 'closet') {
+      if (jan.t <= 0) { jan.state = 'walk'; jan.tx = janTarget(); }
+      return;
+    }
+    if (jan.state === 'walk' || jan.state === 'home') {
+      const d = jan.tx - jan.x;
+      if (Math.abs(d) < 1) {
+        if (jan.state === 'home') { jan.state = 'closet'; jan.t = rand(20, 40); return; }
+        jan.state = 'mop';
+        jan.t = rand(4, 7);
+        if (Math.random() < 0.35 && tNow > jan.signUntil) {
+          jan.signX = clamp(jan.x + jan.face * 36, 320, 1040);
+          jan.signUntil = tNow + 30_000;
+        }
+      } else {
+        jan.face = Math.sign(d);
+        jan.x += jan.face * Math.min(Math.abs(d), 34 * dt);
+      }
+    } else if (jan.state === 'mop' && jan.t <= 0) {
+      if (Math.random() < 0.25) { jan.state = 'home'; jan.tx = CLOSET_X; }
+      else { jan.state = 'walk'; jan.tx = janTarget(); }
+    }
+    sweep(jan.x, jan.state === 'mop' ? 30 : 16);
+  }
+
+  const cars = [];
+  let nextCar = 3;
+  function updateCars(dt) {
+    nextCar -= dt;
+    if (nextCar <= 0) {
+      nextCar = rand(12, 28);
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      cars.push({ dir, x: dir > 0 ? -120 : 2040, y: dir > 0 ? 1020 : 1048, col: SB.pick(CAR_COLORS), v: rand(200, 300) });
+    }
+    for (let i = cars.length - 1; i >= 0; i--) {
+      const c = cars[i];
+      c.x += c.dir * c.v * dt;
+      if (c.x < -160 || c.x > 2080) cars.splice(i, 1);
+    }
+  }
+
+  const STARS = (() => {
+    const r = rng(42);
+    const out = [];
+    while (out.length < 18) {
+      const x = r() * 1320;
+      const y = r() * 280;
+      if (x > 372 && x < 972 && y > 150) continue;     // neon sign
+      if (x > 90 && x < 216 && y > 140) continue;      // water tower
+      if (Math.hypot(x - 208, y - 88) < 56) continue;  // moon
+      out.push({ x, y, p: r() * 6 });
+    }
+    return out;
+  })();
+  const zs = [];
+  let zAcc = 0;
+
+  // ---------- per-frame drawing (low-res fx layer) ----------
+  function drawBeam(room, time) {
+    const Y = room.Y;
+    const lx = u(mx(room, LENS.x));
+    const ly = u(Y + LENS.y);
+    const sx = u(mx(room, SCREEN.x));
+    fx.fillStyle = 'rgba(255, 236, 190, .07)';
+    fx.beginPath();
+    fx.moveTo(lx, ly);
+    fx.lineTo(sx, u(Y + SCREEN.top));
+    fx.lineTo(sx, u(Y + SCREEN.top + SCREEN.h));
+    fx.closePath();
+    fx.fill();
+    for (let k = 0; k < 5; k++) { // dust in the beam
+      const f = (time * 0.04 + k * 0.21 + room.i * 0.13) % 1;
+      const x = lx + (sx - lx) * f;
+      const y = ly + (u(Y + SCREEN.top + SCREEN.h / 2) - ly) * f + Math.sin(time * 0.6 + k * 2) * 6 * f;
+      fx.fillStyle = `rgba(255, 242, 200, ${(0.55 * Math.sin(f * Math.PI)).toFixed(2)})`;
+      fx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+  }
+
+  // Everyone who went in during the last 10 minutes stays as a silhouette in the seats.
+  function drawAudience(room) {
+    const n = Math.min(10, room.recentN);
+    const col = 'rgba(12, 8, 18, .82)';
+    for (let k = 0; k < n; k++) {
+      const row = k % 5;
+      const cx = mx(room, ROW_X[row] + ((k * 37) % 17) - 8 + (k >= 5 ? 6 : 0));
+      const py = room.Y - 8 * row;
+      rect(fx, cx - 8, py - 36, 16, 12, col);
+      rect(fx, cx - 6, py - 48, 12, 12, col);
+      rect(fx, cx - 8, py - 52, 4, 4, col);
+      rect(fx, cx + 4, py - 52, 4, 4, col);
+    }
+  }
+
+  function drawElevator() {
+    const y = carY();
+    const top = y - CAR_H;
+    rect(fx, 620, 320, 4, top - 320, '#8a90aa');
+    rect(fx, 580, top, 88, CAR_H, '#3d2c46');
+    rect(fx, 580, top, 88, 8, '#e8b04b');
+    rect(fx, 600, top + 8, 48, 4, '#fff0c0');
+    rect(fx, 588, top + 64, 72, 4, '#4d3a58');
+    rect(fx, 580, top, 4, CAR_H, '#8a90aa');
+    rect(fx, 664, top, 4, CAR_H, '#8a90aa');
+    rect(fx, 580, y, 88, 8, '#c09040');
+    let cur = 0;
+    FLOOR_Y.forEach((fy, f) => { if (Math.abs(fy - E.y) < Math.abs(FLOOR_Y[cur] - E.y)) cur = f; });
+    for (let f = 0; f <= 3; f++) {
+      for (let i = 0; i <= 3; i++) rect(fx, 596 + i * 20, FLOOR_Y[f] - 160, 8, 8, i === cur ? '#ffd060' : '#4a3020');
+    }
+  }
+
+  // On its own canvas above the lobby props (POPCORN plate, counter), still under the walkers.
+  let janDrawn = true;
+  function drawJanitor(time) {
+    const sign = jan.signX != null && tNow < jan.signUntil;
+    if (!sign && jan.state === 'closet' && !janDrawn) return;
+    fx2.clearRect(0, 0, 480, 270);
+    janDrawn = sign || jan.state !== 'closet';
+    if (sign) sprite(fx2, WET, { y: '#ffd23a', k: '#2a2a2a' }, jan.signX - 8, FLOOR_Y[0] - 24);
+    if (jan.state === 'closet') return;
+    const Y = FLOOR_Y[0];
+    const flip = jan.face < 0;
+    sprite(fx2, JANITOR, JANITOR_PAL, jan.x - 16, Y - 52, flip);
+    const wig = jan.state === 'mop' ? Math.round(Math.sin(time * 6)) * 4 : 0;
+    const hx = jan.x + (flip ? -14 : 10) + wig;
+    rect(fx2, hx, Y - 28, 4, 24, '#a07040');
+    rect(fx2, hx - 6, Y - 6, 16, 6, '#d8d0b0');
+  }
+
+  function drawCat(time, dt) {
+    const cx = 872;
+    const cy = LOUNGE_Y - 56;
+    sprite(fx, CAT, CAT_PAL, cx, cy);
+    if (Math.sin(time * 1.6) > 0) rect(fx, cx + 24, cy, 12, 4, '#e8924a'); // breathing
+    zAcc += dt;
+    if (zAcc > 2.4) { zAcc = 0; zs.push({ t: 0 }); }
+    for (let i = zs.length - 1; i >= 0; i--) {
+      const z = zs[i];
+      z.t += dt;
+      if (z.t > 3.2) { zs.splice(i, 1); continue; }
+      fx.globalAlpha = 1 - z.t / 3.2;
+      sprite(fx, ZED, { '#': '#cfd8ff' }, cx + 8 + z.t * 10, cy - 16 - z.t * 14);
+      fx.globalAlpha = 1;
+    }
+  }
+
+  function drawArcade(time) {
+    const y0 = u(LOUNGE_Y - 96);
+    const x1 = u(1156);
+    rect(fx, 1156, LOUNGE_Y - 96, 32, 24, '#0c1a14');
+    const bx = Math.round(Math.abs(((time * 0.9) % 2) - 1) * 5) + 1;
+    const by = Math.round(Math.abs(((time * 0.7) % 2) - 1) * 4) + 1;
+    fx.fillStyle = '#9fffb0';
+    fx.fillRect(x1 + bx, y0 + by, 1, 1);
+    fx.fillRect(x1, y0 + clamp(by - 1, 0, 4), 1, 2);
+    fx.fillRect(x1 + 7, y0 + clamp(by, 0, 4), 1, 2);
+    const x2 = u(1216);
+    for (let i = 0; i < 6; i++) {
+      fx.fillStyle = `hsl(${Math.round(time * 10 + i * 30) % 360} 50% 42%)`;
+      fx.fillRect(x2, y0 + i, 8, 1);
+    }
+  }
+
+  function drawCar(c) {
+    const [body, dark] = c.col;
+    sprite(fx, CAR, { b: body, d: dark, w: '#5a7a9a', R: '#ff5a5a', L: '#ffe9a0', k: '#141418' }, c.x - 48, c.y, c.dir < 0);
+    rect(fx, c.dir > 0 ? c.x + 48 : c.x - 112, c.y + 12, 64, 8, 'rgba(255, 233, 160, .10)');
+  }
+
+  function drawFx(time, dt) {
+    fx.clearRect(0, 0, 480, 270);
+    for (const s of STARS) {
+      const a = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(time * 0.8 + s.p));
+      rect(fx, s.x, s.y, 4, 4, `rgba(255, 243, 200, ${a.toFixed(2)})`);
+    }
+    for (const c of cars) drawCar(c);
+    for (const room of ROOMS) { drawBeam(room, time); drawAudience(room); }
+    drawElevator();
+    fx.fillStyle = '#fff6d0';
+    for (const p of pops) fx.fillRect(u(p.x), u(p.y), 1, 1);
+    fx.fillStyle = '#fff1c0';
+    for (const c of crumbs) fx.fillRect(u(c.x), u(c.y) - 1, 1, 1);
+    drawJanitor(time);
+    drawCat(time, dt);
+    drawArcade(time);
+  }
+
+  // ---------- main loop ----------
+  let last = performance.now();
+  function frame(t) {
+    const dt = Math.min(0.05, (t - last) / 1000);
+    last = t;
+    tNow = t;
+    updateElevator(dt);
+    for (const g of walkers.values()) updateWalker(g, dt);
+    updatePops(dt);
+    updateCrumbs(dt);
+    updateJanitor(dt);
+    updateCars(dt);
+    drawFx(t / 1000, dt);
+    placeGate();
+    updateDoors();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- rooms data, green screen / info board, clock ----------
+  const green = $('green');
+  if (Cinema.green === 'off') green.classList.add('off');
+  else green.style.background = Cinema.green;
+
+  function renderInfo() {
+    if (Cinema.green !== 'off') return;
+    const row = (a, b, cls = '') => h('div', `ir ${cls}`, h('span', '', a), h('span', '', b));
+    const rows = [row('SHOWTIMES', SB.clockText(), 'hd')];
+    for (const s of Cinema.showtimes().slice(0, 3)) {
+      rows.push(s.live
+        ? row('MOVIE NIGHT · NOW', `until ${Cinema.timeLocal(s.end)}`)
+        : row(`MOVIE NIGHT · ${Cinema.dayShort(s.start).toUpperCase()}`, Cinema.timeLocal(s.start)));
+    }
+    if (rows.length === 1) rows.push(row('NEXT SHOW', 'TBA'));
+    const lastFilm = Cinema.rooms[0];
+    if (lastFilm?.watchedTs) rows.push(row(`LAST: ${lastFilm.title}`, fmtRating(lastFilm.rating)));
+    const inside = ROOMS.reduce((n, r) => n + r.recentN, 0);
+    rows.push(row('dinkdonk.mov', `${inside} went in (10 min)`, 'ft'));
+    green.replaceChildren(...rows);
+  }
+
+  Cinema.onRooms((rooms) => {
+    rooms.forEach((info, i) => {
+      const room = ROOMS[i];
+      if (!room) return;
+      room.info = info;
+      renderMarq(room);
+      setPoster(room, info.poster || null);
+    });
+    renderInfo();
+  });
+
+  function tick() {
+    $('clock').textContent = SB.clockText();
+    const rate = $('rate');
+    if (rate) rate.textContent = `${SB.mpm()} msg/min`;
+    ROOMS.forEach(renderMarq);
+    renderInfo();
+  }
+  tick();
+  setInterval(tick, 5_000);
+
+  SB.start();
+})();
+</script>
+</body>
+</html>

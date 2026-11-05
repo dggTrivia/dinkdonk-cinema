@@ -1,0 +1,1003 @@
+<!doctype html>
+<!--
+  DINK DONK - SCENE 2: the auditorium (Screen 1), shown while the picked film downloads.
+
+  Background = the latest approved Codex draft (roxy3d/qa11/cinema_draft_NN.png) with its layout JSON
+  (seats, tiers, stairs, the entrance tunnel route). Every chatter who walks in comes through the tunnel
+  from the back of the hall, climbs the stairs and takes a seat; their own row's seat backs hide their
+  lower body. Chatters speak once visible; tunnel messages are bounded until they emerge.
+  Options: draft=09 (which qa11 draft), tag= / everyone=1 (who walks in, see shared/cinema.js), demo=1,
+  live=1 (auto-reload on file change), phase=seating|dim|film|up, screen=green (always OBS green),
+  director=0|<seconds>, zoom=<1.2-3>, ctl=0 (no control panel connection). Keys F/R/W/D as in the lobby.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DINK DONK - Screen 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage { background: #0b0a12; font-family: Oswald, 'Arial Narrow', Arial, sans-serif; color: #fff; }
+  #world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 0; }
+  #cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  #names { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 1; pointer-events: none; }
+  #bg, #bg-dim { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  .slice, .sheet { position: absolute; pointer-events: none; }
+  .sheet { left: 0; top: 0; }
+  #screenq { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; display: none; z-index: 70000; }
+  #bg, .slice, .sheet { filter: brightness(1); transition: filter 6s ease-in-out; }
+  .w .em { filter: brightness(1); transition: filter 6s ease-in-out; }
+  .lights-down:not(.has-dim-art) #bg, .lights-down:not(.has-dim-art) .slice, .lights-down:not(.has-dim-art) .sheet { filter: brightness(.45); }
+  .dim-art { opacity: 0; transition: opacity 6s ease-in-out; pointer-events: none; }
+  .lights-down.dim-ready .dim-art { opacity: 1; }
+  .lights-down .w .em { filter: brightness(.8); }
+
+  /* A flat projection, clipped before its affine mapping into the matte screen. */
+  #preshow { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden;
+    transform-origin: 0 0; display: none; pointer-events: none; color: #eadbb9; background: #282224; z-index: 70000;
+    filter: brightness(.85) sepia(.13); }
+  #preshow::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse, transparent 25%, rgba(8,5,6,.56)); box-shadow: inset 0 0 38px #171315; }
+  .ps-slide { position: absolute; inset: 0; padding: 42px 64px; box-sizing: border-box; display: flex;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px;
+    opacity: 0; transition: opacity .8s; text-shadow: 0 0 3px #d8c39444; }
+  .ps-slide.active { opacity: 1; }
+  .ps-small { font-size: 26px; letter-spacing: .16em; text-transform: uppercase; }
+  .ps-slide h2 { margin: 0; font-size: 72px; font-weight: 500; line-height: 1.08; }
+  .ps-slide p { margin: 0; font-size: 34px; line-height: 1.25; }
+  .ps-feature { display: flex; align-items: center; justify-content: center; gap: 30px; width: 100%; min-height: 220px; }
+  #ps-title { font-size: 54px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical; overflow: hidden; }
+  #ps-poster { width: 140px; height: 210px; object-fit: contain; opacity: .85; flex-shrink: 0; }
+  #ps-percent { font-size: 100px; line-height: 1; }
+  #ps-bar { width: 620px; height: 12px; background: #a798752b; }
+  #ps-fill { height: 100%; width: 0; background: #c7b585; transition: width 2s linear; }
+  #ps-eta { font-size: 28px; }
+  #ps-audience { position: relative; width: 100%; height: 280px; overflow: hidden; }
+  #ps-credits { position: absolute; top: 0; width: 100%; font-size: 38px; line-height: 1.6;
+    animation: ps-roll 24s linear infinite; }
+  @keyframes ps-roll { from { transform: translateY(280px); } to { transform: translateY(-100%); } }
+  @media (prefers-reduced-motion: reduce) { .ps-slide, #ps-fill { transition: none; } }
+
+  .w { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+  .w .sh { position: absolute; left: -14px; top: -5px; width: 28px; height: 10px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,0)); }
+  .w.sit .sh { display: none; }
+  .w .bod { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+  .w .em { position: absolute; bottom: 0; }
+  #names .nm { position: absolute; left: 0; top: 5px; transform: translateX(-50%); white-space: nowrap;
+    font: 500 12px/1 Oswald, 'Arial Narrow', sans-serif; letter-spacing: .02em; padding: 0 4px 1px; border-radius: 2px;
+    background: rgba(8, 6, 18, .5); text-shadow: 0 1px 2px #000, 0 0 4px #000; transition: opacity .6s; }
+
+  /* DGG tier 5 subs: the moving rainbow name of DGG chat (same gradient as the DSA script) */
+  .rbt { background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bff95, #67d8ff, #b28dff, #ff78c6, #ff6b6b);
+    background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-fill-color: transparent; animation: rbt 4s linear infinite; }
+  @keyframes rbt { to { background-position: -220% 0; } }
+  #bubbles { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 86000; pointer-events: none; }
+  /* the lobby's dialog box: square, plain 90s game style */
+  .bub { position: absolute; left: 0; top: 0; max-width: 300px; padding: 5px 10px 6px; border-radius: 3px;
+    background: rgba(10, 9, 22, .9); border: 1px solid rgba(200, 220, 255, .6); color: #f4f4ff;
+    font: 700 16px/1.28 Verdana, Tahoma, 'Segoe UI', sans-serif; white-space: normal; overflow-wrap: anywhere;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, .55); }
+  .bub .bn { font: 700 12px/1.2 Verdana, Tahoma, sans-serif; margin-bottom: 1px; letter-spacing: .02em; }
+  .bub .bt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .bub::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -8px; margin-left: -7px;
+    border: 7px solid transparent; border-top-color: rgba(200, 220, 255, .6); border-bottom: 0; }
+  .bub.below::after { bottom: auto; top: -8px; border-top-color: transparent; border-bottom: 7px solid rgba(200, 220, 255, .6); border-top: 0; }
+  .bub .sb-emote { vertical-align: middle; margin: 0 2px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- everything in the world zooms together; speech stays screen-sized -->
+  <div id="cam">
+  <div id="world">
+    <img id="bg" alt="">
+    <svg id="screenq" viewBox="0 0 1920 1080"><polygon id="screenpoly"/></svg>
+    <div id="preshow">
+      <div class="ps-slide active"><div class="ps-small">DINK DONK presents</div>
+        <div class="ps-feature"><img id="ps-poster" alt="" hidden><h2 id="ps-title">Tonight: Feature Presentation</h2></div>
+        <p>Take your seats. You're in good company.</p></div>
+      <div class="ps-slide"><p id="ps-loading">The feature will begin shortly</p>
+        <div id="ps-progress" hidden><div id="ps-percent"></div><div id="ps-bar"><div id="ps-fill"></div></div><p id="ps-eta"></p></div>
+        <div class="ps-small">Thank you for your patience</div></div>
+      <div class="ps-slide"><div class="ps-small">A word from your projectionist</div><h2>Please silence<br>your phones</h2>
+        <p>No talking during the film.<br>Save the debate for the lobby.</p></div>
+      <div class="ps-slide"><div class="ps-small">Before the lights go down</div><h2>Visit the snack bar</h2>
+        <p>Popcorn. Cold drinks. One last refill.<br>Your seat will be waiting.</p></div>
+      <div class="ps-slide"><div class="ps-small">Tonight's audience</div><div id="ps-audience"><div id="ps-credits"></div></div></div>
+    </div>
+  </div>
+  <div id="names"></div>
+  </div>
+  <div id="bubbles"></div>
+</div>
+<script src="shared/core.js"></script>
+<script src="shared/cinema.js"></script>
+<script src="shared/live.js"></script>
+<script>
+(() => {
+  'use strict';
+  const q = new URLSearchParams(location.search);
+  const $ = (id) => document.getElementById(id);
+  const h = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text != null) el.textContent = text; return el; };
+  const drawn = new WeakMap();
+  const style = (el, prop, value) => {
+    let cache = drawn.get(el);
+    if (!cache) { cache = Object.create(null); drawn.set(el, cache); }
+    if (cache[prop] !== value) { cache[prop] = value; el.style[prop] = value; }
+  };
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  const DRAFT = /^\d{2}$/.test(q.get('draft') || '') ? q.get('draft') : '11';
+  const ART = 'roxy3d/qa11/';
+  const world = $('world');
+  const nameLayer = $('names');
+  const bubLayer = $('bubbles');
+
+  // ---------- pre-show + house lights ----------
+  const phases = ['seating', 'dim', 'film', 'up'];
+  const show = { phase: phases.includes(q.get('phase')) ? q.get('phase') : 'seating', auto: true,
+    download: { available: false }, completedAt: 0, name: '', slide: 0, audience: '' };
+  const alwaysGreen = q.get('screen') === 'green';
+  function applyPhase() {
+    $('stage').classList.toggle('lights-down', show.phase === 'dim' || show.phase === 'film');
+    const green = alwaysGreen || show.phase === 'film';
+    $('screenq').style.display = screenPoly && green ? 'block' : 'none';
+    $('preshow').style.display = screenPoly && !green ? 'block' : 'none';
+    $('stage').dataset.phase = show.phase;
+  }
+  function setPhase(phase, manual = false) {
+    if (!phases.includes(phase)) return;
+    if (manual) { show.auto = false; show.completedAt = 0; }
+    show.phase = phase;
+    applyPhase();
+  }
+  function autoPhase(now) {
+    const d = show.download;
+    if (!show.auto || !d.available) return;
+    if (d.progress >= .9 && (show.phase === 'seating' || show.phase === 'up')) setPhase('dim');
+    if (d.completed && show.completedAt && now - show.completedAt >= 10000 && show.phase !== 'film') setPhase('film');
+  }
+  function eta(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '';
+    if (seconds < 60) return 'Less than a minute';
+    const mins = Math.ceil(seconds / 60);
+    return mins < 60 ? `About ${mins} min` : `About ${Math.floor(mins / 60)} h ${mins % 60} min`;
+  }
+  async function pollDownload() {
+    let d = { available: false };
+    try {
+      const r = await fetch('/qb/progress', { cache: 'no-store', signal: AbortSignal.timeout(3500) });
+      const j = r.ok && await r.json();
+      if (j?.available && typeof j.name === 'string' && Number.isFinite(j.progress)) {
+        d = { available: true, name: j.name, progress: clamp(j.progress, 0, 1),
+          eta_s: Number.isFinite(j.eta_s) ? j.eta_s : null, state: String(j.state || ''), completed: j.completed === true };
+      }
+    } catch { /* old server or Web UI offline: keep a calm, useful pre-show */ }
+    const now = performance.now();
+    if (!show.auto || !d.available || !d.completed || d.name !== show.name) show.completedAt = 0;
+    if (show.auto && d.completed && !show.completedAt) show.completedAt = now;
+    show.name = d.name || '';
+    show.download = d;
+    $('ps-loading').textContent = d.available ? 'Now loading the feature...' : 'The feature will begin shortly';
+    $('ps-progress').hidden = !d.available;
+    // Stay below 100 until qBittorrent actually reports completion.
+    $('ps-percent').textContent = d.available ? `${d.completed ? 100 : Math.min(99, Math.floor(d.progress * 100))}%` : '';
+    $('ps-fill').style.width = `${d.available ? d.progress * 100 : 0}%`;
+    $('ps-eta').textContent = d.available ? (d.completed ? 'The feature is ready. Settle in...' : eta(d.eta_s)) : '';
+    autoPhase(now);
+    setTimeout(pollDownload, 2000);
+  }
+  Cinema.onRooms((rooms, data) => {
+    // History is newest first; unlike the lobby's five rooms this also includes a newest TV entry.
+    const film = data?.history?.[0] || rooms[0];
+    $('ps-title').textContent = `Tonight: ${film?.title || 'Feature Presentation'}`;
+    const card = [...(data?.ratings || []), ...(data?.best || []), ...(data?.worst || [])]
+      .find((r) => (film?.ratingId && r.id === film.ratingId) || r.title === film?.title);
+    const poster = film?.poster || data?.details?.ratings?.[film?.ratingId]?.poster || card?.poster;
+    const im = $('ps-poster');
+    im.hidden = !poster;
+    im.onerror = () => { im.hidden = true; };
+    if (poster) im.src = poster; else im.removeAttribute('src');
+  });
+  setInterval(() => {
+    const slides = document.querySelectorAll('.ps-slide');
+    slides[show.slide].classList.remove('active');
+    show.slide = (show.slide + 1) % slides.length;
+    slides[show.slide].classList.add('active');
+  }, 8000);
+  function audience() {
+    const seated = [...walkers.values()].filter((w) => w.sitting);
+    const key = seated.map((w) => `${w.key}:${w.nm.style.color}:${w.rainbow}`).join('|');
+    if (key === show.audience) return;
+    show.audience = key;
+    const credits = $('ps-credits');
+    credits.replaceChildren();
+    for (const w of seated) {
+      const line = h('div');
+      line.style.color = w.nm.style.color;
+      line.append(h('span', w.rainbow ? 'rbt' : '', w.nick));
+      credits.append(line);
+    }
+    credits.style.animationDuration = `${Math.max(24, seated.length * 1.6)}s`;
+  }
+  let scale = 1;
+  const ZOOM = clamp(Number(q.get('zoom')) || 1.85, 1.2, 3);
+  const DIRECTOR_ON = q.get('director') !== '0';
+  const dpr = () => scale * (devicePixelRatio || 1) * (director.on || director.follow || director.wantNext ? director.zoom : 1);
+  const artImgs = [];           // { im, file, file_2x }; geometry always stays in 1920x1080 coordinates
+  const dimImgs = [];           // paired directly above their lit image, at the same depth
+  let artTwo = null;
+  let doorFile = '';
+  let dimDoorFile = '';
+  let artRequest = 0;
+  async function preloadArt(file, file_2x, two) {
+    const im = new Image();
+    im.src = ART + (two && file_2x ? file_2x : file);
+    try { await im.decode(); }
+    catch {
+      if (!two || !file_2x) throw new Error('Art unavailable');
+      im.src = ART + file;
+      await im.decode();
+    }
+    return im;
+  }
+  function applyArtRes() {
+    const two = dpr() > 1.3;
+    if (artTwo === two) return;
+    artTwo = two;
+    for (const { im, file, file_2x } of artImgs) {
+      const src = ART + (two && file_2x ? file_2x : file);
+      im.onerror = () => { im.onerror = null; im.src = ART + file; };
+      im.src = src;
+    }
+    // Preload the sheet: a missing 4K export keeps the working 1x door, without a broken animation.
+    const request = ++artRequest;
+    const file = two && door?.file_2x ? door.file_2x : door?.file;
+    doorFile = door?.file || '';
+    if (file && file !== doorFile) {
+      const im = new Image();
+      im.onload = () => { if (request === artRequest) doorFile = file; };
+      im.onerror = () => {};
+      im.src = ART + file;
+    }
+    // Warm and decode the entire dim set while lit, including the animated sheet. Commit together so
+    // an early phase change or a slow resize cannot expose partially loaded dim art.
+    if (dimImgs.length) {
+      const dim = layers.dim;
+      Promise.all([
+        ...dimImgs.map(({ file, file_2x }) => preloadArt(file, file_2x, two)),
+        dim.door_file ? preloadArt(dim.door_file, dim.door_file_2x, two) : null
+      ]).then((loaded) => {
+        if (request !== artRequest) return;
+        dimImgs.forEach(({ im }, i) => { im.src = loaded[i].src; });
+        dimDoorFile = loaded[dimImgs.length]?.src || '';
+        if (doorShot?.dim && dimDoorFile) doorShot.dim.style.backgroundImage = `url("${dimDoorFile}")`;
+        $('stage').classList.add('dim-ready');
+      }).catch(() => { /* retain the last complete set if a replacement cannot load */ });
+    }
+  }
+  SB.on('resize', (s) => { scale = s; artTwo = null; applyArtRes(); });
+
+  // ---------- projection (filled from the layout JSON's camera) ----------
+  let K = 0.7071067811875, OX = 890, OY = 370;
+  const P = (u, v, z) => [OX + (u - v) * 60 * K, OY + ((u + v) * 30 - z) * K];
+  let EH = 35;      // emote height: the lobby's 50 px scaled with this camera
+  let MAXW = 52;
+
+  // seat geometry from the draft reports: cushion anchor tier+36, back top tier+62 at v+0.29
+  // the sitter is drawn a little back from the seat line, so the head sits centred over its own backrest
+  const SIT_Z = 48, SIT_DV = 0.2, BACK_Z = 62, BACK_DV = 0.29, LEG_DV = 0.45;
+  const SPEED = 1.35;          // tiles per second on the flat
+  const STAIR_SPEED = 0.85;    // climbing
+
+  let L = null;                 // the layout JSON
+  let rows = [];                // { name, v, z, flat }
+  let seats = [];               // { row, u, v, z, block, taken }
+  let treads = [];              // [v0, v1, z] of the stair aisles
+  let screenPoly = null;
+
+  // Draft 10+: pre-rendered depth slices do the occlusion. Walkers and slices share one camera-depth order:
+  // key = (u + v) + z / KZ, bigger = nearer the camera. Without layers the page falls back to hiding walkers
+  // in the tunnel and cutting seated emotes at their backrest line.
+  let layers = null;
+  let KZ = 90;
+  const depthZ = (u, v, z) => 1000 + Math.round(((u + v) + z / KZ) * 100);
+  let door = null;              // the entrance door's one-shot animation sheet
+  let doorShot = null;          // { el, dim, t } while both sheets play in sync
+  let DOOR_WAIT = 0.3;          // seconds a newcomer waits outside while the door swings open
+
+  function playDoor() {
+    if (!door) return;
+    const hold = (door.open_hold_frames?.[0] ?? 6) / (door.fps || 18);
+    if (doorShot) { if (doorShot.t > hold) doorShot.t = hold; return; }   // someone else is coming: keep it open
+    const el = h('div', 'sheet');
+    Object.assign(el.style, { width: `${door.frame_width}px`, height: `${door.frame_height}px`,
+      backgroundImage: `url("${ART}${doorFile || door.file}")`, backgroundSize: `${door.columns * door.frame_width}px ${(door.rows || Math.ceil(door.frames / door.columns)) * door.frame_height}px`,
+      transform: `translate(${door.x}px, ${door.y}px)`, zIndex: String(door.z_index) });
+    let dim = null;
+    if (layers?.dim?.door_file) {
+      dim = h('div', 'sheet dim-art');
+      Object.assign(dim.style, { width: el.style.width, height: el.style.height,
+        backgroundImage: dimDoorFile ? `url("${dimDoorFile}")` : '', backgroundSize: el.style.backgroundSize });
+      el.append(dim);
+    }
+    world.append(el);
+    doorShot = { el, dim, t: 0 };
+    doorCutout(true);
+  }
+  // The closed door is also in the static depth slices; while the door moves, those pixels are cut out of
+  // them (mask = everything minus the door's cutout, placed in stage coordinates) so the animation shows.
+  const doorSlices = [];
+  function doorCutout(on) {
+    const c = door?.static_slice_cutout;
+    if (!c) return;
+    for (const im of doorSlices) {
+      const m = on ? `linear-gradient(#000, #000), url("${ART}${c.file}")` : '';
+      im.style.maskImage = m;
+      im.style.webkitMaskImage = m;
+      if (!on) continue;
+      const pos = `0 0, ${c.x - parseFloat(im.style.left)}px ${c.y - parseFloat(im.style.top)}px`;
+      const size = `100% 100%, ${c.w}px ${c.h}px`;
+      Object.assign(im.style, { maskPosition: pos, webkitMaskPosition: pos, maskSize: size, webkitMaskSize: size,
+        maskRepeat: 'no-repeat', webkitMaskRepeat: 'no-repeat', maskComposite: 'exclude', webkitMaskComposite: 'xor' });
+    }
+  }
+  function stepDoor(dt) {
+    if (!doorShot) return;
+    doorShot.t += dt;
+    const f = Math.floor(doorShot.t * (door.fps || 18));
+    if (f >= door.frames) { doorShot.el.remove(); doorShot = null; doorCutout(false); return; }
+    doorShot.el.style.backgroundPosition = `${-(f % door.columns) * door.frame_width}px ${-Math.floor(f / door.columns) * door.frame_height}px`;
+    if (doorShot.dim) doorShot.dim.style.backgroundPosition = doorShot.el.style.backgroundPosition;
+  }
+
+  // ---------- walkers ----------
+  const walkers = new Map();   // nick (lower case) -> walker
+  const arrivals = [];         // spawn queue: one at a time through the tunnel
+  const MAX_QUEUE = 270;       // two houses wait outside; excess new nicks can retry on a later message
+  const WALK_GAP = 0.9;        // route tiles, including around bends; earlier walkers have right of way
+  const avatarChecks = new Map();
+  let nextArrival = 0;
+  const bubOrder = [];
+
+  // Keep the first and most recent tunnel messages, never an hours-long speech backlog.
+  function pendingSpeech(w, tokens) {
+    if (!tokens?.length) return;
+    if (w.pending.length >= 2) w.pending.pop();
+    w.pending.push(tokens);
+  }
+  function shortTokens(tokens = []) {
+    const out = [];
+    let left = 128;
+    for (const t of tokens) {
+      if (left <= 0) break;
+      if (t.t === 'emote') { out.push({ t: 'emote', name: String(t.name).slice(0, 80) }); left -= 4; }
+      else if (typeof t.v === 'string') { const v = t.v.slice(0, left); out.push({ t: 'text', v }); left -= Math.max(1, v.length); }
+    }
+    return out;
+  }
+  function nameStyle(w, m) {
+    w.nm.style.color = m.color || '#fff';
+    const rainbow = !!m.rainbow;
+    if (w.rainbow !== rainbow) {
+      w.rainbow = rainbow;
+      w.nm.replaceChildren(h('span', rainbow ? 'rbt' : '', w.nick));
+    }
+  }
+  function checkAvatar(w) {
+    const src = getComputedStyle(w.em.firstElementChild).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+    if (!src) return;  // core already supplies a text fallback when no emote CSS is available
+    if (!avatarChecks.has(src)) {
+      if (avatarChecks.size >= 128) avatarChecks.delete(avatarChecks.keys().next().value);
+      avatarChecks.set(src, new Promise((resolve) => {
+        const im = new Image();
+        const done = (ok) => { clearTimeout(timer); im.onload = im.onerror = null; resolve(ok); };
+        const timer = setTimeout(() => done(false), 5000);
+        im.onload = () => done(true);
+        im.onerror = () => done(false);
+        im.src = src;
+      }));
+    }
+    avatarChecks.get(src).then((ok) => {
+      if (ok || !w.em.isConnected) return;
+      const fallback = h('span', 'sb-emote-text', '?');
+      fallback.title = w.emName;
+      Object.assign(fallback.style, { fontSize: `${w.emH * .55}px`, width: `${w.emW}px`, height: `${w.emH}px`,
+        padding: '0', lineHeight: `${w.emH}px`, textAlign: 'center' });
+      w.em.replaceChildren(fallback);
+    });
+  }
+
+  function makeWalker(m) {
+    const key = m.nick.toLowerCase();
+    const el = h('div', 'w');
+    const sh = el.appendChild(h('div', 'sh'));
+    const bod = el.appendChild(h('div', 'bod'));
+    const { w: ew, h: eh } = SB.emoteSize(m.emote);
+    const em = SB.emoteEl(m.emote, Math.min(EH, MAXW * eh / ew));
+    em.classList.add('em');
+    em.style.left = `${-parseFloat(em.style.width) / 2}px`;
+    bod.append(em);
+    const nm = nameLayer.appendChild(h('div', 'nm', m.nick));
+    nm.style.visibility = 'hidden';
+    world.append(el);
+    const w = { key, nick: m.nick, el, sh, bod, em, emName: m.emote, nm, bounce: 0, emW: parseFloat(em.style.width) || EH, emH: parseFloat(em.style.height) || EH, path: [], seg: 0, t: 0, pos: [0, 0, 0], seat: null, sitting: false,
+      pending: [], bub: null, bubT: 0, alpha: 0, phase: rand(0, 6.28), nameT: 0, lookT: 0, seen: false };
+    nameStyle(w, m);
+    checkAvatar(w);
+    return w;
+  }
+
+  // a free seat: friends you mention first, then the middle of the hall, leaving a gap to strangers
+  // The front row is the wheelchair row (owner's joke): YEE chatters sit there and only there, everyone else
+  // keeps out of it - unless their side of the hall is full.
+  function chooseSeat(m) {
+    const front = (s) => s.row === rows[0];
+    const yee = m.emote === 'YEE';
+    let free = seats.filter((s) => !s.taken && front(s) === yee);
+    if (!free.length) free = seats.filter((s) => !s.taken);
+    if (!free.length) return null;
+    const text = (m.text || '').toLowerCase();
+    for (const w of walkers.values()) {
+      if (!w.seat || !text.includes(w.key)) continue;
+      const near = free.filter((s) => s.row === w.seat.row && Math.abs(s.u - w.seat.u) < 0.9);
+      if (near.length) return near[0];
+    }
+    const full = 1 - free.length / seats.length;
+    const mid = (14.1 + 4.5) / 2;
+    const weight = (s) => {
+      let wgt = { B: 0.5, C: 0.8, D: 1.1, E: 1.4, F: 1.5, G: 1.3, H: 1, I: 0.8 }[s.row.name] ?? 1;
+      wgt *= s.block === 'main' ? 1.6 - Math.abs(s.u - mid) / 8 : 0.55;
+      if (full < 0.5 && seats.some((o) => o.taken && o.row === s.row && Math.abs(o.u - s.u) < 0.9)) wgt *= 0.3;
+      return Math.max(0.02, wgt);
+    };
+    let total = 0;
+    const ws = free.map((s) => (total += weight(s)));
+    const r = Math.random() * total;
+    return free[ws.findIndex((x) => x >= r)];
+  }
+
+  // tunnel -> cross-aisle -> stair aisle (left, or right for the right edge block) -> legroom -> seat
+  function routeTo(seat) {
+    const pts = L.walk_route.rear_portal_to_cross_aisle.map((p) => [...p]);
+    const row = seat.row;
+    const right = seat.block === 'right';
+    const aisleU = right ? 15.15 : 3.475;
+    const cross = pts[pts.length - 1];
+    if (right) pts.push([aisleU, cross[1], 24]);
+    const legV = row.v - LEG_DV;
+    if (row.flat) {
+      pts.push([aisleU, legV, row.z]);
+    } else {
+      for (const [a, b, z] of treads) {
+        const mv = (a + b) / 2;
+        if (mv > legV) break;
+        pts.push([aisleU, mv, z]);
+      }
+      pts.push([aisleU, legV, row.z]);
+    }
+    pts.push([seat.u, legV, row.z]);
+    return pts;
+  }
+
+  function spawn(m) {
+    if (walkers.size >= seats.length) return false;
+    const portal = L.walk_route.rear_portal_to_cross_aisle[0];
+    for (const w of walkers.values()) {
+      if (!w.sitting && Math.hypot(w.pos[0] - portal[0], w.pos[1] - portal[1], (w.pos[2] - portal[2]) / 60) < WALK_GAP) return false;
+    }
+    const seat = chooseSeat(m);
+    if (!seat) return false;   // full house: retain the head of the FIFO outside the portal
+    seat.taken = true;
+    const w = makeWalker(m);
+    w.seat = seat;
+    w.path = routeTo(seat);
+    w.pos = [...w.path[0]];
+    // the entrance door opens for them; they wait outside until it's open
+    if (door) { playDoor(); w.wait = DOOR_WAIT; }
+    pendingSpeech(w, m.tokens);
+    pendingSpeech(w, m.more);
+    walkers.set(w.key, w);
+    directorArrival(w);
+    return true;
+  }
+
+  function onMessage(m) {
+    const nick = String(m.nick || '').trim().slice(0, 25);
+    if (!nick) return;
+    m = { nick, emote: m.emote || Cinema.defaultEmote(nick), text: String(m.text || '').slice(0, 512),
+      tokens: shortTokens(m.tokens), color: m.color, rainbow: !!m.rainbow };
+    const key = nick.toLowerCase();
+    const w = walkers.get(key);
+    if (!w) {
+      const queued = arrivals.find((a) => a.nick.toLowerCase() === key);
+      if (!queued) { if (arrivals.length < MAX_QUEUE) arrivals.push(m); }
+      else { if (m.tokens.length) queued.more = m.tokens; queued.color = m.color; queued.rainbow = m.rainbow; }
+      return;
+    }
+    nameStyle(w, m);
+    if (!m.tokens?.length) return;
+    // they talk wherever they are; only someone out of sight (in the tunnel) saves it for when they come out
+    if (w.seen) say(w, m.tokens);
+    else pendingSpeech(w, m.tokens);
+  }
+
+  function removeWalker(w) {
+    if (director.follow?.w === w) endFollow();
+    dropBubble(w);
+    w.el.remove();
+    w.nm.remove();
+    if (w.seat) w.seat.taken = false;
+    walkers.delete(w.key);
+    w.pending.length = 0;
+    w.path.length = 0;
+  }
+  function removeNick(key) {
+    const w = walkers.get(key);
+    if (w) removeWalker(w);
+    for (let i = arrivals.length - 1; i >= 0; i--) if (arrivals[i].nick.toLowerCase() === key) arrivals.splice(i, 1);
+  }
+
+  // ---------- speech ----------
+  function say(w, tokens) {
+    dropBubble(w);
+    const b = h('div', 'bub');
+    const who = b.appendChild(h('div', 'bn', w.nick));
+    who.style.color = w.nm.style.color;
+    if (w.rainbow) { who.textContent = ''; who.append(h('span', 'rbt', w.nick)); }
+    SB.renderTokens(b.appendChild(h('div', 'bt')), tokens, 22, 64);
+    bubLayer.append(b);
+    w.bub = b;
+    w.bubT = 6;
+    w.nameT = 6;
+    if (w.sitting) { w.bounce = 1; turnNeighbours(w); }
+    w.idleT = 0;
+    bubOrder.push(w);
+    capBubbles();
+  }
+  function turnNeighbours(speaker) {
+    const seat = speaker.seat;
+    const row = rows.indexOf(seat.row);
+    const sx = P(...speaker.pos)[0];
+    for (const w of walkers.values()) {
+      if (w === speaker || !w.sitting) continue;
+      const other = w.seat;
+      const du = Math.abs(other.u - seat.u);
+      const beside = other.row === seat.row && other.block === seat.block && du <= 1.6 + 0.01;
+      const aheadBehind = Math.abs(rows.indexOf(other.row) - row) === 1 && du < 0.01;
+      if (!beside && !aheadBehind) continue;
+      SB.faceEmote(w.em, w.emName, Math.sign(sx - P(...w.pos)[0]));
+      w.lookT = rand(4, 6);
+    }
+  }
+  // at most 4 bubbles on screen; ones waiting in the tunnel (hidden) don't count until they come out
+  function capBubbles() {
+    const shown = bubOrder.filter((o) => o.seen);
+    while (shown.length > 4) dropBubble(shown.shift());
+  }
+  function dropBubble(w) {
+    if (!w.bub) return;
+    w.bub.remove();
+    w.bub = null;
+    w.bubbleMeasured = null;
+    const i = bubOrder.indexOf(w);
+    if (i >= 0) bubOrder.splice(i, 1);
+  }
+  function inScreen(x, y) {
+    if (!screenPoly) return false;
+    x = (x - 960) / cam.z + cam.x;
+    y = (y - 540) / cam.z + cam.y;
+    let inside = false;
+    for (let i = 0, j = screenPoly.length - 1; i < screenPoly.length; j = i++) {
+      const [xi, yi] = screenPoly[i];
+      const [xj, yj] = screenPoly[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  // Above the head; below the seat instead when it would cover the film screen. Bubbles placed earlier
+  // this frame are avoided: a later one moves past them (up when above the head, down when below).
+  function placeBubble(w, placed) {
+    const b = w.bub;
+    const [x, y] = toScreen(w.bx, w.by);
+    const head = toScreen(w.bx, w.by - w.emH)[1];
+    const bw = w.bw;
+    const bh = w.bh;
+    const left = clamp(x - bw / 2, 8, 1912 - bw);
+    const coversScreen = (t) => [[left, t], [left + bw, t], [left, t + bh], [left + bw, t + bh], [left + bw / 2, t]].some(([px, py]) => inScreen(px, py));
+    const below = coversScreen(head - bh - 14);
+    let top = below ? y + 18 : head - bh - 14;
+    for (let i = 0; i < 6; i++) {
+      const hit = placed.find((r) => left < r.x1 + 6 && left + bw > r.x0 - 6 && top < r.y1 + 6 && top + bh > r.y0 - 6);
+      if (!hit) break;
+      top = below ? hit.y1 + 6 : hit.y0 - bh - 6;
+    }
+    top = clamp(top, 8, 1072 - bh);
+    placed.push({ x0: left, y0: top, x1: left + bw, y1: top + bh });
+    b.classList.toggle('below', below);
+    b.style.transform = `translate(${left}px, ${top}px)`;
+    b.style.setProperty('--tail', `${clamp(x - (left + bw / 2), -bw / 2 + 12, bw / 2 - 12)}px`);
+  }
+
+  // ---------- frame ----------
+  let last = performance.now();
+  function frame(now) {
+    tick(now);
+    requestAnimationFrame(frame);
+  }
+  // fallback for throttled/background tabs (headless screenshots): drive the loop if rAF stalls
+  setInterval(() => {
+    if (performance.now() - last <= 150) return;
+    try { tick(performance.now()); } catch (error) { console.error('[auditorium] frame', error); }
+  }, 40);
+  function tick(now) {
+    const dt = clamp((now - last) / 1000, 0, 0.1);
+    last = Math.max(last, now);  // the timer fallback can run just before an older rAF timestamp arrives
+    if (L && arrivals.length && now >= nextArrival) {
+      if (spawn(arrivals[0])) { arrivals.shift(); nextArrival = now + rand(900, 1600); }
+    }
+    stepDoor(dt);
+    const ahead = [];
+    for (const w of walkers.values()) { step(w, dt, ahead); if (!w.sitting) ahead.push(w); }
+    stepCamera(dt);
+    autoPhase(now);
+    capBubbles();
+    // Read all new bubble sizes together after the writes; unchanged bubbles never force layout per frame.
+    for (const w of bubOrder) if (w.bub && w.bubbleMeasured !== w.bub) {
+      w.bw = w.bub.offsetWidth; w.bh = w.bub.offsetHeight; w.bubbleMeasured = w.bub;
+    }
+    const placed = [];
+    for (const w of bubOrder) if (w.bub && w.bub.style.visibility !== 'hidden') placeBubble(w, placed);
+  }
+
+  // Project earlier walkers onto the next stretch of this route. Looking past short tread segments and
+  // corners preserves the gap at bends; height separates the tunnel from the seats above it. Seated
+  // people never block the legroom. Only earlier arrivals block, so branches cannot create a wait cycle.
+  function blockedAhead(w, travel, ahead) {
+    let allowed = travel;
+    let along = 0;
+    for (let i = w.seg; i < w.path.length - 1 && along < WALK_GAP + travel; i++) {
+      const a = i === w.seg ? w.pos : w.path[i];
+      const b = w.path[i + 1];
+      const du = b[0] - a[0], dv = b[1] - a[1], dz = (b[2] - a[2]) / 60;
+      const len = Math.hypot(du, dv, dz);
+      if (len < .00001) continue;
+      for (const o of ahead) {
+        const ru = o.pos[0] - a[0], rv = o.pos[1] - a[1], rz = (o.pos[2] - a[2]) / 60;
+        const t = (ru * du + rv * dv + rz * dz) / (len * len);
+        if (t < 0 || t > 1) continue;
+        const distance = along + t * len;
+        if (distance <= .00001 || distance >= WALK_GAP + allowed) continue;
+        if (Math.hypot(ru - t * du, rv - t * dv, rz - t * dz) < .18) allowed = Math.min(allowed, Math.max(0, distance - WALK_GAP));
+      }
+      along += len;
+    }
+    return allowed;
+  }
+  function step(w, dt, ahead) {
+    let lift = 0;
+    let tilt = 0;
+    let sq = 1;
+    if (!w.sitting) {
+      const a = w.path[w.seg];
+      const b = w.path[w.seg + 1];
+      if (!b) {
+        // arrived at the legroom in front of the seat: sit down, facing the screen (up and to the right)
+        w.sitting = true;
+        w.el.classList.add('sit');
+        w.pos = [w.seat.u, w.seat.v + SIT_DV, w.seat.z + SIT_Z];
+        w.nameT = 3;
+        SB.faceEmote(w.em, w.emName, 1);
+      } else if (w.wait > 0) {
+        w.wait -= dt;
+      } else {
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] - a[2]) / 60) || 0.01;
+        const climbing = Math.abs(b[2] - a[2]) > 0.5;
+        const travel = blockedAhead(w, dt * (climbing ? STAIR_SPEED : SPEED), ahead);
+        w.t += travel / len;
+        if (w.t >= 1) { w.seg += 1; w.t = 0; w.pos = [...b]; } else w.pos = a.map((c, i) => c + (b[i] - c) * w.t);
+        SB.faceEmote(w.em, w.emName, (b[0] - a[0]) - (b[1] - a[1]));   // looks the way it walks (screen x = u - v)
+        // the lobby's walk: one lazy hop every ~0.8 s, waddling along in between, a little squash on landing
+        if (travel > .00001) w.phase += dt * 3.9;
+        const c = (w.phase / Math.PI) % 1;
+        const s = c < 0.5 ? Math.sin((c / 0.5) * Math.PI) : 0;
+        lift = travel > .00001 ? s * 13 * K : 0;
+        tilt = travel > .00001 && c >= 0.5 ? Math.sin((c - 0.5) * 4 * Math.PI) * 3.5 : 0;
+        sq = travel > .00001 && c < 0.5 && s < 0.2 ? 0.9 : 1;
+      }
+    } else if (w.bounce > 0) {
+      // seated: a small bounce in the seat when they say something
+      w.bounce = Math.max(0, w.bounce - dt * 2.4);
+      lift = Math.sin(w.bounce * Math.PI) * 9 * K;
+    }
+    if (w.sitting && w.lookT > 0) {
+      w.lookT = Math.max(0, w.lookT - dt);
+      if (!w.lookT) SB.faceEmote(w.em, w.emName, 1);
+    }
+    const [u, v, z] = w.pos;
+    // in the tunnel (under the left seat block, between the rear portal and the mouth) nobody is seen:
+    // the depth slices cover them; without slices they fade out
+    // (the mouth is at v 9.4, but the guard post and stair cheek still cover most of them until v ~8.8)
+    const inTunnel = u < 2.9 && v > 8.8 && z < 10;
+    if (!w.seen && !inTunnel) w.nameT = 5;
+    w.seen = !inTunnel;
+    w.alpha += ((w.seen || layers ? 1 : 0) - w.alpha) * Math.min(1, dt * 8);
+    // saved messages come out one by one while they can be seen
+    w.sayNext = (w.sayNext || 0) - dt;
+    if (w.pending.length && w.seen && w.sayNext <= 0) {
+      say(w, w.pending.shift());
+      w.sayNext = 2.5;
+    }
+    // in their row (legroom or seat) the row's own seat backs cover the lower body
+    const inRow = !layers && (w.sitting || (w.seg >= w.path.length - 2 && Math.abs(v - (w.seat.v - LEG_DV)) < 0.05));
+    const [x, y] = P(u, v, z);
+    let cut = 0;
+    if (inRow) {
+      const yb = P(u, w.seat.v + BACK_DV, w.seat.z + BACK_Z)[1];
+      cut = clamp(y - yb, 0, EH - 6);
+    }
+    // The backrest top runs along the row, which slopes down to the right on screen (30 px down per 60 across),
+    // so the emote is cut on that diagonal, not on a level line. A hop lifts it out from behind the backs.
+    const hide = Math.max(0, cut - lift);
+    if (hide > 0) {
+      const edge = w.emH - hide;   // backrest top at the emote's centre, in its own pixels from the top
+      const slope = w.em.dataset.flip === 'true' ? -0.5 : 0.5;   // a mirrored emote mirrors its clip too
+      const at = (xl) => (edge + slope * (xl - w.emW / 2)).toFixed(1);
+      style(w.em, 'clipPath', `polygon(-40px -40px, ${w.emW + 40}px -40px, ${w.emW + 40}px ${at(w.emW + 40)}px, -40px ${at(-40)}px)`);
+    } else style(w.em, 'clipPath', '');
+    style(w.el, 'transform', `translate(${x.toFixed(1)}px, ${(y - lift).toFixed(1)}px)`);
+    style(w.bod, 'transform', tilt || sq !== 1 ? `rotate(${tilt.toFixed(1)}deg) scale(${(2 - sq).toFixed(3)}, ${sq})` : '');
+    // the contact shadow stays on the floor, smaller and fainter while they're in the air
+    const shS = 1 - Math.min(lift, 18) / 36;
+    style(w.sh, 'transform', `translateY(${lift.toFixed(1)}px) scale(${shS.toFixed(2)})`);
+    style(w.sh, 'opacity', shS.toFixed(2));
+    style(w.el, 'opacity', w.alpha.toFixed(3));
+    style(w.el, 'zIndex', String(layers ? depthZ(u, v, z) : Math.round((u + v) * 100) + 10));
+    w.nameT = Math.max(0, w.nameT - dt);
+    if (w.bub) {
+      // a bubble waits (hidden, clock stopped) while its speaker walks through the tunnel
+      w.bub.style.visibility = w.seen ? '' : 'hidden';
+      if (w.seen) w.bubT -= dt;
+      if (w.bubT <= 0) dropBubble(w); else { w.bx = x; w.by = y - lift; }
+    }
+    style(w.nm, 'transform', `translate(${x.toFixed(1)}px, ${(y - lift).toFixed(1)}px) translateX(-50%)`);
+    style(w.nm, 'visibility', w.seen && !w.bub ? '' : 'hidden');
+    style(w.nm, 'opacity', (w.nameT > 0 || director.follow?.w === w) && !w.bub ? w.alpha.toFixed(3) : '0');
+  }
+
+  // ---------- camera + zoom director ----------
+  // The lobby's spring and edge clamping. Follow an arrival from the entrance to their seat, hold a moment,
+  // then ease back out. Inside the tunnel they are hidden: frame the mouth until they emerge.
+  const camEl = $('cam');
+  const cam = { x: 960, y: 540, z: 1, vx: 0, vy: 0, vz: 0, key: '' };
+  const director = { on: DIRECTOR_ON, every: clamp(Number(q.get('director')) || 150, 30, 1800), zoom: ZOOM,
+    follow: null, next: performance.now() + rand(45, 75) * 1000, wantNext: false };
+  function toScreen(x, y) { return [(x - cam.x) * cam.z + 960, (y - cam.y) * cam.z + 540]; }
+  // critically damped spring: smooth start and stop, no overshoot, frame-rate independent
+  function damp(c, v, target, time, dt) {
+    const o = 2 / time;
+    const x = o * dt;
+    const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    const ch = c - target;
+    const tmp = (v + o * ch) * dt;
+    return [target + (ch + tmp) * e, (v - o * tmp) * e];
+  }
+  function startFollow(w) {
+    if (!w || !walkers.has(w.key)) return;
+    director.follow = { w, since: performance.now(), lx: null, ly: null, ax: 0, ay: 0, tx: null, ty: null, endAt: 0 };
+    director.wantNext = false;
+  }
+  function endFollow() {
+    if (!director.follow) return;
+    director.follow = null;
+    director.next = performance.now() + director.every * 1000 * rand(0.85, 1.2);
+  }
+  function directorArrival(w) {
+    if (director.follow) return;
+    if (director.wantNext || (director.on && performance.now() >= director.next)) startFollow(w);
+  }
+  function followSomeone(nick) {
+    const key = nick?.toLowerCase();
+    const list = [...walkers.values()].filter((w) => (!key || w.key === key));
+    if (list.length) startFollow(list[Math.floor(Math.random() * list.length)]);
+    return list.length > 0;
+  }
+  function stepCamera(dt) {
+    const now = performance.now();
+    const f = director.follow;
+    let tx = 960;
+    let ty = 540;
+    let tz = 1;
+    if (f) {
+      const w = f.w;
+      if (!f.endAt && (w.sitting || !walkers.has(w.key) || now - f.since > 150000)) f.endAt = now + (w.sitting ? 3200 : 0);
+      if (f.endAt && now >= f.endAt) endFollow();
+      else {
+        const pos = w.seen === false ? [2.1, 9.4, 8] : w.pos;
+        const [x, foot] = P(...pos);
+        const y = foot - w.emH * 0.7;
+        // lead the shot a little in the walking direction (smoothed velocity)
+        if (f.lx != null && dt > 0) {
+          f.ax = f.ax * 0.9 + ((x - f.lx) / dt) * 0.1;
+          f.ay = f.ay * 0.9 + ((y - f.ly) / dt) * 0.1;
+        }
+        f.lx = x;
+        f.ly = y;
+        f.tx = x + clamp(f.ax * 0.35, -60, 60);
+        f.ty = y + clamp(f.ay * 0.35, -40, 40);
+        tx = f.tx; ty = f.ty; tz = director.zoom;
+      }
+    }
+    const fit = (c, half, size) => clamp(c, half, size - half);
+    tx = fit(tx, 960 / tz, 1920);
+    ty = fit(ty, 540 / tz, 1080);
+    [cam.z, cam.vz] = damp(cam.z, cam.vz, tz, 1.5, dt);
+    [cam.x, cam.vx] = damp(cam.x, cam.vx, tx, f ? 0.75 : 1.4, dt);
+    [cam.y, cam.vy] = damp(cam.y, cam.vy, ty, f ? 0.75 : 1.4, dt);
+    cam.x = fit(cam.x, 960 / cam.z, 1920);
+    cam.y = fit(cam.y, 540 / cam.z, 1080);
+    const key = `translate(${(960 - cam.x * cam.z).toFixed(2)}px, ${(540 - cam.y * cam.z).toFixed(2)}px) scale(${cam.z.toFixed(4)})`;
+    if (key !== cam.key) { cam.key = key; camEl.style.transform = key; }
+    applyArtRes();
+  }
+  // keys work while the page has focus (OBS: right-click the source -> Interact)
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'f') director.wantNext = true;
+    else if (k === 'r') followSomeone();
+    else if (k === 'w' || k === 'escape') { director.wantNext = false; endFollow(); }
+    else if (k === 'd') director.on = !director.on;
+  });
+
+  // ---------- control panel (control.html) through the standby server ----------
+  function statusOf(w) { return w.sitting ? `seat ${w.seat.row.name}` : w.seen === false ? 'tunnel' : 'walking in'; }
+  function control(c) {
+    // Older servers broadcast everything. Untargeted commands belong to the lobby, never this scene.
+    if (c.page !== 'auditorium' || (c.id && c.id !== pageId)) return;
+    const now = performance.now();
+    const key = typeof c.nick === 'string' ? c.nick.trim().toLowerCase() : '';
+    switch (c.cmd) {
+      case 'phase': setPhase(c.value, true); break;
+      case 'phaseAuto':
+        show.auto = !!c.on;
+        show.completedAt = show.auto && show.download.completed ? now : 0;
+        autoPhase(now);
+        break;
+      case 'follow': followSomeone(key); break;
+      case 'random': followSomeone(); break;
+      case 'next': director.wantNext = true; break;
+      case 'wide': director.wantNext = false; endFollow(); break;
+      case 'director': director.on = !!c.on; if (director.on) director.next = Math.min(director.next, now + 20000); break;
+      case 'every': if (Number.isFinite(+c.value)) director.every = clamp(+c.value, 30, 1800); break;
+      case 'zoom': if (Number.isFinite(+c.value)) director.zoom = clamp(+c.value, 1.2, 3); break;
+      case 'reset':
+        director.wantNext = false;
+        endFollow();
+        arrivals.length = 0;
+        nextArrival = 0;
+        for (const w of [...walkers.values()]) removeWalker(w);
+        for (const s of seats) s.taken = false;
+        bubOrder.length = 0;
+        bubLayer.replaceChildren();
+        audience();
+        if (doorShot) { doorShot.el.remove(); doorShot = null; doorCutout(false); }
+        break;
+      case 'remove': removeNick(key); break;
+      case 'add':
+      case 'say': {
+        const nick = String(c.nick || '').trim().slice(0, 25);
+        if (!nick) break;
+        const text = String(c.text || '').slice(0, 200);
+        const tokens = SB.tokenize(text);
+        const emote = tokens.find((t) => t.t === 'emote')?.name || Cinema.defaultEmote(nick);
+        onMessage({ nick, text, tokens, emote, color: SB.nickColor(nick) });
+        break;
+      }
+      default: break;
+    }
+  }
+  const pageId = Math.random().toString(36).slice(2, 8);
+  if (q.get('ctl') !== '0' && location.protocol.startsWith('http')) {
+    let alive = true;
+    let statePending = false;
+    const es = new EventSource(`/ctl/events?page=auditorium&id=${pageId}`);
+    es.onmessage = (e) => { try { control(JSON.parse(e.data)); } catch (error) { console.error('[auditorium] control', error); } };
+    const postState = () => {
+      if (!alive || statePending) return;
+      const f = director.follow;
+      const body = { id: pageId, page: 'auditorium', ts: Date.now(), size: [innerWidth, innerHeight],
+        preshow: { phase: show.phase, auto: show.auto, download: show.download, alwaysGreen },
+        house: { capacity: seats.length, occupied: walkers.size, waiting: arrivals.length, queueLimit: MAX_QUEUE },
+        director: { on: director.on, every: director.every, zoom: director.zoom, wantNext: director.wantNext,
+          following: f?.w.nick || null, nextIn: Math.max(0, Math.round((director.next - performance.now()) / 1000)) },
+        chatters: [...walkers.values()].map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w }))
+          .concat(arrivals.map((m) => ({ nick: m.nick, emote: m.emote, status: 'waiting outside', followed: false }))) };
+      statePending = true;
+      fetch('/ctl/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(3500) })
+        .then((r) => { if (r.status === 404) { alive = false; es.close(); } })
+        .catch(() => {}).finally(() => { statePending = false; });
+    };
+    postState();
+    setInterval(postState, 1500);
+  }
+
+  // ---------- start ----------
+  Cinema.onWalkIn(onMessage);
+  Cinema.onPurge((nick) => removeNick(String(nick).trim().toLowerCase()));
+
+  (async () => {
+    try {
+      const res = await fetch(`${ART}cinema_layout_${DRAFT}.json`, { cache: 'no-store' });
+      L = await res.json();
+    } catch (error) { console.error('[auditorium] layout', error); }
+    if (L) {
+      ({ k: K, Ox: OX, Oy: OY } = L.camera);
+      EH = 50 * K;
+      MAXW = 74 * K;
+      treads = L.stairs.treads_v0_v1_zpx_world;
+      rows = L.rows.map((r) => ({ name: r.row, v: r.v, z: r.floor_zpx_world, flat: r.floor_zpx_world <= 24 }));
+      for (const [i, r] of L.rows.entries()) {
+        for (const [block, us] of Object.entries(r.seat_u_by_block)) {
+          for (const u of us) seats.push({ row: rows[i], u, v: r.v, z: r.floor_zpx_world, block, taken: false });
+        }
+      }
+      if (L.page_layers && Array.isArray(L.page_layers.slices)) {
+        layers = L.page_layers;
+        $('stage').classList.toggle('has-dim-art', !!layers.dim);
+        const dimSlices = new Map((layers.dim?.slices || []).map((s) => [s.name, s]));
+        if (Number.isFinite(layers.key_z_divisor)) KZ = layers.key_z_divisor;
+        for (const s of layers.slices) {
+          if (!s || typeof s.file !== 'string' || ![s.x, s.y, s.w, s.h, s.z_index].every(Number.isFinite)) continue;   // skip broken entries
+          const im = h('img', 'slice');
+          im.alt = '';
+          im.decoding = 'async';
+          artImgs.push({ im, file: s.file, file_2x: s.file_2x });
+          Object.assign(im.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${s.w}px`, height: `${s.h}px`, zIndex: String(s.z_index) });
+          world.append(im);
+          if (layers.entrance_door?.static_slice_cutout?.slices?.includes(s.name)) doorSlices.push(im);
+          const twin = dimSlices.get(s.name);
+          if (twin) {
+            const dim = im.cloneNode();
+            dim.classList.add('dim-art');
+            world.append(dim);
+            dimImgs.push({ im: dim, file: twin.file, file_2x: twin.file_2x });
+            if (doorSlices.includes(im)) doorSlices.push(dim);
+          }
+        }
+        const d = layers.entrance_door;
+        if (d && typeof d.file === 'string' && [d.x, d.y, d.frame_width, d.frame_height, d.frames, d.columns, d.z_index].every(Number.isFinite)) door = d;
+        if (Number.isFinite(layers.spawn?.wait_seconds)) DOOR_WAIT = layers.spawn.wait_seconds;
+      }
+      const c = L.screen.corners_1920x1080;
+      screenPoly = [c.TL, c.TR, c.BR, c.BL];
+      $('screenpoly').setAttribute('points', screenPoly.map((p) => p.join(',')).join(' '));
+      $('screenpoly').setAttribute('fill', Cinema.green === 'off' ? '#00ff00' : Cinema.green);
+      // Columns are TL->TR / 960 and TL->BL / 540: all four corners match the layout exactly.
+      $('preshow').style.transform = `matrix(${(c.TR[0] - c.TL[0]) / 960}, ${(c.TR[1] - c.TL[1]) / 960}, ${(c.BL[0] - c.TL[0]) / 540}, ${(c.BL[1] - c.TL[1]) / 540}, ${c.TL[0]}, ${c.TL[1]})`;
+    }
+    applyPhase();
+    artImgs.push({ im: $('bg'), file: layers?.image || `cinema_draft_${DRAFT}.png`, file_2x: layers?.image_2x });
+    if (layers?.dim?.image) {
+      const im = h('img', 'dim-art');
+      im.id = 'bg-dim';
+      im.alt = '';
+      $('bg').after(im);
+      dimImgs.push({ im, file: layers.dim.image, file_2x: layers.dim.image_2x });
+    }
+    SB.mountStage($('stage'));
+    requestAnimationFrame(frame);
+    SB.start();
+    pollDownload();
+    setInterval(audience, 2000);
+  })();
+})();
+</script>
+</body>
+</html>

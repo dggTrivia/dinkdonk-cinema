@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Standby 03 — Emote Claw</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+  :root { --pink: #ff3ea5; --cyan: #2ef2ff; --yellow: #ffe03a; }
+  #stage { font-family: 'Rubik', sans-serif; color: #fff;
+    background:
+      radial-gradient(ellipse at 30% 0%, #3a1360 0%, transparent 60%),
+      radial-gradient(ellipse at 90% 100%, #0d3b5c 0%, transparent 55%),
+      repeating-linear-gradient(45deg, #120722 0 30px, #160a2a 30px 60px); }
+
+  /* ---- cabinet ---- */
+  #cab { position: absolute; left: 50px; top: 30px; width: 1140px; height: 1020px; border-radius: 34px;
+    background: linear-gradient(#2b0f4a, #1a0830); box-shadow: 0 0 0 6px #000, 0 0 60px rgba(255,62,165,.35); }
+  #marquee { position: absolute; left: 30px; right: 30px; top: 22px; height: 150px; border-radius: 22px;
+    background: #0b0416; display: grid; place-items: center; border: 4px solid var(--pink);
+    box-shadow: 0 0 22px var(--pink), inset 0 0 26px rgba(255,62,165,.5); overflow: hidden; }
+  #title { font-family: 'Bungee Shade', 'Bungee', cursive; font-size: 92px; color: var(--yellow); letter-spacing: 2px;
+    text-shadow: 0 0 18px rgba(255,224,58,.8); animation: neon 6s infinite; white-space: nowrap; }
+  @keyframes neon { 0%, 100% { opacity: 1; } 91% { opacity: 1; } 92% { opacity: .35; } 93% { opacity: 1; } 95% { opacity: .5; } 96% { opacity: 1; } }
+  #bulbs { position: absolute; inset: 6px; border-radius: 16px; pointer-events: none;
+    background: radial-gradient(circle, #fff6 3px, transparent 4px) 0 0 / 26px 26px; mask: linear-gradient(#000 0 12px, transparent 12px calc(100% - 12px), #000 0);
+    animation: bulbs 1s steps(2) infinite; }
+  @keyframes bulbs { 50% { background-position: 13px 0; } }
+
+  #glass { position: absolute; left: 30px; top: 196px; width: 1080px; height: 720px; border-radius: 14px;
+    background: linear-gradient(180deg, rgba(46,242,255,.06), rgba(46,242,255,.02)); border: 4px solid #000;
+    box-shadow: inset 0 0 0 3px rgba(46,242,255,.35); overflow: hidden; }
+  #glass::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,.07) 26%, transparent 34%, transparent 60%, rgba(255,255,255,.05) 64%, transparent 70%); }
+  #divider { position: absolute; left: 850px; width: 14px; top: 400px; bottom: 0; background: linear-gradient(90deg, #555, #aaa, #555); }
+  #chute { position: absolute; left: 864px; right: 0; bottom: 0; height: 320px;
+    background: repeating-linear-gradient(-45deg, rgba(255,224,58,.12) 0 18px, transparent 18px 36px); }
+  #chute b { position: absolute; left: 0; right: 0; top: 18px; text-align: center; font: 28px 'Bungee', cursive; color: var(--yellow); opacity: .8; }
+  #rail { position: absolute; left: 0; right: 0; top: 0; height: 24px; background: linear-gradient(#999, #444); }
+  .body { position: absolute; left: 0; top: 0; will-change: transform; }
+
+  #claw { position: absolute; left: 0; top: 0; width: 120px; will-change: transform; }
+  #cable { position: absolute; left: 57px; top: 0; width: 6px; background: #ccc; }
+  #head { position: absolute; left: 0; width: 120px; height: 110px; }
+  #head .hub { position: absolute; left: 30px; top: 0; width: 60px; height: 34px; border-radius: 10px;
+    background: linear-gradient(#ddd, #888); box-shadow: 0 4px 0 #444; }
+  #head .prong { position: absolute; top: 24px; width: 14px; height: 80px; background: linear-gradient(90deg, #888, #eee, #888);
+    border-radius: 7px; transition: transform .35s; }
+  #head .prong.l { left: 34px; transform-origin: 7px 4px; }
+  #head .prong.r { right: 34px; transform-origin: 7px 4px; }
+  #head .prong.c { left: 53px; height: 70px; }
+  #head.open .prong.l { transform: rotate(32deg); }
+  #head.open .prong.r { transform: rotate(-32deg); }
+
+  #controls { position: absolute; left: 30px; right: 30px; bottom: 22px; height: 70px; display: flex; align-items: center; gap: 24px;
+    font: 26px 'Bungee', cursive; color: var(--cyan); }
+  #controls .btn { width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff8acb, var(--pink));
+    box-shadow: 0 6px 0 #8a0f55; }
+  #controls .btn.y { background: radial-gradient(circle at 35% 30%, #fff4a0, var(--yellow)); box-shadow: 0 6px 0 #8a7400; }
+  #controls b { color: var(--yellow); }
+  #controls .grow { flex: 1; }
+  #coins { color: #fff; font-family: 'Rubik'; font-size: 24px; font-weight: 600; }
+
+  /* ---- side ---- */
+  #side { position: absolute; left: 1214px; top: 30px; width: 230px; bottom: 30px; display: flex; flex-direction: column; gap: 18px; }
+  .panel { background: rgba(10, 4, 22, .8); border: 3px solid rgba(46,242,255,.5); border-radius: 18px; padding: 16px 16px 14px;
+    box-shadow: 0 0 18px rgba(46,242,255,.2); }
+  .panel h3 { margin: 0 0 10px; font: 20px 'Bungee', cursive; color: var(--cyan); letter-spacing: 1px; }
+  #timer { font: 54px 'Bungee', cursive; color: var(--yellow); line-height: 1; }
+  #timer-label { font-size: 18px; opacity: .8; text-transform: uppercase; letter-spacing: 2px; }
+  .row { display: flex; align-items: center; gap: 8px; height: 46px; font-weight: 800; font-size: 20px; }
+  .row .bar { flex: 1; height: 10px; border-radius: 5px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .row .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--pink), var(--yellow)); }
+  .prize { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; margin: 6px 0; animation: sb-line-in .4s; }
+  .prize span.n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #prizes { flex: 1; overflow: hidden; }
+
+  #banner { position: absolute; left: 620px; top: 470px; transform: translate(-50%, -50%) scale(0); padding: 22px 40px; border-radius: 22px;
+    background: var(--yellow); color: #1a0830; font: 54px 'Bungee', cursive; white-space: nowrap; box-shadow: 0 10px 0 #8a7400, 0 0 60px rgba(255,224,58,.7);
+    transition: transform .35s cubic-bezier(.2,1.6,.4,1); z-index: 5; display: flex; align-items: center; gap: 18px; }
+  #banner.show { transform: translate(-50%, -50%) scale(1); }
+  #cab.shake { animation: shake .5s; }
+  @keyframes shake { 20% { transform: translate(-10px, 4px) rotate(-.4deg); } 40% { transform: translate(9px, -3px) rotate(.4deg); } 60% { transform: translate(-6px, 2px); } 80% { transform: translate(4px, 0); } }
+
+  /* ---- chat ---- */
+  #chatwrap { position: absolute; left: 1466px; top: 30px; right: 30px; bottom: 30px; border-radius: 22px;
+    background: rgba(10, 4, 22, .82); border: 3px solid rgba(255,62,165,.6); box-shadow: 0 0 22px rgba(255,62,165,.25); overflow: hidden; }
+  #chathead { height: 60px; line-height: 60px; padding: 0 20px; font: 24px 'Bungee', cursive; color: var(--pink); border-bottom: 2px solid rgba(255,62,165,.3); }
+  #chathead span { float: right; font: 600 20px 'Rubik'; color: #fff; opacity: .7; }
+  #chat { left: 0; right: 0; top: 62px; bottom: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="cab">
+    <div id="marquee"><div id="bulbs"></div><div id="title"></div></div>
+    <div id="glass">
+      <div id="chute"><b>PRIZE</b></div>
+      <div id="divider"></div>
+      <div id="pile"></div>
+      <div id="rail"></div>
+      <div id="claw"><div id="cable"></div><div id="head" class="open"><div class="prong l"></div><div class="prong c"></div><div class="prong r"></div><div class="hub"></div></div></div>
+    </div>
+    <div id="controls">
+      <div class="btn"></div><div class="btn y"></div>
+      <div>type <b>!claw</b> to play · <b>!shake</b></div>
+      <div class="grow"></div>
+      <div id="coins"></div>
+    </div>
+  </div>
+  <div id="banner"></div>
+
+  <div id="side">
+    <div class="panel"><div id="timer-label">away for</div><div id="timer">0:00</div></div>
+    <div class="panel"><h3>Hot emotes</h3><div id="hot"></div></div>
+    <div class="panel" id="prizes"><h3>Winners</h3><div id="prizelist"></div></div>
+  </div>
+
+  <div id="chatwrap">
+    <div id="chathead">arcade chat <span id="viewers"></span></div>
+    <div id="chat"></div>
+  </div>
+</div>
+
+<script src="shared/core.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  SB.mountStage($('stage'));
+  SB.mountChat($('chat'), { emoteHeight: 30 });
+  $('title').textContent = (SB.cfg.title || 'BE RIGHT BACK').toUpperCase();
+
+  // Glass interior coordinates.
+  const GW = 1072;
+  const GH = 712;
+  const DIV_X = 850;
+  const DIV_TOP = 400;
+  const RAIL_Y = 24;
+  const MAX = 150;
+  const pile = $('pile');
+  const bodies = [];
+  let wins = 0;
+
+  // ---------- bodies ----------
+  function addBody(name, x, y, size = 70, opts = {}) {
+    const { w, h } = SB.emoteSize(name);
+    const k = size / Math.max(w, h);
+    const el = SB.emoteEl(name, h * k);
+    const wrap = document.createElement('div');
+    wrap.className = 'body';
+    wrap.append(el);
+    pile.append(wrap);
+    const b = {
+      name, el: wrap, x, y, vx: opts.vx ?? SB.rand(-80, 80), vy: opts.vy ?? 0, a: 0, av: SB.rand(-2, 2),
+      w: w * k, h: h * k, r: Math.max(w * k, h * k) * 0.42 + 4, born: performance.now(), held: false, chute: x > DIV_X,
+    };
+    b.m = b.r * b.r;
+    bodies.push(b);
+    if (bodies.filter((o) => !o.chute).length > MAX) flush();
+    return b;
+  }
+
+  function removeBody(b) {
+    const i = bodies.indexOf(b);
+    if (i >= 0) bodies.splice(i, 1);
+    b.el.remove();
+  }
+
+  let flushing = 0;
+  function flush() {
+    if (flushing) return;
+    flushing = 1.6;
+    banner('FLUSH!', null, 1300);
+  }
+
+  // ---------- physics ----------
+  const G = 1900;
+  function physics(dt) {
+    const steps = 3;
+    const h = dt / steps;
+    for (let s = 0; s < steps; s++) {
+      for (const b of bodies) {
+        if (b.held) continue;
+        b.vy += G * h;
+        b.vx *= 0.998;
+        b.x += b.vx * h;
+        b.y += b.vy * h;
+        b.a += b.av * h;
+        b.av *= 0.99;
+        const floor = flushing ? GH + 400 : GH - 4;
+        const left = b.chute ? DIV_X + 14 : 0;
+        const right = b.chute ? GW : DIV_X;
+        if (b.y + b.r > floor) { b.y = floor - b.r; b.vy *= -0.25; b.vx *= 0.9; b.av = b.vx / b.r; }
+        if (b.x - b.r < left) { b.x = left + b.r; b.vx = Math.abs(b.vx) * 0.4; }
+        if (b.x + b.r > right) {
+          // Above the divider, an emote can still roll over into the chute.
+          if (!b.chute && b.y + b.r < DIV_TOP) { if (b.x > DIV_X + 7) b.chute = true; }
+          else { b.x = right - b.r; b.vx = -Math.abs(b.vx) * 0.4; }
+        }
+      }
+      for (let i = 0; i < bodies.length; i++) {
+        const a = bodies[i];
+        if (a.held) continue;
+        for (let j = i + 1; j < bodies.length; j++) {
+          const b = bodies[j];
+          if (b.held || a.chute !== b.chute) continue;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const rr = a.r + b.r;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= rr * rr || d2 === 0) continue;
+          const d = Math.sqrt(d2);
+          const nx = dx / d;
+          const ny = dy / d;
+          const overlap = rr - d;
+          const ta = b.m / (a.m + b.m);
+          const tb = a.m / (a.m + b.m);
+          a.x -= nx * overlap * ta; a.y -= ny * overlap * ta;
+          b.x += nx * overlap * tb; b.y += ny * overlap * tb;
+          const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+          if (rv < 0) {
+            const jimp = -(1.25) * rv / (1 / a.m + 1 / b.m);
+            a.vx -= (jimp * nx) / a.m; a.vy -= (jimp * ny) / a.m;
+            b.vx += (jimp * nx) / b.m; b.vy += (jimp * ny) / b.m;
+            const tang = (b.vx - a.vx) * -ny + (b.vy - a.vy) * nx;
+            a.av += tang * 0.004; b.av -= tang * 0.004;
+          }
+        }
+      }
+    }
+    const now = performance.now();
+    for (let i = bodies.length - 1; i >= 0; i--) {
+      const b = bodies[i];
+      if (b.y - b.r > GH + 20 || (b.chute && !b.held && now - b.chuteAt > 2500)) { removeBody(b); continue; }
+      if (b.chute && !b.chuteAt) b.chuteAt = now;
+      b.el.style.transform = `translate(${b.x - b.w / 2}px, ${b.y - b.h / 2}px) rotate(${b.a}rad)`;
+    }
+    if (flushing) { flushing -= dt; if (flushing <= 0) flushing = 0; }
+  }
+
+  // ---------- claw ----------
+  const claw = { x: (DIV_X + GW) / 2 - 60, y: RAIL_Y, state: 'idle', target: null, grabbed: null, nick: '', t: 0, slipAt: 0 };
+  const head = $('head');
+  const queue = [];
+
+  function startClaw(nick) {
+    if (claw.state !== 'idle') { if (queue.length < 3) queue.push(nick); return; }
+    const pool = bodies.filter((b) => !b.chute && !b.held);
+    if (!pool.length) { banner('NOTHING TO GRAB', null, 1400); return; }
+    // Aim for something near the top of the pile.
+    pool.sort((a, b) => a.y - b.y);
+    claw.target = SB.pick(pool.slice(0, 6));
+    claw.nick = nick;
+    claw.state = 'move';
+    claw.slipAt = Math.random() < 0.28 ? SB.rand(0.25, 0.8) : 0;
+    head.classList.add('open');
+  }
+
+  function updateClaw(dt) {
+    const tipY = () => claw.y + 105;
+    const cx = () => claw.x + 60;
+    switch (claw.state) {
+      case 'move': {
+        if (!bodies.includes(claw.target)) { claw.state = 'home'; break; }
+        const dx = claw.target.x - cx();
+        claw.x += Math.sign(dx) * Math.min(Math.abs(dx), 420 * dt);
+        if (Math.abs(dx) < 2) claw.state = 'down';
+        break;
+      }
+      case 'down': {
+        claw.y += 380 * dt;
+        const hit = bodies.find((b) => !b.chute && Math.abs(b.x - cx()) < b.r + 10 && b.y - b.r < tipY() - 10);
+        if (hit || tipY() > GH - 10) { claw.grabbed = hit && Math.abs(hit.x - cx()) < hit.r + 26 ? hit : null; claw.state = 'close'; claw.t = 0; head.classList.remove('open'); }
+        break;
+      }
+      case 'close':
+        claw.t += dt;
+        if (claw.t > 0.45) {
+          if (claw.grabbed) { claw.grabbed.held = true; claw.grabbed.vx = claw.grabbed.vy = 0; }
+          claw.state = 'up';
+          claw.startY = claw.y;
+        }
+        break;
+      case 'up': {
+        claw.y -= 300 * dt;
+        if (claw.grabbed && claw.slipAt && (claw.startY - claw.y) / (claw.startY - RAIL_Y) > claw.slipAt) {
+          claw.grabbed.held = false;
+          claw.grabbed.vy = 100;
+          banner(`SO CLOSE, ${claw.nick}`, null, 1800);
+          claw.grabbed = null;
+          head.classList.add('open');
+        }
+        if (claw.y <= RAIL_Y) { claw.y = RAIL_Y; claw.state = 'carry'; }
+        break;
+      }
+      case 'carry': {
+        const home = (DIV_X + GW) / 2 - 60;
+        const dx = home - claw.x;
+        claw.x += Math.sign(dx) * Math.min(Math.abs(dx), 360 * dt);
+        if (Math.abs(dx) < 2) {
+          head.classList.add('open');
+          if (claw.grabbed) {
+            const g = claw.grabbed;
+            g.held = false; g.chute = true; g.vy = 0;
+            win(claw.nick, g.name);
+          } else if (!claw.slipAt) {
+            banner(`EMPTY CLAW, ${claw.nick}`, null, 1600);
+          }
+          claw.grabbed = null;
+          claw.state = 'idle';
+          if (queue.length) setTimeout(() => startClaw(queue.shift()), 900);
+        }
+        break;
+      }
+      case 'home': {
+        const home = (DIV_X + GW) / 2 - 60;
+        claw.y = Math.max(RAIL_Y, claw.y - 300 * dt);
+        if (claw.y === RAIL_Y) { claw.x += Math.sign(home - claw.x) * Math.min(Math.abs(home - claw.x), 360 * dt); }
+        if (Math.abs(home - claw.x) < 2 && claw.y === RAIL_Y) claw.state = 'idle';
+        break;
+      }
+      default: break;
+    }
+    if (claw.grabbed) { claw.grabbed.x = cx(); claw.grabbed.y = tipY() - 4 + claw.grabbed.r * 0.4; claw.grabbed.a *= 0.9; }
+    $('claw').style.transform = `translate(${claw.x}px, 0)`;
+    $('cable').style.height = `${claw.y}px`;
+    head.style.top = `${claw.y}px`;
+  }
+
+  // ---------- UI ----------
+  let bannerTimer;
+  function banner(text, emote, ms = 2600) {
+    const el = $('banner');
+    el.replaceChildren(text);
+    if (emote) el.append(SB.emoteEl(emote, 70));
+    el.classList.add('show');
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  function win(nick, emote) {
+    wins += 1;
+    banner(`${nick} WON`, emote, 3000);
+    const row = document.createElement('div');
+    row.className = 'prize';
+    row.dataset.nick = nick.toLowerCase();
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = nick;
+    row.append(SB.emoteEl(emote, 34), n);
+    $('prizelist').prepend(row);
+    while ($('prizelist').children.length > 9) $('prizelist').lastChild.remove();
+  }
+
+  function shake(power = 1) {
+    $('cab').classList.remove('shake');
+    void $('cab').offsetWidth;
+    $('cab').classList.add('shake');
+    for (const b of bodies) if (!b.held) { b.vy -= SB.rand(300, 900) * power; b.vx += SB.rand(-300, 300) * power; b.av += SB.rand(-6, 6); }
+  }
+
+  // ---------- chat ----------
+  SB.on('msg', (m) => {
+    if (m.text.startsWith('!')) return;
+    for (const name of m.emotes.slice(0, 3)) addBody(name, SB.rand(60, DIV_X - 60), -60 - SB.rand(0, 80), SB.rand(62, 78));
+  });
+  SB.on('comboEnd', ({ emote, count }) => {
+    if (count < 3) return;
+    const size = Math.min(260, 90 + count * 14);
+    addBody(emote, SB.rand(size, DIV_X - size), -size, size, { vy: 400 });
+    setTimeout(() => shake(0.6), 500);
+    banner(`${count}× ${emote}`, emote, 1800);
+  });
+  SB.on('names', ({ connections }) => { $('viewers').textContent = connections ? `${connections.toLocaleString()} players` : ''; });
+  SB.on('purge', (nick) => {
+    for (const row of $('prizelist').querySelectorAll(`[data-nick="${CSS.escape(nick.toLowerCase())}"]`)) row.remove();
+  });
+  SB.command('claw', 3_000, ({ nick }) => startClaw(nick));
+  SB.command('shake', 12_000, () => shake(1));
+
+  setInterval(() => {
+    const t = SB.timerText();
+    $('timer').textContent = t.value;
+    $('timer-label').textContent = t.label;
+    $('coins').textContent = `${bodies.filter((b) => !b.chute).length} emotes inside · ${wins} won`;
+    const top = SB.topEmotes(5);
+    const max = top[0]?.c || 1;
+    $('hot').replaceChildren(...top.map(({ k, c }) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      const fill = document.createElement('i');
+      fill.style.width = `${(c / max) * 100}%`;
+      bar.append(fill);
+      row.append(SB.emoteEl(k, 36), bar, String(c));
+      return row;
+    }));
+  }, 1000);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    physics(dt);
+    updateClaw(dt);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  SB.start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+Completed Brief 57. Delivered [NOTES-57.md](/C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/NOTES-57.md) and the [cloud bundle](/C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/cloud/roxy-cloud-bundle-56.tar.gz).
+
+- **Archive:** 167,296,502 bytes — 159.55 MiB.
+- **Production:** byte-identical frozen scene, driver and runtime; A12/B12 bell timing; **24 unique wet phases**.
+- **Mist:** all eight catch/height/rim/light files included.
+- **Verification:** extracted-archive preflight and tiny smoke passed, including VP9 encode/decode and packaging read-back.
+- **Preservation:** all 2,690 protected files unchanged. Helper backed up as `cloud-render.sh.pre57`; only the requested overrides added.
+
+SHA-256:
+```text
+cb6d338753a3a0da2c402d976d4c3db45ee910e27024f5651c6932d364145883
+```
+
+Claude’s command, in Git Bash:
+```bash
+cd /c/Users/maxsp/Desktop/Angelthump_H264_4K/standby
+ARCHIVE="$PWD/roxy3d/cloud/roxy-cloud-bundle-56.tar.gz" \
+OUTDIR=roxy3d/out10i.cloud \
+bash roxy3d/cloud/cloud-render.sh full
+```
+
+The candidate will unpack under `out10i.cloud/out10/`. NOTES-57 records the run-5-based estimate, evidence limits, and remaining merge/QA steps.
+
+**STATUS: COMPLETE — bundle only; no pod started, helper not executed, no full-resolution frames or owner images rendered; stopped for Claude’s cloud run.**

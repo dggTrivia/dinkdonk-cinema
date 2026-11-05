@@ -1,0 +1,722 @@
+<!doctype html>
+<!--
+  Static concept drafts: 5 lobby scenes + 5 cinema scenes, 1920x1080 each, no functionality.
+  Each theme comes as a pair (lobby -> DinkDonk -> cinema). Grey "MOVIE / STREAM" boxes mark where
+  the video would go. ?s=L1 .. ?s=C5 shows one scene alone at 1920x1080.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lobby & Cinema Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Audiowide&family=JetBrains+Mono:wght@400;700&family=Limelight&family=Monoton&family=Pacifico&family=Press+Start+2P&family=Rye&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 28px; background: #111114; color: #eee; font: 15px/1.5 'Space Grotesk', system-ui, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  h2 { margin: 34px 0 12px; font-size: 20px; color: #cfcfd8; }
+  p.lead { margin: 0; color: #9a9aa2; max-width: 900px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(540px, 1fr)); gap: 22px; }
+  .card { background: #1a1a1f; border: 1px solid #2b2b33; border-radius: 12px; overflow: hidden; }
+  .card svg { display: block; width: 100%; height: auto; cursor: zoom-in; }
+  .meta { padding: 12px 16px 14px; }
+  .meta b { font-size: 17px; }
+  .meta div { color: #9a9aa2; margin-top: 3px; }
+  .meta a { color: #8fd3ff; font-size: 13px; }
+  #full { position: fixed; inset: 0; background: #000e; display: none; align-items: center; justify-content: center; cursor: zoom-out; z-index: 10; }
+  #full.on { display: flex; }
+  #full svg { width: min(100vw, 177.78vh); height: auto; }
+  body.solo { padding: 0; background: #000; overflow: hidden; }
+  body.solo svg { display: block; width: 1920px; height: 1080px; }
+  @media (max-width: 600px) { body { padding: 16px; } .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="full"></div>
+<script>
+const COLORS = ['#ffb84d','#7ad1ff','#ff7aa8','#9bf07a','#c59bff','#ffe066','#ff8a5c','#5ce1c4','#a0a6ff','#f7a1ff','#b8f28c','#8ce0ff'];
+const NAMES = ['Pog','Juno','gnomey','Tako','Nugget','Lumi','Rico','Moth','Vex','Kappa','Dank','Wyvern','Zoomer','Booba','Mona','sk8r','Bean','Lucky'];
+const FACES = ['happy','joy','wow','meh','sleepy','smug','cool'];
+
+function rng(seed) { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return () => (s = s * 16807 % 2147483647) / 2147483647; }
+const pick = (r, a) => a[Math.floor(r() * a.length)];
+function shade(hex, a) {
+  const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, Math.round(a < 0 ? v * (1 + a) : v + (255 - v) * a)));
+  return '#' + [n >> 16, n >> 8 & 255, n & 255].map(v => f(v).toString(16).padStart(2, '0')).join('');
+}
+
+// ---------- shared pieces ----------
+const GLOBAL_DEFS = `<defs><linearGradient id="mv-sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".09"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`;
+
+function movieSlot(x, y, w, h, o = {}) {
+  const cx = x + w / 2, cy = y + h / 2 - h * .04, k = h * .09;
+  return `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${o.bg || '#0c0f1a'}"/>
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#mv-sheen)"/>
+  <circle cx="${cx}" cy="${cy}" r="${k}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="${Math.max(2, h * .008)}"/>
+  <path d="M${cx - k * .33} ${cy - k * .5} L${cx + k * .6} ${cy} L${cx - k * .33} ${cy + k * .5}Z" fill="#fff" fill-opacity=".5"/>
+  <text x="${cx}" y="${cy + k + h * .09}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="${Math.max(12, h * .042)}" fill="#fff" fill-opacity=".5" letter-spacing="3">${o.label || 'MOVIE / STREAM · 16:9'}</text></g>`;
+}
+
+function face(t, ink = '#231a2b') {
+  const dots = `<circle cx="-9" cy="-3" r="3.8" fill="${ink}"/><circle cx="9" cy="-3" r="3.8" fill="${ink}"/>`;
+  const st = `stroke="${ink}" stroke-width="3.4" fill="none" stroke-linecap="round"`;
+  const blush = `<ellipse cx="-17" cy="7" rx="5" ry="3" fill="#ff6b8a" opacity=".45"/><ellipse cx="17" cy="7" rx="5" ry="3" fill="#ff6b8a" opacity=".45"/>`;
+  switch (t) {
+    case 'joy': return `<path d="M-14 -1 Q-9 -9 -4 -1 M4 -1 Q9 -9 14 -1" ${st}/><path d="M-8 6 Q0 18 8 6 Z" fill="${ink}"/>` + blush;
+    case 'wow': return dots + `<ellipse cy="10" rx="4.5" ry="5.5" fill="${ink}"/>`;
+    case 'meh': return dots + `<path d="M-7 10 H7" ${st}/>`;
+    case 'sleepy': return `<path d="M-14 -2 H-4 M4 -2 H14" ${st}/><circle cy="10" r="3" fill="${ink}"/>`;
+    case 'smug': return `<path d="M-14 -4 Q-9 -1 -4 -4 M4 -4 Q9 -1 14 -4" ${st}/><path d="M-6 9 Q3 13 10 5" ${st}/>`;
+    case 'cool': return `<path d="M-19 -8 H19 V-2 Q19 5 11 5 Q5 5 3 -2 H-3 Q-5 5 -11 5 Q-19 5 -19 -2 Z" fill="#111"/><path d="M-6 11 Q0 15 6 11" ${st}/>`;
+    default: return dots + `<path d="M-8 7 Q0 15 8 7" ${st}/>` + blush;
+  }
+}
+
+function item(k) {
+  if (k === 'popcorn') return `<g transform="translate(27 -50)"><circle cx="-6" cy="-1" r="6" fill="#ffe7a0"/><circle cx="2" cy="-5" r="7" fill="#fff4cc"/><circle cx="8" cy="0" r="6" fill="#ffe7a0"/><path d="M-11 0 H13 L10 28 H-8Z" fill="#fff"/><path d="M-5 0 L-3 28 M1 0 V28 M7 0 L5 28" stroke="#e8343f" stroke-width="3.5"/></g>`;
+  if (k === 'drink') return `<g transform="translate(27 -48)"><path d="M3 -2 L8 -16" stroke="#fff" stroke-width="3"/><path d="M-8 0 H10 L7 26 H-5Z" fill="#3fa9f5"/><rect x="-9" y="-3" width="20" height="5" rx="2" fill="#e8f4ff"/></g>`;
+  if (k === 'ticket') return `<g transform="translate(29 -46) rotate(-15)"><rect x="-13" y="-8" width="27" height="16" rx="2" fill="#ffd34d"/><path d="M-4 -8 V8" stroke="#a87a10" stroke-width="2" stroke-dasharray="3 2"/></g>`;
+  if (k === 'flashlight') return `<g transform="translate(26 -42)"><rect x="-4" y="-6" width="22" height="11" rx="3" fill="#333"/><rect x="16" y="-8" width="6" height="15" rx="2" fill="#fff3b0"/></g>`;
+  return '';
+}
+
+function tag(x, y, t, st = {}) {
+  const fs = st.fs || 20, w = t.length * fs * (st.cw || .6) + 16;
+  return `<g transform="translate(${x} ${y})"><rect x="${-w / 2}" y="${-fs - 3}" width="${w}" height="${fs + 11}" rx="${st.r ?? 8}" fill="${st.bg || '#000000b0'}" ${st.stroke ? `stroke="${st.stroke}" stroke-width="2"` : ''}/><text y="1" text-anchor="middle" font-size="${fs}" font-family="${st.font || 'Space Grotesk, sans-serif'}" font-weight="700" fill="${st.fg || '#fff'}">${t}</text></g>`;
+}
+
+function bubble(x, y, t, st = {}) {
+  const fs = st.fs || 22, w = t.length * fs * (st.cw || .55) + 30, h = fs + 22;
+  const sk = st.stroke ? `stroke="${st.stroke}" stroke-width="3"` : '';
+  return `<g transform="translate(${x} ${y})"><path d="M${-w / 2 + 14} ${-h} H${w / 2 - 14} Q${w / 2} ${-h} ${w / 2} ${-h + 14} V-14 Q${w / 2} 0 ${w / 2 - 14} 0 H10 L0 13 L-10 0 H${-w / 2 + 14} Q${-w / 2} 0 ${-w / 2} -14 V${-h + 14} Q${-w / 2} ${-h} ${-w / 2 + 14} ${-h}Z" fill="${st.bg || '#fff'}" ${sk}/><text y="${-h / 2 + fs * .36}" text-anchor="middle" font-size="${fs}" font-family="${st.font || 'Space Grotesk, sans-serif'}" font-weight="600" fill="${st.fg || '#1b1420'}">${t}</text></g>`;
+}
+
+// A standing (or sitting) emote; x,y = feet.
+function emote(x, y, s, c, o = {}) {
+  const d = shade(c, -.35), sw = o.stroke ? `stroke="${o.stroke}" stroke-width="3"` : '';
+  let g = `<g transform="translate(${x} ${y}) scale(${s})">`;
+  if (!o.noShadow) g += `<ellipse cy="2" rx="26" ry="6" fill="#000" opacity=".3"/>`;
+  if (o.sit) g += `<rect x="-18" y="-24" width="40" height="13" rx="6" fill="${d}" ${sw}/><rect x="-21" y="-62" width="42" height="44" rx="17" fill="${c}" ${sw}/>`;
+  else g += `<rect x="-15" y="-20" width="11" height="20" rx="5" fill="${d}" ${sw}/><rect x="4" y="-20" width="11" height="20" rx="5" fill="${d}" ${sw}/><rect x="-21" y="-58" width="42" height="44" rx="17" fill="${c}" ${sw}/>`;
+  if (o.wave) g += `<rect x="14" y="-80" width="11" height="32" rx="5.5" fill="${c}" ${sw} transform="rotate(30 19 -50)"/>`;
+  const hy = o.sit ? -88 : -84;
+  g += `<circle cy="${hy}" r="29" fill="${c}" ${sw}/>`;
+  if (!o.stroke) g += `<ellipse cx="-10" cy="${hy - 12}" rx="8" ry="5" fill="#fff" opacity=".28"/>`;
+  g += `<g transform="translate(0 ${hy + 2})">${face(o.face, o.ink)}</g>`;
+  if (o.hold) g += item(o.hold);
+  g += '</g>';
+  if (o.name) g += tag(x, y - 126 * s, o.name, o.tagStyle);
+  if (o.say) g += bubble(x + (o.sayDx || 0), y - (o.name ? 160 : 128) * s, o.say, o.bubbleStyle);
+  return g;
+}
+
+// A head seen from behind (seated audience); turned heads show their face.
+function seatHead(x, cy, hr, c, o = {}) {
+  const k = hr / 29;
+  let g = `<g transform="translate(${x} ${cy}) scale(${k})"><circle r="29" fill="${o.fill || c}" ${o.stroke ? `stroke="${o.stroke}" stroke-width="4"` : ''}/>`;
+  g += o.turned ? face(o.face, o.ink) : `<ellipse cx="-9" cy="-13" rx="9" ry="6" fill="#fff" opacity="${o.stroke ? .06 : .2}"/>`;
+  g += '</g>';
+  if (o.popcorn) g += `<g transform="translate(${x + hr * 1.05} ${cy + hr * .15}) scale(${k * .9})"><circle cx="-6" cy="-1" r="6" fill="#ffe7a0"/><circle cx="3" cy="-4" r="7" fill="#fff4cc"/><path d="M-11 0 H13 L10 22 H-8Z" fill="#fff"/><path d="M-4 0 L-3 22 M2 0 V22 M8 0 L6 22" stroke="#e8343f" stroke-width="3.5"/></g>`;
+  if (o.name) g += tag(x, cy - hr - 12, o.name, o.tagStyle);
+  return g;
+}
+
+function hint(x, y, txt, st = {}) {
+  const fs = st.fs || 22, w = txt.length * fs * (st.cw || .58) + 40;
+  return `<g transform="translate(${x} ${y})"><rect x="${-w / 2}" y="${-fs - 8}" width="${w}" height="${fs + 20}" rx="${(fs + 20) / 2}" fill="${st.bg || '#000000a0'}" ${st.stroke ? `stroke="${st.stroke}" stroke-width="2"` : ''}/><text y="2" text-anchor="middle" font-size="${fs}" font-family="${st.font || 'Space Grotesk, sans-serif'}" fill="${st.fg || '#fff'}">${txt}</text></g>`;
+}
+
+// =====================================================================
+// 1 · VELVET PALACE
+// =====================================================================
+function lobbyVelvet() {
+  let s = `<defs>
+  <linearGradient id="vl-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e050c"/><stop offset="1" stop-color="#6e1222"/></linearGradient>
+  <linearGradient id="vl-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dc8e"/><stop offset=".5" stop-color="#c79a3e"/><stop offset="1" stop-color="#8a6420"/></linearGradient>
+  <pattern id="vl-damask" width="120" height="120" patternUnits="userSpaceOnUse"><path d="M60 20 Q76 44 60 62 Q44 44 60 20Z M60 62 Q84 74 102 62 M60 62 Q36 74 18 62 M0 0 Q14 22 0 40 M120 0 Q106 22 120 40" stroke="#e7c27a" fill="none" stroke-width="2"/></pattern>
+  <pattern id="vl-carpet" width="80" height="40" patternUnits="userSpaceOnUse"><rect width="80" height="40" fill="#5c0d1b"/><path d="M40 4 L56 20 L40 36 L24 20Z" fill="none" stroke="#c9a14a" stroke-width="2" opacity=".55"/><circle cx="0" cy="20" r="3" fill="#c9a14a" opacity=".5"/><circle cx="80" cy="20" r="3" fill="#c9a14a" opacity=".5"/></pattern>
+  <pattern id="vl-tuft" width="42" height="42" patternUnits="userSpaceOnUse"><rect width="42" height="42" fill="#8a1426"/><path d="M0 21 L21 0 L42 21 L21 42Z" fill="none" stroke="#5a0b18" stroke-width="2"/><circle cx="21" cy="0" r="3" fill="#e7c27a"/><circle cx="0" cy="21" r="3" fill="#e7c27a"/><circle cx="42" cy="21" r="3" fill="#e7c27a"/><circle cx="21" cy="42" r="3" fill="#e7c27a"/></pattern>
+  <linearGradient id="vl-floorshade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+  <radialGradient id="vl-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd98a" stop-opacity=".4"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>
+  <linearGradient id="vl-poster" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#6b2a8a"/></linearGradient>
+  </defs>`;
+  s += `<rect width="1920" height="1080" fill="url(#vl-wall)"/><rect width="1920" height="820" fill="url(#vl-damask)" opacity=".14"/>`;
+  s += `<rect width="1920" height="28" fill="url(#vl-gold)"/><rect y="28" width="1920" height="10" fill="#22040a"/>`;
+  [30, 515, 1330, 1874].forEach(x => s += `<rect x="${x}" y="38" width="16" height="620" fill="url(#vl-gold)" opacity=".75"/>`);
+  s += `<rect y="660" width="1920" height="160" fill="#2b050c"/><rect y="654" width="1920" height="7" fill="url(#vl-gold)"/>`;
+  for (let x = 20; x < 1920; x += 160) s += `<rect x="${x + 10}" y="680" width="140" height="118" fill="none" stroke="#c9a14a" stroke-opacity=".35" stroke-width="2"/>`;
+  s += `<rect y="820" width="1920" height="260" fill="url(#vl-carpet)"/><rect y="820" width="1920" height="260" fill="url(#vl-floorshade)"/><rect y="815" width="1920" height="8" fill="url(#vl-gold)"/>`;
+  // chandeliers
+  [440, 1480].forEach(cx => {
+    s += `<ellipse cx="${cx}" cy="150" rx="220" ry="160" fill="url(#vl-glow)"/><line x1="${cx}" y1="38" x2="${cx}" y2="110" stroke="#c9a14a" stroke-width="3"/>`;
+    s += `<path d="M${cx - 70} 130 Q${cx} 175 ${cx + 70} 130" stroke="#c9a14a" stroke-width="5" fill="none"/><ellipse cx="${cx}" cy="125" rx="26" ry="16" fill="url(#vl-gold)"/>`;
+    for (let i = -3; i <= 3; i++) s += `<line x1="${cx + i * 22}" y1="${145 - Math.abs(i) * 3}" x2="${cx + i * 22}" y2="${175 - Math.abs(i) * 5}" stroke="#fff3d0" stroke-width="2" opacity=".8"/><circle cx="${cx + i * 22}" cy="${178 - Math.abs(i) * 5}" r="5" fill="#fff6dc"/>`;
+  });
+  // marquee
+  s += `<rect x="600" y="46" width="720" height="150" rx="14" fill="url(#vl-gold)"/><rect x="616" y="62" width="688" height="118" rx="8" fill="#1c0307"/>`;
+  const bulb = (x, y) => `<circle cx="${x}" cy="${y}" r="11" fill="#ffd36b" opacity=".25"/><circle cx="${x}" cy="${y}" r="5" fill="#fff1c2"/>`;
+  for (let x = 622; x <= 1300; x += 26) s += bulb(x, 54) + bulb(x, 188);
+  for (let y = 80; y <= 166; y += 26) s += bulb(607, y) + bulb(1313, y);
+  s += `<text x="960" y="134" text-anchor="middle" font-family="Limelight, serif" font-size="66" fill="#f6d98a">THE VELVET</text><text x="960" y="168" text-anchor="middle" font-family="Limelight, serif" font-size="24" letter-spacing="6" fill="#e9b9a0">MOVIE NIGHT · TONIGHT</text>`;
+  // trailer screen
+  s += `<rect x="688" y="208" width="544" height="316" rx="6" fill="url(#vl-gold)"/>` + movieSlot(700, 220, 520, 292, { label: 'TRAILERS / STREAM' });
+  // ticket booth with host as cashier
+  s += `<rect x="724" y="530" width="472" height="16" fill="url(#vl-gold)"/><rect x="740" y="546" width="440" height="284" fill="#3a0812"/>`;
+  s += `<path d="M790 750 V650 Q790 592 850 592 H1070 Q1130 592 1130 650 V750Z" fill="#f3d39a" opacity=".2"/>`;
+  s += emote(960, 770, 1.15, '#7ad1ff', { face: 'happy', noShadow: true });
+  s += `<path d="M790 750 V650 Q790 592 850 592 H1070 Q1130 592 1130 650 V750" fill="#fff" fill-opacity=".05" stroke="url(#vl-gold)" stroke-width="6"/>`;
+  s += `<rect x="740" y="732" width="440" height="98" fill="#4a0a17"/><rect x="734" y="724" width="452" height="12" fill="url(#vl-gold)"/><rect x="740" y="736" width="8" height="94" fill="url(#vl-gold)"/><rect x="1172" y="736" width="8" height="94" fill="url(#vl-gold)"/>`;
+  s += `<rect x="870" y="548" width="180" height="36" rx="4" fill="#1c0307" stroke="#c9a14a" stroke-width="2"/><text x="960" y="576" text-anchor="middle" font-family="Limelight, serif" font-size="26" fill="#f6d98a" letter-spacing="4">TICKETS</text>`;
+  s += tag(960, 622, 'arealhumanbean', { bg: '#1c0307d0', stroke: '#c9a14a', fg: '#f6d98a', fs: 18 });
+  // doors to hall
+  s += `<rect x="90" y="300" width="380" height="520" fill="url(#vl-gold)"/><rect x="104" y="314" width="352" height="506" fill="#2a040a"/>`;
+  s += `<rect x="112" y="322" width="164" height="498" fill="url(#vl-tuft)"/><rect x="284" y="322" width="164" height="498" fill="url(#vl-tuft)"/>`;
+  [194, 366].forEach(cx => s += `<circle cx="${cx}" cy="420" r="36" fill="#f6d39a" fill-opacity=".25" stroke="url(#vl-gold)" stroke-width="6"/><rect x="${cx - 50}" y="580" width="100" height="10" rx="5" fill="url(#vl-gold)"/>`);
+  s += `<rect x="140" y="246" width="280" height="44" rx="6" fill="#1c0307" stroke="#c9a14a" stroke-width="3"/><text x="280" y="278" text-anchor="middle" font-family="Limelight, serif" font-size="28" fill="#f6d98a">HALL 1  →</text>`;
+  // poster
+  s += `<rect x="548" y="290" width="170" height="250" fill="url(#vl-gold)"/><rect x="558" y="300" width="150" height="230" fill="url(#vl-poster)"/><circle cx="660" cy="350" r="22" fill="#fff3c4"/><path d="M558 470 L600 420 L630 450 L670 400 L708 460 V530 H558Z" fill="#120a2e"/><text x="633" y="512" text-anchor="middle" font-family="Limelight, serif" font-size="20" fill="#f6d98a">COMING SOON</text>`;
+  // concessions
+  s += `<rect x="1380" y="236" width="480" height="206" rx="6" fill="url(#vl-gold)"/><rect x="1392" y="248" width="456" height="182" fill="#160306"/>`;
+  s += `<text x="1620" y="296" text-anchor="middle" font-family="Limelight, serif" font-size="36" fill="#f6d98a">CONCESSIONS</text>`;
+  ['POPCORN ........ 5', 'NACHOS ......... 6', 'SODA ........... 3'].forEach((t, i) => s += `<text x="1620" y="${340 + i * 32}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="22" fill="#f1d9a8">${t}</text>`);
+  s += `<rect x="1400" y="466" width="140" height="32" rx="8" fill="#d0202f"/><text x="1470" y="489" text-anchor="middle" font-size="18" font-weight="700" fill="#fff" font-family="Space Grotesk">POPCORN</text><rect x="1408" y="498" width="124" height="134" fill="#fff6d0" fill-opacity=".18" stroke="#c9a14a" stroke-width="3"/>`;
+  const pr = rng(7);
+  for (let i = 0; i < 70; i++) s += `<circle cx="${1416 + pr() * 108}" cy="${570 + pr() * 58}" r="${5 + pr() * 4}" fill="${pr() < .5 ? '#ffe9a0' : '#fff6d6'}"/>`;
+  s += `<rect x="1580" y="512" width="130" height="130" rx="8" fill="#b9bcc6"/><rect x="1592" y="524" width="106" height="40" rx="4" fill="#2c2f3a"/>`;
+  ['#e8343f', '#3fa9f5', '#ffb84d'].forEach((c, i) => s += `<rect x="${1598 + i * 34}" y="530" width="26" height="28" rx="3" fill="${c}"/><rect x="${1607 + i * 34}" y="566" width="8" height="18" fill="#555"/>`);
+  s += emote(1795, 700, 1.1, '#ff8a5c', { face: 'joy', noShadow: true });
+  s += `<rect x="1360" y="650" width="520" height="170" fill="#6e0f1f"/><rect x="1350" y="640" width="540" height="16" fill="#e8d2a2"/>`;
+  for (let x = 1380; x < 1860; x += 120) s += `<rect x="${x}" y="676" width="100" height="120" fill="none" stroke="#c9a14a" stroke-opacity=".5" stroke-width="2"/>`;
+  // crowd
+  const crowd = [
+    [960, 872, 1.05, '#c59bff', { face: 'joy', name: 'Pog', hold: 'ticket' }],
+    [880, 912, 1.08, '#9bf07a', { face: 'happy', name: 'Juno' }],
+    [800, 952, 1.12, '#ffe066', { face: 'meh', name: 'gnomey', say: 'how long is this line', sayDx: -40 }],
+    [715, 995, 1.16, '#7ad1ff', { face: 'sleepy', name: 'Tako' }],
+    [625, 878, 1.0, '#a0a6ff', { face: 'wow', name: 'Moth', say: 'ooh new poster', sayDx: -30 }],
+    [1480, 885, 1.05, '#ff7aa8', { face: 'wow', name: 'Nugget', say: 'extra butter pls' }],
+    [1660, 935, 1.1, '#5ce1c4', { face: 'joy', name: 'Lumi', hold: 'popcorn' }],
+    [1260, 985, 1.15, '#ffb84d', { face: 'smug', name: 'Rico', hold: 'drink' }],
+    [300, 905, 1.05, '#ff9f6b', { face: 'meh', name: 'Vex', say: 'let us in!!' }],
+    [180, 950, 1.1, '#8ce0ff', { face: 'smug', name: 'Kappa', hold: 'ticket' }],
+    [1160, 1050, 1.2, '#f7a1ff', { face: 'cool', name: 'Dank' }],
+    [460, 1050, 1.2, '#b8f28c', { face: 'happy', name: 'Wyvern', hold: 'popcorn' }],
+  ].sort((a, b) => a[1] - b[1]);
+  const stanchions = () => {
+    let g = '';
+    [[80, 270], [270, 460]].forEach(([a, b]) => g += `<path d="M${a} 892 Q${(a + b) / 2} 950 ${b} 892" stroke="#b0102a" stroke-width="10" fill="none"/>`);
+    [80, 270, 460].forEach(x => g += `<ellipse cx="${x}" cy="984" rx="22" ry="7" fill="url(#vl-gold)"/><rect x="${x - 5}" y="886" width="10" height="98" fill="url(#vl-gold)"/><circle cx="${x}" cy="884" r="9" fill="url(#vl-gold)"/>`);
+    return g;
+  };
+  let drawn = false;
+  crowd.forEach(e => { if (!drawn && e[1] > 985) { s += stanchions(); drawn = true; } s += emote(...e); });
+  if (!drawn) s += stanchions();
+  // HUD
+  s += `<rect x="40" y="56" width="300" height="92" rx="12" fill="#000" fill-opacity=".45" stroke="#c9a14a" stroke-width="2"/><text x="64" y="90" font-family="Limelight, serif" font-size="20" letter-spacing="4" fill="#c9a14a">LOBBY</text><text x="64" y="130" font-size="32" font-weight="700" fill="#fff">14 guests waiting</text>`;
+  s += `<rect x="1580" y="56" width="300" height="92" rx="12" fill="#000" fill-opacity=".45" stroke="#c9a14a" stroke-width="2"/><text x="1604" y="90" font-family="Limelight, serif" font-size="20" letter-spacing="4" fill="#c9a14a">DOORS OPEN IN</text><text x="1604" y="134" font-size="40" font-weight="700" fill="#fff">08:42</text>`;
+  return s;
+}
+
+function cinemaVelvet() {
+  const r = rng(21);
+  let s = `<defs>
+  <pattern id="vc-folds" width="60" height="10" patternUnits="userSpaceOnUse"><rect width="60" height="10" fill="#7a0d1e"/><rect width="18" height="10" fill="#a3172d"/><rect x="18" width="10" height="10" fill="#c2283f" opacity=".6"/><rect x="40" width="20" height="10" fill="#4e0712" opacity=".7"/></pattern>
+  <linearGradient id="vc-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>
+  <linearGradient id="vc-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dc8e"/><stop offset=".5" stop-color="#c79a3e"/><stop offset="1" stop-color="#8a6420"/></linearGradient>
+  <radialGradient id="vc-spill" cx=".5" cy="0" r=".7"><stop offset="0" stop-color="#9fb8ff" stop-opacity=".16"/><stop offset="1" stop-color="#9fb8ff" stop-opacity="0"/></radialGradient>
+  </defs>`;
+  s += `<rect width="1920" height="1080" fill="#14040a"/>`;
+  const curtL = `M0 0 H372 Q342 300 354 780 Q300 800 240 790 Q150 810 60 795 Q20 805 0 800Z`;
+  const curtR = `M1920 0 H1548 Q1578 300 1566 780 Q1620 800 1680 790 Q1770 810 1860 795 Q1900 805 1920 800Z`;
+  s += `<path d="${curtL}" fill="url(#vc-folds)"/><path d="${curtL}" fill="url(#vc-shade)"/><path d="${curtR}" fill="url(#vc-folds)"/><path d="${curtR}" fill="url(#vc-shade)"/>`;
+  s += `<rect x="366" y="58" width="1188" height="680" rx="6" fill="url(#vc-gold)"/>` + movieSlot(380, 72, 1160, 652, { bg: '#0a0d18' });
+  s += `<rect width="1920" height="40" fill="#5c0a18"/>`;
+  for (let x = 0; x < 1920; x += 120) s += `<path d="M${x} 38 Q${x + 60} 70 ${x + 120} 38Z" fill="#8e1428"/><path d="M${x} 38 Q${x + 60} 70 ${x + 120} 38" stroke="#c9a14a" stroke-width="3" fill="none"/>`;
+  s += `<rect x="300" y="738" width="1320" height="22" fill="#2a0810"/><rect x="300" y="736" width="1320" height="4" fill="url(#vc-gold)"/>`;
+  s += `<rect y="760" width="1920" height="320" fill="#0d0306"/><ellipse cx="960" cy="760" rx="1000" ry="260" fill="url(#vc-spill)"/>`;
+  [[60, 852], [1800, 852]].forEach(([x, y]) => s += `<rect x="${x}" y="${y}" width="74" height="30" rx="4" fill="#0e3a1c" stroke="#3cff7a" stroke-width="2"/><text x="${x + 37}" y="${y + 22}" text-anchor="middle" font-size="18" font-weight="700" fill="#5cff8f">EXIT</text>`);
+  [[190, 480], [1730, 480]].forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="70" fill="#ffcf80" opacity=".12"/><path d="M${x - 22} ${y} Q${x} ${y - 34} ${x + 22} ${y}Z" fill="url(#vc-gold)"/>`);
+  const rows = [{ y: 830, n: 16, sw: 64, sh: 44 }, { y: 905, n: 14, sw: 80, sh: 56 }, { y: 990, n: 12, sw: 100, sh: 70 }, { y: 1090, n: 10, sw: 126, sh: 90 }];
+  rows.forEach((row, i) => {
+    const gap = row.sw * 1.3, total = row.n * row.sw + gap, x0 = 960 - total / 2;
+    let heads = '', seats = '';
+    for (let k = 0; k < row.n; k++) {
+      const x = x0 + k * row.sw + row.sw / 2 + (k >= row.n / 2 ? gap : 0), hr = row.sw * .3;
+      if (r() < .58) heads += seatHead(x, row.y - row.sh - hr * .15, hr, pick(r, COLORS), { turned: r() < .13, face: pick(r, FACES), name: r() < .25 ? pick(r, NAMES) : null, popcorn: r() < .14, tagStyle: { fs: 14 + i * 2, bg: '#000000c0' } });
+      seats += `<rect x="${x - row.sw / 2 + 3}" y="${row.y - row.sh}" width="${row.sw - 6}" height="${row.sh + 24}" rx="${row.sw * .22}" fill="#8b1426"/><rect x="${x - row.sw / 2 + 8}" y="${row.y - row.sh + 5}" width="${row.sw - 16}" height="${row.sh * .32}" rx="${row.sw * .15}" fill="#ac1f36"/>`;
+    }
+    s += heads + seats;
+    if (i === 1) s += emote(960, 948, .8, '#9bf07a', { face: 'happy', name: 'Juno', hold: 'popcorn', say: 'sorry, excuse me', tagStyle: { fs: 17 }, bubbleStyle: { fs: 19 } });
+  });
+  s += `<path d="M188 958 L560 860 L600 990Z" fill="#fff3b0" opacity=".16"/>` + emote(150, 1010, 1.05, '#3a3a50', { face: 'smug', name: 'usher', hold: 'flashlight', ink: '#e9e9f5' });
+  s += `<rect x="40" y="84" width="270" height="56" rx="28" fill="#000" fill-opacity=".55" stroke="#c9a14a" stroke-width="2"/><text x="175" y="121" text-anchor="middle" font-family="Limelight, serif" font-size="24" fill="#f6d98a">HALL 1 · 31 seated</text>`;
+  s += `<rect x="1610" y="84" width="270" height="56" rx="28" fill="#000" fill-opacity=".55" stroke="#c9a14a" stroke-width="2"/><text x="1745" y="121" text-anchor="middle" font-family="Limelight, serif" font-size="24" fill="#f6d98a">lights down 00:45</text>`;
+  return s;
+}
+
+// =====================================================================
+// 2 · NEON PICTURE HOUSE
+// =====================================================================
+const NEON = ['#ff3fd8', '#5ff3ff', '#ffe45c', '#7dff6a', '#b18cff', '#ff8a3d'];
+const neonEmote = (x, y, s, c, o = {}) => emote(x, y, s, shade(c, -.75), { ...o, stroke: c, ink: c, tagStyle: { bg: '#0b0320', stroke: c, fg: c, font: 'Audiowide, sans-serif', fs: 17, cw: .7 }, bubbleStyle: { bg: '#0b0320', stroke: '#ff3fd8', fg: '#fff', font: 'Audiowide, sans-serif', fs: 18, cw: .66 } });
+
+function lobbyNeon() {
+  let s = `<defs>
+  <linearGradient id="nl-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05010f"/><stop offset=".7" stop-color="#1c0742"/><stop offset="1" stop-color="#32095a"/></linearGradient>
+  <linearGradient id="nl-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0638"/><stop offset="1" stop-color="#06020f"/></linearGradient>
+  <filter id="nl-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="nl-glow2" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>`;
+  s += `<rect width="1920" height="660" fill="url(#nl-bg)"/><rect y="660" width="1920" height="420" fill="url(#nl-floor)"/>`;
+  for (let x = 0; x < 1920; x += 96) s += `<line x1="${x}" y1="0" x2="${x}" y2="660" stroke="#fff" stroke-opacity=".035" stroke-width="2"/>`;
+  let gl = '';
+  for (let i = -26; i <= 26; i++) gl += `<line x1="${960 + i * 30}" y1="660" x2="${960 + i * 190}" y2="1080"/>`;
+  for (let t = 1; t <= 12; t++) { const yy = 660 + 420 * Math.pow(t / 12, 1.8); gl += `<line x1="0" y1="${yy}" x2="1920" y2="${yy}"/>`; }
+  s += `<g stroke="#ff2fd0" stroke-opacity=".3" stroke-width="2">${gl}</g><line x1="0" y1="660" x2="1920" y2="660" stroke="#ff7ae6" stroke-width="3" filter="url(#nl-glow)"/>`;
+  s += `<g filter="url(#nl-glow2)"><text x="960" y="196" text-anchor="middle" font-family="Monoton, sans-serif" font-size="150" fill="#ff5ae0">NEON</text></g>`;
+  s += `<g filter="url(#nl-glow)"><text x="960" y="256" text-anchor="middle" font-family="Audiowide, sans-serif" font-size="42" letter-spacing="14" fill="#5ff3ff">PICTURE HOUSE</text></g>`;
+  s += `<rect x="780" y="300" width="360" height="130" rx="14" fill="#05010c" stroke="#5ff3ff" stroke-width="3" filter="url(#nl-glow)"/><text x="960" y="338" text-anchor="middle" font-family="Audiowide" font-size="22" letter-spacing="6" fill="#5ff3ff">STARTS IN</text><g filter="url(#nl-glow)"><text x="960" y="410" text-anchor="middle" font-family="Audiowide" font-size="76" fill="#ffe45c">12:00</text></g>`;
+  s += `<text x="340" y="100" text-anchor="middle" font-family="Audiowide" font-size="22" letter-spacing="8" fill="#ff5ae0" filter="url(#nl-glow)">TRAILERS</text><rect x="92" y="114" width="496" height="286" rx="8" fill="none" stroke="#5ff3ff" stroke-width="4" filter="url(#nl-glow)"/>` + movieSlot(100, 122, 480, 270, { bg: '#0a0420', label: 'TRAILERS / STREAM' });
+  // arcade cabinets
+  [[110, '#ff3fd8', 'BEAN'], [250, '#5ff3ff', 'POG'], [390, '#7dff6a', 'DANK']].forEach(([x, c, t]) => {
+    s += `<g filter="url(#nl-glow)"><path d="M${x} 700 V470 L${x + 12} 430 H${x + 108} L${x + 120} 470 V700Z" fill="#120428" stroke="${c}" stroke-width="3"/></g>`;
+    s += `<rect x="${x + 14}" y="438" width="92" height="30" rx="4" fill="${c}" opacity=".85"/><text x="${x + 60}" y="460" text-anchor="middle" font-family="Audiowide" font-size="18" fill="#0b0320">${t}</text>`;
+    s += `<rect x="${x + 16}" y="484" width="88" height="70" rx="6" fill="${c}" opacity=".3"/><rect x="${x + 8}" y="570" width="104" height="26" rx="4" fill="#24104a"/><circle cx="${x + 36}" cy="583" r="6" fill="#ff3fd8"/><circle cx="${x + 60}" cy="583" r="6" fill="#ffe45c"/><circle cx="${x + 84}" cy="583" r="6" fill="#5ff3ff"/>`;
+  });
+  // snack bar
+  s += `<g filter="url(#nl-glow2)"><text x="1600" y="170" text-anchor="middle" font-family="Monoton, sans-serif" font-size="92" fill="#ffe45c">SNACKS</text></g>`;
+  s += `<g filter="url(#nl-glow)" fill="none" stroke-width="4"><path d="M1420 240 H1470 L1462 320 H1428Z M1426 240 Q1430 220 1445 228 Q1452 212 1465 230" stroke="#ff3fd8"/><path d="M1750 240 H1790 L1784 320 H1756Z M1772 240 L1780 212" stroke="#5ff3ff"/></g>`;
+  s += `<rect x="1340" y="392" width="56" height="110" rx="8" fill="#ff3fd8" opacity=".55"/><rect x="1404" y="392" width="56" height="110" rx="8" fill="#5ff3ff" opacity=".55"/><rect x="1334" y="380" width="132" height="16" rx="4" fill="#d8d8ff"/>`;
+  s += neonEmote(1640, 580, 1.0, '#7dff6a', { face: 'joy', noShadow: true });
+  s += `<rect x="1300" y="520" width="560" height="180" rx="10" fill="#12052a" stroke="#5ff3ff" stroke-width="3" filter="url(#nl-glow)"/><line x1="1300" y1="524" x2="1860" y2="524" stroke="#ff3fd8" stroke-width="4" filter="url(#nl-glow)"/>`;
+  s += `<text x="1580" y="630" text-anchor="middle" font-family="Audiowide" font-size="30" letter-spacing="6" fill="#ff5ae0" opacity=".8">POPCORN · SLUSHIES</text>`;
+  const crowd = [
+    [170, 770, 1.0, '#ff3fd8', { face: 'wow', name: 'Zoomer' }],
+    [320, 785, 1.0, '#5ff3ff', { face: 'joy', name: 'Booba', say: 'NEW HIGH SCORE' }],
+    [820, 830, 1.05, '#ffe45c', { face: 'joy', name: 'Pog', wave: true }],
+    [1010, 850, 1.05, '#b18cff', { face: 'happy', name: 'Lumi', wave: true }],
+    [1420, 790, 1.0, '#ff8a3d', { face: 'happy', name: 'Nugget', hold: 'drink' }],
+    [1580, 820, 1.02, '#7dff6a', { face: 'joy', name: 'Juno', hold: 'popcorn', say: 'got the slushie' }],
+    [1760, 880, 1.06, '#5ff3ff', { face: 'meh', name: 'Vex' }],
+    [600, 920, 1.1, '#ff3fd8', { face: 'wow', name: 'Moth', say: 'when does it start?' }],
+    [920, 980, 1.15, '#5ff3ff', { face: 'cool', name: 'Rico' }],
+    [1260, 990, 1.15, '#b18cff', { face: 'sleepy', name: 'Tako' }],
+    [380, 1030, 1.2, '#ffe45c', { face: 'smug', name: 'Kappa', hold: 'ticket' }],
+  ];
+  s += `<g filter="url(#nl-glow)">${crowd.map(e => neonEmote(...e)).join('')}</g>`;
+  s += hint(960, 1058, 'tag @arealhumanbean to walk in', { bg: '#0b0320e0', stroke: '#5ff3ff', fg: '#5ff3ff', font: 'Audiowide', fs: 20, cw: .66 });
+  return s;
+}
+
+function cinemaNeon() {
+  const r = rng(32);
+  let s = `<defs>
+  <linearGradient id="nc-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0638"/><stop offset="1" stop-color="#05010c"/></linearGradient>
+  <filter id="nc-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="nc-glow2" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>`;
+  s += `<rect width="1920" height="1080" fill="#05010c"/><path d="M0 0 H1920 L1560 50 H360Z" fill="#0b0322"/><path d="M360 745 H1560 L1920 1080 H0Z" fill="url(#nc-floor)"/>`;
+  let wl = '';
+  for (let k = 0; k <= 5; k++) {
+    const yi = 60 + k * 136, yo = 400 + (yi - 400) * 1.6, c = k % 2 ? '#5ff3ff' : '#ff3fd8';
+    wl += `<line x1="350" y1="${yi}" x2="0" y2="${yo}" stroke="${c}" stroke-width="3" stroke-opacity=".7"/><line x1="1570" y1="${yi}" x2="1920" y2="${yo}" stroke="${c}" stroke-width="3" stroke-opacity=".7"/>`;
+  }
+  s += `<g filter="url(#nc-glow)">${wl}</g>`;
+  let gl = '';
+  for (let i = -16; i <= 16; i++) gl += `<line x1="${960 + i * 38}" y1="745" x2="${960 + i * 120}" y2="1080"/>`;
+  s += `<g stroke="#ff2fd0" stroke-opacity=".22" stroke-width="2">${gl}</g>`;
+  s += `<rect x="342" y="42" width="1236" height="711" rx="10" fill="none" stroke="#ff3fd8" stroke-width="6" filter="url(#nc-glow2)"/><rect x="352" y="52" width="1216" height="691" rx="6" fill="none" stroke="#5ff3ff" stroke-width="3" filter="url(#nc-glow)"/>`;
+  s += movieSlot(360, 60, 1200, 675, { bg: '#080418' });
+  s += `<g stroke="#ff3fd8" stroke-opacity=".22" stroke-width="2"><line x1="0" y1="0" x2="760" y2="1080"/><line x1="1920" y1="0" x2="1160" y2="1080"/><line x1="0" y1="200" x2="1100" y2="1080"/><line x1="1920" y1="200" x2="820" y2="1080"/></g>`;
+  const rows = [{ y: 835, n: 16, sw: 66, sh: 40 }, { y: 915, n: 14, sw: 84, sh: 52 }, { y: 1005, n: 12, sw: 104, sh: 66 }, { y: 1110, n: 10, sw: 132, sh: 86 }];
+  rows.forEach((row, i) => {
+    const gap = row.sw * 1.3, total = row.n * row.sw + gap, x0 = 960 - total / 2, half = total / 2;
+    let heads = '', seats = '';
+    for (let k = 0; k < row.n; k++) {
+      const x = x0 + k * row.sw + row.sw / 2 + (k >= row.n / 2 ? gap : 0), dx = (x - 960) / half, yy = row.y - 34 * dx * dx, hr = row.sw * .3;
+      if (r() < .6) { const c = pick(r, NEON); heads += seatHead(x, yy - row.sh - hr * .15, hr, c, { fill: '#120630', stroke: c, turned: r() < .14, face: pick(r, FACES), ink: c, name: r() < .22 ? pick(r, NAMES) : null, tagStyle: { bg: '#0b0320', stroke: c, fg: c, font: 'Audiowide', fs: 13 + i * 2, cw: .7 } }); }
+      seats += `<rect x="${x - row.sw / 2 + 4}" y="${yy - row.sh}" width="${row.sw - 8}" height="${row.sh + 30}" rx="${row.sw * .25}" fill="#0d0424" stroke="${i % 2 ? '#ff3fd8' : '#5ff3ff'}" stroke-width="2.5"/>`;
+    }
+    s += `<g filter="url(#nc-glow)">${heads}${seats}</g>`;
+    if (i === 1) s += `<g filter="url(#nc-glow)">${neonEmote(960, 960, .8, '#ffe45c', { face: 'joy', name: 'Pog', hold: 'popcorn', say: 'sry sry' })}</g>`;
+  });
+  s += `<g filter="url(#nc-glow)"><text x="40" y="34" font-family="Audiowide" font-size="22" letter-spacing="4" fill="#5ff3ff">SCREEN 1 — NOW SEATING  31/60</text></g>`;
+  return s;
+}
+
+// =====================================================================
+// 3 · PIXEL (16-bit RPG)
+// =====================================================================
+const SP_FRONT = ['..oooooo..', '.occcccco.', 'ochcccccco', 'occeccecco', 'occeccecco', 'occcccccco', 'occcmmccco', '.occcccco.', '.oddddddo.', 'oddddddddo', '.oddddddo.', '..oo..oo..'];
+const SP_BACK = ['..oooooo..', '.occcccco.', 'ochcccccco', 'occcccccco', 'occcccccco', 'occcccccco', 'occcccccco', '.occcccco.', '.oddddddo.', 'oddddddddo', '.oddddddo.', '..oo..oo..'];
+function sprite(x, y, pat, c, rows) {
+  const pal = { o: '#1a1020', c, h: '#ffffff', e: '#1a1020', m: '#1a1020', d: shade(c, -.32) };
+  let g = '';
+  pat.slice(0, rows || pat.length).forEach((row, j) => {
+    let i = 0;
+    while (i < row.length) {
+      const ch = row[i]; let n = 1;
+      while (row[i + n] === ch) n++;
+      if (ch !== '.') g += `<rect x="${x + i}" y="${y + j}" width="${n}" height="1" fill="${pal[ch]}"/>`;
+      i += n;
+    }
+  });
+  return g;
+}
+const R = (x, y, w, h, c, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" ${extra}/>`;
+const pxText = (x, y, t, fs, c, anchor = 'start') => `<text x="${x + 3}" y="${y + 3}" font-family="'Press Start 2P', monospace" font-size="${fs}" fill="#000" text-anchor="${anchor}">${t}</text><text x="${x}" y="${y}" font-family="'Press Start 2P', monospace" font-size="${fs}" fill="${c}" text-anchor="${anchor}">${t}</text>`;
+
+function lobbyPixel() {
+  let p = '', t = '';
+  p += R(0, 0, 320, 60, '#3d2b5c');
+  for (let x = 0; x < 320; x += 8) p += R(x, 4, 4, 40, '#45316a');
+  p += R(0, 0, 320, 4, '#2a1c40') + R(0, 44, 320, 16, '#2a1c40') + R(0, 44, 320, 1, '#c9a14a') + R(0, 59, 320, 1, '#1a1028');
+  for (let y = 60; y < 180; y += 10) for (let x = 0; x < 320; x += 10) p += R(x, y, 10, 10, ((x + y) / 10) % 2 ? '#6b2f45' : '#5e283d');
+  // posters
+  p += R(10, 10, 22, 30, '#e8c35a') + R(12, 12, 18, 26, '#2b4a8f') + R(12, 28, 18, 10, '#1a2a5a') + R(22, 15, 4, 4, '#fff3b0');
+  p += R(36, 10, 22, 30, '#e8c35a') + R(38, 12, 18, 26, '#8f2b4a') + R(41, 16, 12, 12, '#ffb84d') + R(43, 30, 8, 4, '#1a1028');
+  // hall door
+  p += R(64, 16, 38, 44, '#c9a14a') + R(66, 18, 16, 42, '#8a1426') + R(84, 18, 16, 42, '#8a1426') + R(70, 24, 8, 6, '#f6d39a') + R(88, 24, 8, 6, '#f6d39a') + R(66, 7, 34, 8, '#1a1028');
+  t += pxText(83 * 6, 13.5 * 6, 'HALL 1', 16, '#ffe066', 'middle');
+  // ticket booth
+  p += R(118, 14, 74, 46, '#8a5a2b') + R(118, 14, 74, 3, '#c9a14a') + R(126, 22, 58, 20, '#ffe6a0');
+  p += sprite(150, 26, SP_FRONT, '#7ad1ff');
+  p += R(118, 40, 74, 20, '#6e4420') + R(116, 40, 78, 2, '#c9a14a') + R(130, 5, 50, 9, '#c0392b');
+  t += pxText(155 * 6, 12 * 6, 'TICKETS', 18, '#fff', 'middle');
+  // snack bar
+  p += R(236, 4, 64, 22, '#c9a14a') + R(237, 5, 62, 20, '#1a1028');
+  for (let i = 0; i < 3; i++) p += R(241, 13 + i * 4, 30, 1, '#ffe6a0') + R(286, 13 + i * 4, 8, 1, '#ffe6a0');
+  p += R(214, 12, 18, 24, '#c0392b') + R(216, 16, 14, 14, '#fff3c4');
+  for (let i = 0; i < 9; i++) p += R(217 + (i * 5) % 12, 24 + (i % 3) * 2, 2, 2, '#ffe066');
+  p += R(302, 12, 14, 24, '#3fa9f5') + R(304, 16, 10, 6, '#bfe6ff');
+  p += sprite(262, 24, SP_FRONT, '#ff8a5c');
+  p += R(210, 36, 110, 24, '#c0392b') + R(208, 36, 112, 3, '#e8e0d0');
+  for (let x = 214; x < 320; x += 12) p += R(x, 42, 6, 18, '#a82e22');
+  t += pxText(265 * 6, 53 * 6, 'SNACKS', 22, '#ffe066', 'middle');
+  // plants + bench
+  p += R(2, 50, 10, 10, '#8a5a2b') + R(0, 38, 14, 12, '#2f9e5b') + R(4, 33, 6, 6, '#3cc46f');
+  p += R(20, 128, 44, 4, '#8a5a2b') + R(22, 132, 3, 6, '#5a3a1b') + R(59, 132, 3, 6, '#5a3a1b');
+  // crowd
+  const pop = (x, y) => R(x + 10, y + 6, 3, 5, '#fff') + R(x + 10, y + 5, 3, 1, '#ffe066') + R(x + 11, y + 6, 1, 5, '#e8343f');
+  const people = [
+    [150, 62, SP_BACK, '#c59bff', 'Pog'], [152, 76, SP_BACK, '#9bf07a', 'Juno'], [148, 90, SP_BACK, '#ffe066', null],
+    [232, 62, SP_BACK, '#ff7aa8', 'Nugget'], [252, 64, SP_BACK, '#5ce1c4', null],
+    [78, 62, SP_BACK, '#ff9f6b', 'Vex'],
+    [40, 92, SP_FRONT, '#a0a6ff', 'Moth'], [100, 110, SP_FRONT, '#ffb84d', 'Rico', pop],
+    [200, 104, SP_FRONT, '#f7a1ff', 'Dank', pop], [282, 112, SP_FRONT, '#8ce0ff', 'Tako'],
+    [37, 117, SP_FRONT, '#b8f28c', 'Lumi', pop],
+  ];
+  people.forEach(([x, y, pat, c, n, extra]) => { p += sprite(x, y, pat, c) + (extra ? extra(x, y) : ''); if (n) t += pxText((x + 5) * 6, (y - 2) * 6, n, 13, '#fff', 'middle'); });
+  // bubbles
+  p += R(41, 73, 9, 9, '#fff') + R(44, 82, 3, 2, '#fff') + R(281, 93, 14, 9, '#fff') + R(284, 102, 3, 2, '#fff');
+  t += `<text x="${45.5 * 6}" y="${80.5 * 6 + 2}" text-anchor="middle" font-family="'Press Start 2P'" font-size="30" fill="#e8343f">!</text>`;
+  t += `<text x="${288 * 6}" y="${100.5 * 6}" text-anchor="middle" font-family="'Press Start 2P'" font-size="22" fill="#1a1020">zz</text>`;
+  // dialog box
+  p += R(6, 140, 308, 36, '#ffffff') + R(7, 141, 306, 34, '#10091c') + R(8, 142, 304, 32, '#ffffff') + R(9, 143, 302, 30, '#10091c');
+  t += pxText(84, 912, 'arealhumanbean:', 26, '#ffe066') + pxText(84, 970, 'Movie starts in 10 min. Grab snacks!', 26, '#ffffff') + pxText(1800, 1032, '▼', 22, '#ffffff');
+  t += pxText(1830, 912, 'GUESTS 14', 20, '#9bf07a', 'end');
+  return `<g transform="scale(6)" shape-rendering="crispEdges">${p}</g>${t}`;
+}
+
+function cinemaPixel() {
+  const r = rng(43);
+  let p = '', q = '', t = '';
+  p += R(0, 0, 320, 180, '#140b20') + R(0, 0, 320, 122, '#22122f');
+  p += R(62, 4, 196, 112, '#c9a14a');
+  [0, 262].forEach(cx => { p += R(cx, 0, 58, 124, '#8a1426'); for (let x = cx; x < cx + 58; x += 6) p += R(x, 0, 2, 124, '#6a0f1d') + R(x + 3, 0, 1, 124, '#b0243a'); });
+  p += R(0, 0, 60, 4, '#6a0f1d') + R(260, 0, 60, 4, '#6a0f1d') + R(0, 3, 60, 1, '#c9a14a') + R(260, 3, 60, 1, '#c9a14a');
+  p += R(56, 116, 208, 6, '#6e4420') + R(56, 116, 208, 1, '#c9a14a') + R(0, 122, 320, 58, '#2b1730') + R(150, 122, 20, 58, '#3b1f42');
+  for (let y = 126; y < 180; y += 8) p += R(150, y, 1, 1, '#ffe066') + R(169, y, 1, 1, '#ffe066');
+  p += R(4, 100, 14, 6, '#0e3a1c') + R(302, 100, 14, 6, '#0e3a1c');
+  // seats and heads
+  [134, 150, 166].forEach((sy, i) => {
+    let heads = '', seats = '';
+    const xs = [];
+    for (let k = 0; k < 10; k++) xs.push(14 + k * 13, 174 + k * 13);
+    xs.forEach(x => {
+      if (r() < .55) {
+        const turned = r() < .12, c = pick(r, COLORS);
+        heads += sprite(x + 1, sy - 7, turned ? SP_FRONT : SP_BACK, c, 8);
+        if (r() < .2) t += pxText((x + 6) * 6, (sy - 9) * 6, pick(r, NAMES), 11, '#fff', 'middle');
+      }
+      seats += R(x, sy, 12, 12, '#8a1426') + R(x + 1, sy + 1, 10, 3, '#b0243a') + R(x, sy + 11, 12, 1, '#4a0712');
+    });
+    q += heads + seats;
+    if (i === 0) { q += sprite(155, 126, SP_FRONT, '#9bf07a') + R(165, 132, 3, 5, '#fff') + R(165, 131, 3, 1, '#ffe066'); t += pxText(160 * 6, 124 * 6, 'Juno', 13, '#fff', 'middle'); }
+  });
+  q += sprite(2, 126, SP_FRONT, '#3a3a50') + R(10, 132, 3, 2, '#fff3b0');
+  t += pxText(7 * 6, 124 * 6, 'usher', 13, '#ffe066', 'middle');
+  t += pxText(11 * 6, 104.8 * 6, 'EXIT', 11, '#5cff8f', 'middle') + pxText(309 * 6, 104.8 * 6, 'EXIT', 11, '#5cff8f', 'middle');
+  t += pxText(24, 60, 'HALL 1', 18, '#ffe066') + pxText(24, 92, '23/40', 18, '#fff');
+  return `<g transform="scale(6)" shape-rendering="crispEdges">${p}</g>` + movieSlot(384, 36, 1152, 648, { bg: '#0c0a1c' }) + `<g transform="scale(6)" shape-rendering="crispEdges">${q}</g>${t}`;
+}
+
+// =====================================================================
+// 4 · STARLIGHT DRIVE-IN
+// =====================================================================
+function carSide(x, y, c, heads = []) {
+  let g = `<g transform="translate(${x} ${y})"><ellipse cx="152" cy="2" rx="165" ry="10" fill="#000" opacity=".35"/>`;
+  g += `<path d="M70 -70 Q90 -120 140 -122 L200 -122 Q238 -120 252 -72 Z" fill="${shade(c, -.2)}"/>`;
+  g += `<path d="M86 -74 Q100 -110 140 -112 L156 -112 L156 -74 Z" fill="#1d2448"/><path d="M166 -112 L198 -112 Q228 -110 240 -74 L166 -74Z" fill="#1d2448"/>`;
+  heads.forEach((h, i) => g += seatHead(i ? 120 : 200, -86, 19, h.c, { turned: true, face: h.face }));
+  g += `<path d="M96 -78 L120 -108 L132 -108 L108 -78Z M172 -80 L188 -108 L196 -108 L180 -80Z" fill="#fff" opacity=".1"/>`;
+  g += `<path d="M0 -30 Q0 -72 40 -74 L270 -74 Q302 -72 306 -40 L306 -20 Q306 -12 298 -12 L8 -12 Q0 -12 0 -20 Z" fill="${c}"/><path d="M10 -46 H296" stroke="#fff" stroke-opacity=".35" stroke-width="3"/>`;
+  g += `<circle cx="300" cy="-52" r="7" fill="#fff6c8"/><rect x="0" y="-56" width="8" height="14" rx="3" fill="#ff3b4a"/>`;
+  [70, 240].forEach(wx => g += `<circle cx="${wx}" cy="-12" r="25" fill="#111"/><circle cx="${wx}" cy="-12" r="11" fill="#9a9aa8"/>`);
+  g += '</g>';
+  if (heads[0]?.name) g += tag(x + 160, y - 140, heads[0].name, { fs: 18 });
+  return g;
+}
+
+function carRear(x, y, s, c, o = {}) {
+  let g = `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="2" rx="150" ry="12" fill="#000" opacity=".4"/>`;
+  if (o.convertible) g += (o.stand || '');
+  else {
+    g += `<path d="M-100 -110 Q-92 -172 -50 -176 L50 -176 Q92 -172 100 -110Z" fill="${shade(c, -.25)}"/><path d="M-84 -112 Q-78 -160 -44 -164 L44 -164 Q78 -160 84 -112Z" fill="#0d1022"/>`;
+    (o.heads || []).forEach((h, i, a) => g += seatHead(a.length === 1 ? 0 : (i ? 36 : -36), -128, 24, h.c, { turned: h.turned, face: h.face }));
+    g += `<path d="M-62 -156 L-30 -156 L-56 -118 L-80 -118Z" fill="#fff" opacity=".07"/>`;
+    if (o.roof) g += o.roof;
+  }
+  g += `<path d="M-130 -40 Q-132 -112 -100 -114 L100 -114 Q132 -112 130 -40 L130 -14 Q130 0 116 0 L-116 0 Q-130 0 -130 -14Z" fill="${c}"/>`;
+  g += `<rect x="-124" y="-94" width="46" height="18" rx="6" fill="#ff3b4a"/><rect x="78" y="-94" width="46" height="18" rx="6" fill="#ff3b4a"/><rect x="-128" y="-98" width="54" height="26" rx="8" fill="#ff3b4a" opacity=".25"/><rect x="74" y="-98" width="54" height="26" rx="8" fill="#ff3b4a" opacity=".25"/>`;
+  g += `<rect x="-48" y="-64" width="96" height="30" rx="4" fill="#f4f1e0" stroke="#333" stroke-width="2"/><text y="-42" text-anchor="middle" font-size="17" font-family="JetBrains Mono, monospace" font-weight="700" fill="#1a1a2e">${o.plate || ''}</text>`;
+  g += `<rect x="-134" y="-22" width="268" height="12" rx="6" fill="#bfc3cc"/><rect x="-120" y="-8" width="40" height="14" rx="4" fill="#111"/><rect x="80" y="-8" width="40" height="14" rx="4" fill="#111"/>`;
+  return g + '</g>';
+}
+
+function lobbyDrive() {
+  const r = rng(51);
+  let s = `<defs>
+  <linearGradient id="dl-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0d2e"/><stop offset=".45" stop-color="#2b2160"/><stop offset=".72" stop-color="#7a3f7a"/><stop offset=".9" stop-color="#e8785a"/><stop offset="1" stop-color="#f6b26b"/></linearGradient>
+  <linearGradient id="dl-ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211c38"/><stop offset="1" stop-color="#0e0c1c"/></linearGradient>
+  <filter id="dl-glow" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>`;
+  s += `<rect width="1920" height="700" fill="url(#dl-sky)"/>`;
+  for (let i = 0; i < 140; i++) s += `<circle cx="${r() * 1920}" cy="${r() * 420}" r="${.8 + r() * 1.6}" fill="#fff" opacity="${.35 + r() * .6}"/>`;
+  s += `<circle cx="1700" cy="130" r="90" fill="#fff3d6" opacity=".12"/><circle cx="1700" cy="130" r="46" fill="#fff3d6"/>`;
+  s += `<path d="M0 640 Q200 560 420 620 T900 600 T1400 610 T1920 580 V700 H0Z" fill="#2a2148"/><path d="M0 680 Q300 630 700 670 T1500 660 T1920 650 V720 H0Z" fill="#1d1836"/>`;
+  s += `<rect x="1180" y="470" width="280" height="150" fill="#3a3556"/><path d="M1180 520 H1460 M1180 570 H1460 M1250 470 V620 M1320 470 V620 M1390 470 V620" stroke="#2a2644" stroke-width="4"/><path d="M1220 620 V690 M1420 620 V690" stroke="#3a3556" stroke-width="10"/>`;
+  s += `<rect y="700" width="1920" height="380" fill="url(#dl-ground)"/><rect y="800" width="1920" height="110" fill="#2c2a40"/><path d="M0 855 H1920" stroke="#f6d36b" stroke-width="4" stroke-dasharray="34 26" opacity=".6"/>`;
+  // sign
+  s += `<rect x="330" y="420" width="22" height="390" fill="#3b3550"/>`;
+  s += `<path d="M90 110 H560 L650 215 L560 320 H90Z" fill="#12a3a0" stroke="#f6d36b" stroke-width="6"/>`;
+  const pts = [[90, 110], [560, 110], [650, 215], [560, 320], [90, 320], [90, 110]];
+  for (let i = 0; i < pts.length - 1; i++) { const [a, b] = [pts[i], pts[i + 1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.floor(len / 30); for (let k = 0; k < n; k++) s += `<circle cx="${a[0] + (b[0] - a[0]) * k / n}" cy="${a[1] + (b[1] - a[1]) * k / n}" r="5" fill="#fff1c2"/>`; }
+  s += `<g filter="url(#dl-glow)"><text x="340" y="210" text-anchor="middle" font-family="Pacifico, cursive" font-size="82" fill="#fff">Starlight</text><text x="340" y="292" text-anchor="middle" font-family="Rye, serif" font-size="56" fill="#ffe066">DRIVE-IN</text></g>`;
+  s += `<rect x="110" y="340" width="460" height="110" fill="#f4efe1" stroke="#333" stroke-width="4"/><text x="340" y="384" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="28" fill="#1a1a2e">TONIGHT: MOVIE NIGHT</text><text x="340" y="428" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="28" fill="#c0392b">GATES OPEN 8:30 PM</text>`;
+  // ticket booth
+  s += `<rect x="880" y="600" width="180" height="200" fill="#f2ead8"/>` + emote(970, 740, .9, '#7ad1ff', { face: 'happy', noShadow: true });
+  s += `<rect x="905" y="636" width="130" height="2" fill="#f2ead8"/><rect x="880" y="718" width="180" height="82" fill="#f2ead8"/><rect x="880" y="770" width="180" height="30" fill="#12a3a0"/><path d="M905 636 H1035 V718 H905Z" fill="none" stroke="#12a3a0" stroke-width="6"/>`;
+  for (let i = 0; i < 11; i++) s += `<rect x="${860 + i * 20}" y="574" width="20" height="34" fill="${i % 2 ? '#fff' : '#e84a5f'}"/>`;
+  for (let i = 0; i < 11; i++) s += `<path d="M${860 + i * 20} 608 Q${870 + i * 20} 622 ${880 + i * 20} 608Z" fill="${i % 2 ? '#fff' : '#e84a5f'}"/>`;
+  s += `<text x="970" y="750" text-anchor="middle" font-family="Rye" font-size="17" fill="#1a1a2e">TICKETS · $5/CAR</text>`;
+  s += tag(970, 630, 'arealhumanbean', { fs: 16, bg: '#12a3a0' });
+  // snack shack + string lights
+  s += `<rect x="1400" y="560" width="460" height="240" fill="#c9473f"/><rect x="1400" y="560" width="460" height="14" fill="#f2ead8"/><rect x="1460" y="616" width="340" height="92" fill="#ffd98a"/>`;
+  s += emote(1630, 724, .95, '#ff8a5c', { face: 'joy', noShadow: true });
+  s += `<rect x="1450" y="704" width="360" height="16" fill="#f2ead8"/><rect x="1430" y="474" width="400" height="80" rx="8" fill="#1d1a35" stroke="#f6d36b" stroke-width="4"/><g filter="url(#dl-glow)"><text x="1630" y="530" text-anchor="middle" font-family="Rye" font-size="50" fill="#ffe066">SNACK BAR</text></g>`;
+  const lc = ['#ff3b4a', '#ffe066', '#5ce1c4', '#ff7aa8', '#7ad1ff'];
+  for (let i = 0; i <= 18; i++) { const tt = i / 18, x = (1 - tt) ** 2 * 1060 + 2 * (1 - tt) * tt * 1230 + tt * tt * 1400, y = (1 - tt) ** 2 * 576 + 2 * (1 - tt) * tt * 640 + tt * tt * 520; s += `<circle cx="${x}" cy="${y + 8}" r="12" fill="${lc[i % 5]}" opacity=".25"/><circle cx="${x}" cy="${y + 8}" r="5" fill="${lc[i % 5]}"/>`; }
+  s += `<path d="M1060 584 Q1230 648 1400 528" stroke="#111" stroke-width="2" fill="none"/>`;
+  // cars queueing
+  s += carSide(-60, 900, '#f6b26b', [{ c: '#9bf07a', face: 'meh', name: 'gnomey' }, { c: '#c59bff', face: 'sleepy' }]);
+  s += carSide(290, 900, '#3fa9f5', [{ c: '#ff7aa8', face: 'smug', name: 'Kappa' }]);
+  s += carSide(620, 900, '#e84a5f', [{ c: '#ffe066', face: 'joy', name: 'Pog' }, { c: '#7ad1ff', face: 'happy' }]);
+  s += `<polygon points="926,848 1200,820 1200,890" fill="#fff6c8" opacity=".12"/>`;
+  s += `<rect x="1060" y="764" width="300" height="14" rx="7" fill="#fff"/>`;
+  for (let x = 1080; x < 1350; x += 40) s += `<rect x="${x}" y="764" width="20" height="14" fill="#e84a5f"/>`;
+  s += `<rect x="1052" y="756" width="16" height="44" fill="#555"/>`;
+  // people
+  s += emote(1470, 840, .95, '#ff7aa8', { face: 'wow', name: 'Nugget', say: 'one large popcorn', sayDx: -40 });
+  s += emote(1590, 975, .95, '#5ce1c4', { face: 'joy', sit: true, name: 'Lumi', hold: 'popcorn' }) + emote(1720, 975, .95, '#ffb84d', { face: 'smug', sit: true, name: 'Rico', hold: 'drink' });
+  s += `<rect x="1500" y="950" width="300" height="18" rx="4" fill="#8a5a2b"/><rect x="1520" y="968" width="12" height="60" fill="#5a3a1b"/><rect x="1768" y="968" width="12" height="60" fill="#5a3a1b"/><rect x="1490" y="1020" width="320" height="12" rx="4" fill="#6e4420"/>`;
+  s += emote(1290, 1010, 1.05, '#c59bff', { face: 'happy', name: 'Moth', hold: 'popcorn' });
+  s += emote(1110, 1040, 1.1, '#9bf07a', { face: 'joy', name: 'Juno', wave: true, say: 'save me a spot!' });
+  s += emote(150, 1050, 1.1, '#f7a1ff', { face: 'cool', name: 'Dank' });
+  s += hint(960, 1050, 'honk at @arealhumanbean to drive in', { bg: '#0e0c1cd0', stroke: '#f6d36b', fg: '#ffe066', font: 'Rye', fs: 22, cw: .62 });
+  return s;
+}
+
+function cinemaDrive() {
+  const r = rng(52);
+  let s = `<defs>
+  <linearGradient id="dc-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#04051a"/><stop offset=".7" stop-color="#121540"/><stop offset="1" stop-color="#262257"/></linearGradient>
+  <linearGradient id="dc-beam" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e8f0ff" stop-opacity=".22"/><stop offset="1" stop-color="#e8f0ff" stop-opacity="0"/></linearGradient>
+  <filter id="dc-blur"><feGaussianBlur stdDeviation="30"/></filter>
+  </defs>`;
+  s += `<rect width="1920" height="740" fill="url(#dc-sky)"/><ellipse cx="960" cy="200" rx="1100" ry="90" transform="rotate(-12 960 200)" fill="#b7a8ff" opacity=".12" filter="url(#dc-blur)"/>`;
+  for (let i = 0; i < 220; i++) s += `<circle cx="${r() * 1920}" cy="${r() * 680}" r="${.7 + r() * 1.5}" fill="#fff" opacity="${.3 + r() * .7}"/>`;
+  const tree = (x, y, k) => { let g = ''; for (let i = 0; i < 7; i++) g += `<circle cx="${x + (r() - .5) * 120 * k}" cy="${y - r() * 140 * k}" r="${(40 + r() * 40) * k}" fill="#0a0a1c"/>`; return g; };
+  s += tree(120, 720, 1.4) + tree(280, 730, 1) + tree(1650, 730, 1.1) + tree(1820, 720, 1.4);
+  s += `<rect y="720" width="1920" height="360" fill="#0f0d1c"/>`;
+  [480, 1440].forEach(x => s += `<rect x="${x - 12}" y="670" width="24" height="110" fill="#2a2740"/>`);
+  s += `<path d="M480 740 L1440 700 M480 700 L1440 740" stroke="#2a2740" stroke-width="8"/>`;
+  s += `<polygon points="930,1080 990,1080 1510,60 410,60" fill="url(#dc-beam)"/>`;
+  s += `<rect x="396" y="46" width="1128" height="647" fill="#d9d6e6"/>` + movieSlot(410, 60, 1100, 619, { bg: '#0d1022' });
+  for (let i = 0; i < 25; i++) s += `<circle cx="${700 + r() * 520}" cy="${720 + r() * 300}" r="${1 + r() * 2}" fill="#fff" opacity="${.15 + r() * .3}"/>`;
+  [800, 900, 1010].forEach(y => s += `<path d="M0 ${y} Q960 ${y - 40} 1920 ${y}" stroke="#fff" stroke-opacity=".05" stroke-width="3" fill="none"/>`);
+  const carC = ['#e84a5f', '#3fa9f5', '#f6b26b', '#5ce1c4', '#c59bff', '#ffe066', '#ff7aa8', '#9bf07a', '#8a8fa8'];
+  const heads = () => { const n = r() < .5 ? 1 : 2, a = []; for (let i = 0; i < n; i++) a.push({ c: pick(r, COLORS), turned: r() < .15, face: pick(r, FACES) }); return a; };
+  for (let x = 300; x <= 1640; x += 167) s += carRear(x, 800, .5, pick(r, carC), { heads: heads(), plate: pick(r, NAMES) });
+  let mid = '';
+  for (let x = 200; x <= 1720; x += 253) {
+    const roof = x === 706 ? `<g transform="translate(0 -176)">${emote(0, 0, .9, '#ffe066', { face: 'joy', sit: true, hold: 'popcorn', noShadow: true })}</g>` : '';
+    mid += carRear(x, 905, .72, pick(r, carC), { heads: heads(), plate: pick(r, NAMES), roof });
+  }
+  s += mid;
+  [350, 1220].forEach(x => s += `<rect x="${x - 3}" y="960" width="6" height="120" fill="#3a3756"/><rect x="${x - 16}" y="950" width="32" height="24" rx="4" fill="#5a5778"/>`);
+  s += carRear(190, 1075, 1, '#3fa9f5', { heads: [{ c: '#ff7aa8' }, { c: '#7ad1ff', turned: true, face: 'joy' }], plate: 'Juno' });
+  s += carRear(590, 1075, 1, '#f6b26b', { heads: [{ c: '#9bf07a' }], plate: 'gnomey' });
+  s += carRear(1010, 1075, 1, '#e84a5f', { convertible: true, plate: 'Lumi', stand: emote(-40, -60, .95, '#5ce1c4', { face: 'joy', wave: true, noShadow: true }) + emote(48, -60, .95, '#c59bff', { face: 'happy', noShadow: true }) });
+  s += carRear(1420, 1075, 1, '#5ce1c4', { heads: [{ c: '#ffb84d' }, { c: '#f7a1ff' }], plate: 'Rico' });
+  s += carRear(1810, 1075, 1, '#c59bff', { heads: [{ c: '#ffe066', turned: true, face: 'sleepy' }], plate: 'Tako' });
+  for (let i = 0; i < 12; i++) { const x = r() * 1920, y = 720 + r() * 120; s += `<circle cx="${x}" cy="${y}" r="7" fill="#ffe066" opacity=".2"/><circle cx="${x}" cy="${y}" r="2.5" fill="#fff3b0"/>`; }
+  s += `<rect x="30" y="30" width="300" height="56" rx="28" fill="#000" fill-opacity=".5" stroke="#f6d36b" stroke-width="2"/><text x="180" y="67" text-anchor="middle" font-family="Rye" font-size="24" fill="#ffe066">TUNE TO 88.1 FM</text>`;
+  s += `<rect x="1590" y="30" width="300" height="56" rx="28" fill="#000" fill-opacity=".5" stroke="#f6d36b" stroke-width="2"/><text x="1740" y="67" text-anchor="middle" font-family="Rye" font-size="24" fill="#ffe066">27 CARS PARKED</text>`;
+  return s;
+}
+
+// =====================================================================
+// 5 · BLUEPRINT / SEAT MAP
+// =====================================================================
+function token(x, y, c, f, name, o = {}) {
+  let g = '';
+  if (o.ring) g += `<circle cx="${x}" cy="${y}" r="40" fill="none" stroke="#ffe066" stroke-width="3" stroke-dasharray="6 6"/>`;
+  g += `<circle cx="${x}" cy="${y}" r="28" fill="${c}" stroke="#e8f4ff" stroke-width="3"/><g transform="translate(${x} ${y + 2}) scale(.82)">${face(f)}</g>`;
+  if (name) { const w = name.length * 11 + 16; g += `<rect x="${x + 34}" y="${y - 14}" width="${w}" height="28" rx="4" fill="#0b2747" stroke="${c}" stroke-width="2"/><text x="${x + 42}" y="${y + 6}" font-family="JetBrains Mono" font-size="18" fill="#e8f4ff">${name}</text>`; }
+  if (o.badge) g += `<rect x="${x - 26}" y="${y - 54}" width="52" height="20" rx="4" fill="#ffe066"/><text x="${x}" y="${y - 39}" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="14" fill="#0b2747">${o.badge}</text>`;
+  return g;
+}
+
+function lobbyBlueprint() {
+  let s = `<defs>
+  <pattern id="bp-g1" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 H0 V40" fill="none" stroke="#fff" stroke-opacity=".06"/></pattern>
+  <pattern id="bp-g2" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M200 0 H0 V200" fill="none" stroke="#fff" stroke-opacity=".13" stroke-width="2"/></pattern>
+  </defs>`;
+  s += `<rect width="1920" height="1080" fill="#0b2747"/><rect width="1920" height="1080" fill="url(#bp-g1)"/><rect width="1920" height="1080" fill="url(#bp-g2)"/>`;
+  const L = (x, y, t, fs = 20, a = 'middle', c = '#bfe3ff') => `<text x="${x}" y="${y}" text-anchor="${a}" font-family="JetBrains Mono" font-size="${fs}" letter-spacing="3" fill="${c}">${t}</text>`;
+  s += `<rect x="100" y="100" width="1300" height="880" fill="#0f3157" fill-opacity=".55"/>`;
+  s += `<path d="M650 980 H100 V100 H600 M900 100 H1400 V980 H850" stroke="#e8f4ff" stroke-width="8" fill="none"/>`;
+  s += `<g stroke="#e8f4ff" stroke-width="2" fill="none" stroke-dasharray="6 6" opacity=".7"><path d="M600 100 V250 A150 150 0 0 0 750 100"/><path d="M900 100 V250 A150 150 0 0 1 750 100"/><path d="M650 980 V880 A100 100 0 0 1 750 980"/><path d="M850 980 V880 A100 100 0 0 0 750 980"/></g>`;
+  s += L(750, 70, '▲ HALL 1', 24, 'middle', '#ffe066') + L(750, 1030, 'ENTRANCE ▲', 20);
+  s += `<path d="M100 360 H380 V340 M380 260 V100 M240 100 V360" stroke="#e8f4ff" stroke-width="4" fill="none"/>` + L(240, 400, 'RESTROOMS', 18) + L(170, 150, 'W', 26) + L(310, 150, 'M', 26);
+  s += `<path d="M1100 100 V300 M1100 380 H1400" stroke="#e8f4ff" stroke-width="4" fill="none"/>` + L(1250, 350, 'ARCADE', 18);
+  [1140, 1210, 1280, 1350].forEach(x => s += `<rect x="${x - 22}" y="110" width="44" height="36" fill="none" stroke="#bfe3ff" stroke-width="2"/>`);
+  s += `<rect x="420" y="480" width="300" height="60" fill="#bfe3ff" fill-opacity=".1" stroke="#e8f4ff" stroke-width="3"/>` + L(570, 518, 'TICKETS', 20);
+  s += `<g stroke="#bfe3ff" stroke-width="2" stroke-dasharray="2 8"><line x1="530" y1="560" x2="530" y2="780"/><line x1="610" y1="560" x2="610" y2="780"/></g>`;
+  s += `<rect x="1240" y="460" width="60" height="420" fill="#bfe3ff" fill-opacity=".1" stroke="#e8f4ff" stroke-width="3"/><text x="1280" y="670" transform="rotate(90 1280 670)" text-anchor="middle" font-family="JetBrains Mono" font-size="20" letter-spacing="3" fill="#bfe3ff">CONCESSIONS</text>`;
+  [[1310, 500, 'POP'], [1310, 820, 'SODA']].forEach(([x, y, t]) => s += `<rect x="${x}" y="${y - 20}" width="70" height="40" fill="none" stroke="#bfe3ff" stroke-width="2"/>` + L(x + 35, y + 6, t, 14));
+  [[240, 720], [240, 880]].forEach(([x, y]) => { s += `<circle cx="${x}" cy="${y}" r="40" fill="none" stroke="#bfe3ff" stroke-width="2"/>`; [[0, -58], [58, 0], [0, 58], [-58, 0]].forEach(([dx, dy]) => s += `<circle cx="${x + dx}" cy="${y + dy}" r="12" fill="none" stroke="#bfe3ff" stroke-width="2"/>`); });
+  s += L(240, 640, 'LOUNGE', 18);
+  [440, 580].forEach(y => s += `<rect x="104" y="${y}" width="14" height="110" fill="none" stroke="#bfe3ff" stroke-width="2" stroke-dasharray="4 4"/>`);
+  s += `<g stroke="#bfe3ff" stroke-width="2"><line x1="100" y1="40" x2="1400" y2="40"/><line x1="100" y1="30" x2="100" y2="50"/><line x1="1400" y1="30" x2="1400" y2="50"/><line x1="40" y1="100" x2="40" y2="980"/><line x1="30" y1="100" x2="50" y2="100"/><line x1="30" y1="980" x2="50" y2="980"/></g>`;
+  s += `<rect x="1080" y="26" width="140" height="28" fill="#0b2747"/>` + L(1150, 47, '32.50 m', 18) + `<text x="40" y="540" transform="rotate(-90 40 540)" text-anchor="middle" font-family="JetBrains Mono" font-size="18" fill="#bfe3ff" style="paint-order:stroke" stroke="#0b2747" stroke-width="10">22.00 m</text>`;
+  // routes
+  s += `<g fill="none" stroke-width="3" stroke-dasharray="8 10" opacity=".75"><path d="M750 1000 V700 H1180 V520" stroke="#ff7aa8"/><path d="M750 1000 V200 H700" stroke="#8ce0ff"/><path d="M750 1000 V760 H310 V700" stroke="#a0a6ff"/></g>`;
+  const toks = [
+    [570, 610, '#c59bff', 'joy', 'Pog'], [570, 680, '#9bf07a', 'happy', 'Juno'], [570, 750, '#ffe066', 'meh', 'gnomey'],
+    [1180, 520, '#ff7aa8', 'wow', 'Nugget'], [1180, 620, '#5ce1c4', 'joy', 'Lumi'], [1160, 760, '#ffb84d', 'smug', 'Rico'],
+    [1170, 210, '#ff3fd8', 'wow', 'Zoomer'], [1300, 250, '#7ad1ff', 'joy', 'Booba'],
+    [170, 240, '#8ce0ff', 'sleepy', null], [310, 700, '#a0a6ff', 'wow', 'Moth'], [170, 880, '#ff9f6b', 'meh', 'Vex'],
+    [700, 200, '#8ce0ff', 'smug', 'Kappa'], [850, 220, '#f7a1ff', 'cool', 'Dank'],
+  ];
+  toks.forEach(t => s += token(...t));
+  s += token(750, 930, '#b8f28c', 'happy', 'Wyvern', { ring: true, badge: 'NEW' });
+  // title block
+  s += `<rect x="1460" y="100" width="420" height="880" fill="#0b2747" stroke="#e8f4ff" stroke-width="3"/><g stroke="#e8f4ff" stroke-width="2"><line x1="1460" y1="240" x2="1880" y2="240"/><line x1="1460" y1="430" x2="1880" y2="430"/><line x1="1460" y1="850" x2="1880" y2="850"/></g>`;
+  s += `<text x="1490" y="172" font-family="Space Grotesk" font-weight="700" font-size="50" fill="#fff">MOVIE NIGHT</text>` + L(1490, 214, 'LOBBY · SHEET L-01', 18, 'start');
+  [['GUESTS', '14'], ['DOORS OPEN', '20:30'], ['STARTS IN', '08:42']].forEach(([k, v], i) => s += L(1490, 292 + i * 56, k, 18, 'start') + `<text x="1850" y="${296 + i * 56}" text-anchor="end" font-family="Space Grotesk" font-weight="700" font-size="34" fill="#fff">${v}</text>`);
+  s += L(1490, 470, 'ACTIVITY', 18, 'start', '#ffe066');
+  [['#b8f28c', 'Wyvern', 'just walked in'], ['#c59bff', 'Pog', 'buying a ticket'], ['#ff7aa8', 'Nugget', 'ordering popcorn'], ['#ff3fd8', 'Zoomer', 'at the arcade'], ['#8ce0ff', 'Tako', 'restroom break'], ['#8ce0ff', 'Kappa', 'waiting at Hall 1'], ['#a0a6ff', 'Moth', 'reading posters'], ['#5ce1c4', 'Lumi', 'popcorn secured']].forEach(([c, n, a], i) => {
+    const y = 516 + i * 40;
+    s += `<circle cx="1498" cy="${y - 6}" r="7" fill="${c}"/><text x="1516" y="${y}" font-family="JetBrains Mono" font-size="18" fill="#fff">${n}</text><text x="1640" y="${y}" font-family="JetBrains Mono" font-size="18" fill="#bfe3ff">${a}</text>`;
+  });
+  s += `<text x="1490" y="896" font-family="Space Grotesk" font-weight="600" font-size="22" fill="#ffe066">tag @arealhumanbean</text><text x="1490" y="926" font-family="Space Grotesk" font-size="20" fill="#bfe3ff">in chat to walk in</text>` + L(1490, 962, 'SCALE 1:50 · DRAWN BY CHAT', 14, 'start');
+  return s;
+}
+
+function cinemaBlueprint() {
+  const r = rng(62);
+  let s = `<defs><pattern id="bc-g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 H0 V40" fill="none" stroke="#fff" stroke-opacity=".04"/></pattern>
+  <filter id="bc-glow" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+  s += `<rect width="1920" height="1080" fill="#0a1424"/><rect width="1920" height="1080" fill="url(#bc-g)"/>`;
+  s += `<text x="40" y="44" font-family="JetBrains Mono" font-size="18" letter-spacing="3" fill="#7fb8ff">NOW SHOWING · HALL 1</text><rect x="38" y="58" width="1204" height="679" fill="none" stroke="#23395c" stroke-width="2"/>` + movieSlot(40, 60, 1200, 675, { bg: '#0d1626' });
+  s += `<rect x="40" y="770" width="1200" height="270" rx="16" fill="#0f1b30" stroke="#23395c" stroke-width="2"/>`;
+  s += `<text x="70" y="860" font-family="Space Grotesk" font-weight="700" font-size="68" fill="#fff">31<tspan fill="#5d7aa6" font-size="40"> / 60</tspan></text><text x="70" y="890" font-family="JetBrains Mono" font-size="16" letter-spacing="3" fill="#7fb8ff">SEATED</text>`;
+  s += `<rect x="70" y="910" width="400" height="10" rx="5" fill="#1d2d4a"/><rect x="70" y="910" width="207" height="10" rx="5" fill="#7fb8ff"/>`;
+  s += `<text x="70" y="966" font-family="JetBrains Mono" font-size="20" fill="#ffe066">LIGHTS DOWN IN 00:45</text><text x="70" y="1012" font-family="JetBrains Mono" font-size="17" fill="#9fb3d4">tag @arealhumanbean to grab a seat</text>`;
+  s += `<line x1="510" y1="796" x2="510" y2="1014" stroke="#23395c" stroke-width="2"/>`;
+  [['20:31:04', '#b8f28c', 'Wyvern', 'walking to G7'], ['20:30:58', '#c59bff', 'Pog', 'took seat D7'], ['20:30:51', '#ff7aa8', 'Nugget', 'took seat D8'], ['20:30:40', '#5ce1c4', 'Lumi', 'took seat F2'], ['20:30:22', '#8ce0ff', 'Kappa', 'took seat A1 (front row??)'], ['20:30:10', '#ffb84d', 'Rico', 'took seat H5']].forEach(([tm, c, n, a], i) => {
+    const y = 818 + i * 38;
+    s += `<text x="540" y="${y}" font-family="JetBrains Mono" font-size="19" fill="#5d7aa6">${tm}</text><circle cx="660" cy="${y - 6}" r="7" fill="${c}"/><text x="676" y="${y}" font-family="JetBrains Mono" font-size="19" font-weight="700" fill="#fff">${n}</text><text x="790" y="${y}" font-family="JetBrains Mono" font-size="19" fill="#9fb3d4">${a}</text>`;
+  });
+  // seat map
+  s += `<rect x="1280" y="60" width="600" height="980" rx="16" fill="#0f1b30" stroke="#23395c" stroke-width="2"/>`;
+  s += `<path d="M1340 132 Q1580 92 1820 132" stroke="#7fb8ff" stroke-width="6" fill="none" filter="url(#bc-glow)"/><text x="1580" y="160" text-anchor="middle" font-family="JetBrains Mono" font-size="16" letter-spacing="8" fill="#7fb8ff">SCREEN</text>`;
+  const seatX = k => 1316 + k * 50 + (k >= 5 ? 28 : 0), seatY = j => 200 + j * 70;
+  const fixed = { '3,7': ['#c59bff', 'joy', 'just'], '3,8': ['#ff7aa8', 'wow', 'just'], '5,2': ['#5ce1c4', 'joy'], '0,0': ['#8ce0ff', 'smug'], '7,5': ['#ffb84d', 'smug'] };
+  for (let j = 0; j < 10; j++) {
+    s += `<text x="1300" y="${seatY(j) + 27}" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#5d7aa6">${'ABCDEFGHIJ'[j]}</text>`;
+    for (let k = 0; k < 10; k++) {
+      const x = seatX(k), y = seatY(j), f = fixed[j + ',' + k];
+      const taken = f || (r() < .45 && !(j === 6 && k === 7));
+      if (j === 6 && k === 7) { s += `<rect x="${x}" y="${y}" width="42" height="42" rx="10" fill="none" stroke="#b8f28c" stroke-width="3" stroke-dasharray="5 4"/>`; continue; }
+      if (taken) {
+        const c = f ? f[0] : pick(r, COLORS), fc = f ? f[1] : pick(r, FACES);
+        if (f && f[2]) s += `<rect x="${x - 5}" y="${y - 5}" width="52" height="52" rx="14" fill="none" stroke="#ffe066" stroke-width="3"/>`;
+        s += `<rect x="${x}" y="${y}" width="42" height="42" rx="10" fill="${c}"/><g transform="translate(${x + 21} ${y + 22}) scale(.6)">${face(fc)}</g>`;
+      } else s += `<rect x="${x}" y="${y}" width="42" height="42" rx="10" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="2"/>`;
+    }
+  }
+  s += `<path d="M1860 1000 H1572 V641 H1690" fill="none" stroke="#b8f28c" stroke-width="3" stroke-dasharray="8 8"/>`;
+  s += `<circle cx="1572" cy="820" r="20" fill="#b8f28c" stroke="#fff" stroke-width="3"/><g transform="translate(1572 822) scale(.62)">${face('happy')}</g><rect x="1600" y="806" width="96" height="28" rx="4" fill="#0a1424" stroke="#b8f28c" stroke-width="2"/><text x="1648" y="826" text-anchor="middle" font-family="JetBrains Mono" font-size="17" fill="#fff">Wyvern</text>`;
+  s += `<g transform="translate(1680 382)"><rect x="-70" y="-38" width="140" height="32" rx="6" fill="#fff"/><path d="M-8 -6 L0 4 L8 -6Z" fill="#fff"/><text y="-16" text-anchor="middle" font-family="JetBrains Mono" font-size="17" font-weight="700" fill="#0a1424">Pog · D7</text></g>`;
+  s += `<text x="1860" y="1028" text-anchor="end" font-family="JetBrains Mono" font-size="14" letter-spacing="3" fill="#5d7aa6">ENTRANCE</text>`;
+  [['FREE', 'none', '#ffffff40'], ['TAKEN', '#7fb8ff', 'none'], ['JUST SAT', 'none', '#ffe066']].forEach(([lb, fl, st], i) => {
+    const x = 1320 + i * 150;
+    s += `<rect x="${x}" y="924" width="24" height="24" rx="6" fill="${fl}" stroke="${st}" stroke-width="2"/><text x="${x + 34}" y="942" font-family="JetBrains Mono" font-size="15" fill="#9fb3d4">${lb}</text>`;
+  });
+  return s;
+}
+
+// =====================================================================
+const THEMES = [
+  ['Velvet Palace', 'Classic red-velvet picture palace: gold marquee, host behind the ticket window, rope line to Hall 1, concessions. The cinema is seen from the back rows with the curtains open.', lobbyVelvet, cinemaVelvet],
+  ['Neon Picture House', 'Synthwave night club meets cinema: glowing grid floor, arcade cabinets, slushie bar, big countdown. Cinema has neon-outlined seats and laser walls.', lobbyNeon, cinemaNeon],
+  ['16-bit Pixel', 'SNES-style RPG room: checker carpet, sprites queueing, a dialog box for host messages. Cinema shows sprites filling pixel seat rows.', lobbyPixel, cinemaPixel],
+  ['Starlight Drive-In', 'Outdoor drive-in at dusk: roadside sign, cars queueing at the booth with emotes inside, snack shack. Cinema: rows of cars seen from behind, usernames on the plates.', lobbyDrive, cinemaDrive],
+  ['Blueprint / Seat Map', 'Clean architectural floor plan with emote tokens, walking routes and an activity log. Cinema is a booking-style seat map next to the movie.', lobbyBlueprint, cinemaBlueprint],
+];
+const SCENES = [];
+THEMES.forEach(([n, d, l, c], i) => { SCENES.push({ id: 'L' + (i + 1), kind: 'Lobby', title: n, desc: d, draw: l }); });
+THEMES.forEach(([n, d, l, c], i) => { SCENES.push({ id: 'C' + (i + 1), kind: 'Cinema', title: n, desc: d, draw: c }); });
+
+const svgOf = sc => `<svg viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" font-family="Space Grotesk, sans-serif">${GLOBAL_DEFS}${sc.draw()}</svg>`;
+const solo = new URLSearchParams(location.search).get('s');
+const app = document.getElementById('app'), full = document.getElementById('full');
+if (solo) {
+  document.body.classList.add('solo');
+  const sc = SCENES.find(x => x.id === solo.toUpperCase());
+  app.innerHTML = sc ? svgOf(sc) : '';
+} else {
+  let h = `<h1>Lobby &amp; cinema concepts</h1><p class="lead">Static drafts, no functionality. Five themes, each with a lobby and a matching cinema scene (lobby → DinkDonk → cinema). Grey boxes show where the movie/stream would go. Click a picture to enlarge it.</p>`;
+  ['Lobby', 'Cinema'].forEach(kind => {
+    h += `<h2>${kind} scenes</h2><div class="grid">`;
+    SCENES.filter(x => x.kind === kind).forEach(sc => h += `<div class="card" data-id="${sc.id}">${svgOf(sc)}<div class="meta"><b>${sc.id} · ${sc.title}</b><div>${sc.desc}</div><a href="?s=${sc.id}" target="_blank">open 1920×1080</a></div></div>`);
+    h += `</div>`;
+  });
+  app.innerHTML = h;
+  app.addEventListener('click', e => {
+    const card = e.target.closest('.card');
+    if (!card || e.target.closest('a')) return;
+    full.innerHTML = svgOf(SCENES.find(x => x.id === card.dataset.id));
+    full.classList.add('on');
+  });
+  full.addEventListener('click', () => full.classList.remove('on'));
+}
+</script>
+</body>
+</html>

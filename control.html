@@ -1,0 +1,238 @@
+<!doctype html>
+<!--
+  CONTROL PANEL for the d.gg cinema standby screens (lobby.html / auditorium.html). Open http://127.0.0.1:18770/control.html in
+  any browser on the stream PC; it talks to every open screen (OBS source included) through the standby
+  server. Follow a chatter with the camera, go back to the wide shot, switch the automatic director on/off,
+  add or remove chatters, make someone say something.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cinema control</title>
+<style>
+  :root { color-scheme: dark; --bg: #121318; --panel: #1b1d24; --line: #2c2f39; --text: #e9ebf0; --dim: #8b90a0; --acc: #59aeea; --warn: #ff6d6d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, 'Segoe UI', sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--dim); margin-bottom: 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  button { background: #262a35; color: var(--text); border: 1px solid #3a3f4d; border-radius: 7px; padding: 7px 13px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--acc); }
+  button.on { background: var(--acc); color: #06131e; border-color: var(--acc); font-weight: 600; }
+  button.danger:hover { border-color: var(--warn); color: var(--warn); }
+  input, select { background: #10121a; color: var(--text); border: 1px solid #3a3f4d; border-radius: 7px; padding: 7px 10px; font: inherit; }
+  button:disabled { opacity: .45; cursor: default; }
+  label { color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--dim); font-weight: 500; font-size: 13px; }
+  tr.followed td { background: rgba(89, 174, 234, .12); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; background: #262a35; color: var(--dim); font-size: 13px; }
+  .state { color: var(--dim); }
+  .state b { color: var(--text); font-weight: 600; }
+  .empty { color: var(--dim); padding: 10px 0; }
+  kbd { background: #262a35; border: 1px solid #3a3f4d; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Cinema control</h1>
+<div class="row"><label>Scene <select id="page"><option value="lobby">Lobby (lobby.html)</option><option value="auditorium">Auditorium (auditorium.html)</option></select></label></div>
+<div class="sub" id="screens">looking for open screens…</div>
+
+<div class="card" id="preshow" hidden>
+  <h2>Auditorium pre-show</h2>
+  <div class="row">
+    <button data-phase="seating">Seating</button><button data-phase="dim">Lights down</button>
+    <button data-phase="film">Film</button><button id="movie" title="Film on the screen without the camera pushing in">Movie (no zoom)</button>
+    <button id="outro" title="The camera eases back out to the wide shot; the film keeps playing">Film outro</button>
+    <button id="lightson" title="House lights up while the film keeps playing (e.g. the credits); press again to dim them">Lights on (film plays)</button>
+    <button id="houseout" title="Everyone stands up and walks out, one after another; new arrivals wait until the next Seating">Everyone leaves</button>
+    <button data-phase="up">Lights up</button>
+    <button id="phaseauto">Auto: on</button>
+  </div>
+  <div class="state" id="phasestate"></div>
+  <div class="state" id="downloadstate"></div>
+</div>
+
+<div class="card">
+  <h2>Camera</h2>
+  <div class="row">
+    <button id="wide">Wide shot</button>
+    <button id="next">Follow the next arrival</button>
+    <button id="random">Follow someone now</button>
+    <button id="auto">Automatic director</button>
+  </div>
+  <div class="row">
+    <label>Every <input id="every" type="number" min="30" max="1800" step="10" style="width:90px"> s</label>
+    <label>Zoom <input id="zoom" type="range" min="1.2" max="3" step="0.05" style="vertical-align:middle"> <span id="zoomv"></span>×</label>
+  </div>
+  <div class="state" id="dirstate"></div>
+</div>
+
+<div class="card">
+  <h2>Add a chatter / make someone talk</h2>
+  <form class="row" id="addform">
+    <input id="nick" placeholder="nick" maxlength="25" required style="width:180px">
+    <input id="text" placeholder="message (emote names work, e.g. PEPE hi)" maxlength="200" style="flex:1;min-width:240px">
+    <button type="submit">Walk in / say it</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>In the cinema</h2>
+  <div class="state" id="housestate" hidden></div>
+  <div class="row"><button id="reset" class="danger" hidden>Reset auditorium — everyone leaves</button></div>
+  <table>
+    <thead><tr><th>Chatter</th><th>Emote</th><th>Where</th><th></th></tr></thead>
+    <tbody id="list"></tbody>
+  </table>
+  <div class="empty" id="empty">Nobody here right now.</div>
+</div>
+
+<div class="sub">Keys on the screen itself (OBS: right-click the source → Interact): <kbd>F</kbd> follow the next arrival,
+<kbd>R</kbd> follow someone now, <kbd>W</kbd>/<kbd>Esc</kbd> wide shot, <kbd>D</kbd> director on/off.</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let controlVersion = 0;
+  const send = (cmd) => {
+    const page = $('page').value;
+    if (page === 'auditorium' && controlVersion < 2) { $('screens').textContent = 'Restart standby-server.js to enable safe auditorium controls.'; return; }
+    return fetch('/ctl/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cmd, page }), signal: AbortSignal.timeout(3500) })
+    .then((r) => r.json()).then((j) => { if (!j.screens) $('screens').textContent = 'No screen is open: start the standby screen (or the OBS source) first.'; })
+    .catch(() => { $('screens').textContent = 'The standby server is not reachable (start-standby.bat).'; });
+  };
+  let dir = null;
+  let preshow = null;
+  // switching scene clears the old scene's rows at once (a refresh in flight kept them clickable, and a Follow/Remove
+  // there went to the newly selected scene)
+  $('page').onchange = () => { dir = null; for (const tr of chatterRows.values()) tr.remove(); chatterRows.clear(); refresh(); };
+  for (const b of document.querySelectorAll('[data-phase]')) b.onclick = () => send({ cmd: 'phase', value: b.dataset.phase });
+  $('phaseauto').onclick = () => send({ cmd: 'phaseAuto', on: !preshow?.auto });
+  $('movie').onclick = () => send({ cmd: 'movie' });
+  $('outro').onclick = () => send({ cmd: 'outro' });
+  $('lightson').onclick = () => send({ cmd: 'lights', on: !preshow?.lightsOn });
+  $('houseout').onclick = () => send({ cmd: 'houseOut', on: !preshow?.houseOut });
+  $('reset').onclick = () => send({ cmd: 'reset' });
+  $('wide').onclick = () => send({ cmd: 'wide' });
+  $('next').onclick = () => send({ cmd: 'next' });
+  $('random').onclick = () => send({ cmd: 'random' });
+  $('auto').onclick = () => send({ cmd: 'director', on: !(dir && dir.on) });
+  $('every').onchange = (e) => send({ cmd: 'every', value: Number(e.target.value) });
+  $('zoom').oninput = (e) => { $('zoomv').textContent = Number(e.target.value).toFixed(2); };
+  $('zoom').onchange = (e) => send({ cmd: 'zoom', value: Number(e.target.value) });
+  $('addform').onsubmit = (e) => {
+    e.preventDefault();
+    send({ cmd: 'say', nick: $('nick').value.trim(), text: $('text').value });
+    $('text').value = '';
+  };
+  const td = (text) => { const el = document.createElement('td'); el.textContent = text; return el; };
+  const btn = (label, cmd, cls) => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.onclick = () => send(cmd); return b; };
+  let editing = false;
+  let refreshing = false;
+  const chatterRows = new Map();
+  for (const id of ['every', 'zoom']) { $(id).onfocus = () => { editing = true; }; $(id).onblur = () => { editing = false; }; }
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try { await refreshState(); } finally { refreshing = false; }
+  }
+  async function refreshState() {
+    let data;
+    try { data = await (await fetch('/ctl/state', { cache: 'no-store', signal: AbortSignal.timeout(3500) })).json(); } catch { $('screens').textContent = 'The standby server is not reachable (start-standby.bat).'; return; }
+    controlVersion = data.controlVersion || 0;
+    const page = $('page').value;
+    const all = data.screens || [];
+    const screens = all.filter((s) => (s.page || 'lobby') === page);
+    $('reset').hidden = page !== 'auditorium';
+    $('preshow').hidden = page !== 'auditorium';
+    const blocked = page === 'auditorium' && controlVersion < 2;
+    for (const el of document.querySelectorAll('button, input')) el.disabled = blocked;
+    $('screens').textContent = screens.length ? `${screens.length} screen${screens.length > 1 ? 's' : ''} open (${screens.map((s) => s.size.join('×')).join(', ')}) - commands go to all of them`
+      : 'No screen is open: start the standby screen (or the OBS source) first.';
+    $('screens').textContent = blocked ? 'Restart standby-server.js to enable safe auditorium controls.'
+      : `${page === 'auditorium' ? 'Auditorium' : 'Lobby'}: ${$('screens').textContent} (${all.length} total across both scenes)`;
+    // the OBS source is the one shown here (screens report obs: true inside OBS); else the biggest screen. A bigger
+    // preview tab (a 4K monitor) used to win and the panel showed its chatters and director state, not the stream's
+    const s = screens.sort((a, b) => (b.obs === true) - (a.obs === true) || b.size[0] * b.size[1] - a.size[0] * a.size[1])[0];
+    const house = s?.house;
+    $('housestate').hidden = page !== 'auditorium' || !house;
+    $('housestate').textContent = house ? `${house.occupied}/${house.capacity} seats reserved or occupied · ${house.waiting} waiting outside (up to ${house.queueLimit}). A free seat admits the next arrival.` : '';
+    preshow = s?.preshow || null;
+    const labels = { seating: 'Seating', dim: 'Lights down', film: 'Film', up: 'Lights up' };
+    // the film phase has three framings; screens without shot (older pages) count as Film
+    const shot = preshow?.phase === 'film' ? preshow.shot || 'push' : '';
+    const shots = { push: '', movie: ' (movie, no zoom)', outro: ' (outro, zoomed out)' };
+    $('phasestate').textContent = preshow ? `Phase: ${labels[preshow.phase] || preshow.phase}${shots[shot] || ''}`
+      + `${preshow.lightsOn ? ' · house lights on' : ''}${preshow.houseOut ? ' · everyone is leaving, arrivals wait until Seating' : ''}`
+      + `${preshow.alwaysGreen ? ' · screen=green override active' : ''}`
+      : 'Waiting for an updated auditorium screen.';
+    $('lightson').classList.toggle('on', !!preshow?.lightsOn);
+    $('houseout').classList.toggle('on', !!preshow?.houseOut);
+    $('phaseauto').classList.toggle('on', !!preshow?.auto);
+    $('phaseauto').textContent = `Auto: ${preshow?.auto ? 'on' : 'off'}`;
+    for (const b of document.querySelectorAll('[data-phase]')) b.classList.toggle('on', b.dataset.phase === preshow?.phase && (b.dataset.phase !== 'film' || shot === 'push'));
+    $('movie').classList.toggle('on', shot === 'movie');
+    $('outro').classList.toggle('on', shot === 'outro');
+    const d = preshow?.download;
+    let download = 'Download unavailable — the feature will begin shortly.';
+    if (d?.available) {
+      const percent = d.completed ? 100 : Math.min(99, Math.floor(d.progress * 100));
+      const eta = Number.isFinite(d.eta_s) ? ` · ETA ${Math.ceil(d.eta_s / 60)} min` : '';
+      download = `${d.name} · ${percent}%${d.completed ? ' · ready' : eta}`;
+    }
+    $('downloadstate').textContent = download;
+    dir = s?.director || null;
+    $('auto').classList.toggle('on', !!dir?.on);
+    $('auto').textContent = `Automatic director: ${dir?.on ? 'on' : 'off'}`;
+    if (dir && !editing) { $('every').value = dir.every; $('zoom').value = dir.zoom; $('zoomv').textContent = Number(dir.zoom).toFixed(2); }
+    $('dirstate').innerHTML = '';
+    if (dir) {
+      const parts = [dir.following ? `Following <b></b>` : 'Wide shot', dir.wantNext ? ' · waiting for the next arrival' : '',
+        dir.on && !dir.following ? ` · next automatic follow in ~${dir.nextIn}s (at the next arrival after that)` : ''];
+      $('dirstate').innerHTML = parts.join('');
+      const b = $('dirstate').querySelector('b');
+      if (b) b.textContent = dir.following;
+    }
+    const list = $('list');
+    const present = new Set();
+    for (const c of (s?.chatters || []).sort((a, b) => a.nick.localeCompare(b.nick))) {
+      const key = `${page}:${c.nick}`;
+      present.add(key);
+      let tr = chatterRows.get(key);
+      if (!tr) {
+        tr = document.createElement('tr');
+        const where = document.createElement('td');
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        where.append(pill);
+        const act = document.createElement('td');
+        act.style.textAlign = 'right';
+        act.append(btn('Follow', { cmd: 'follow', nick: c.nick }), ' ', btn('Remove', { cmd: 'remove', nick: c.nick }, 'danger'));
+        tr.append(td(c.nick), td(c.emote || ''), where, act);
+        tr._pill = pill;
+        tr._follow = act.firstElementChild;
+        chatterRows.set(key, tr);
+      }
+      tr.classList.toggle('followed', !!c.followed);
+      if (tr.cells[1].textContent !== (c.emote || '')) tr.cells[1].textContent = c.emote || '';
+      if (tr._pill.textContent !== c.status) tr._pill.textContent = c.status;
+      tr._follow.disabled = blocked || c.status === 'waiting outside';
+      // Preserve button identity while someone is pressing it during a one-second state refresh.
+      const index = present.size - 1;
+      if (list.children[index] !== tr) list.insertBefore(tr, list.children[index] || null);
+    }
+    for (const [key, tr] of chatterRows) if (!present.has(key)) { tr.remove(); chatterRows.delete(key); }
+    $('empty').style.display = s?.chatters?.length ? 'none' : '';
+  }
+  refresh();
+  setInterval(refresh, 1000);
+})();
+</script>
+</body>
+</html>

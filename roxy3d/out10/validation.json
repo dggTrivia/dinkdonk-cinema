@@ -1,0 +1,417 @@
+{
+  "passed": true,
+  "brief": 56,
+  "staging_pack": "out10i",
+  "reference": "approved draft 23 / out10h; frozen Brief 56 scene",
+  "scope": "Cloud RTX 4090 production through Brief 57, independently verified at home under Brief 58. Claude page/OBS acceptance and promotion pending.",
+  "loops": 61,
+  "new_pngs": 444,
+  "new_png_bytes": 93867442,
+  "roof_states": [
+    {
+      "kind": "bus",
+      "direction": "+u",
+      "opened": false,
+      "slices": 3
+    },
+    {
+      "kind": "bus",
+      "direction": "+u",
+      "opened": true,
+      "slices": 3
+    },
+    {
+      "kind": "bus",
+      "direction": "-u",
+      "opened": false,
+      "slices": 3
+    },
+    {
+      "kind": "bus",
+      "direction": "-u",
+      "opened": true,
+      "slices": 3
+    },
+    {
+      "kind": "taxi",
+      "direction": "+u",
+      "opened": false,
+      "slices": 2
+    },
+    {
+      "kind": "taxi",
+      "direction": "+u",
+      "opened": true,
+      "slices": 2
+    },
+    {
+      "kind": "taxi",
+      "direction": "-u",
+      "opened": false,
+      "slices": 2
+    },
+    {
+      "kind": "taxi",
+      "direction": "-u",
+      "opened": true,
+      "slices": 2
+    },
+    {
+      "kind": "sedan_a",
+      "direction": "+u",
+      "opened": false,
+      "slices": 2
+    },
+    {
+      "kind": "sedan_a",
+      "direction": "-u",
+      "opened": false,
+      "slices": 2
+    },
+    {
+      "kind": "sedan_b",
+      "direction": "+u",
+      "opened": false,
+      "slices": 2
+    },
+    {
+      "kind": "sedan_b",
+      "direction": "-u",
+      "opened": false,
+      "slices": 2
+    }
+  ],
+  "roof_reconstruction": [
+    {
+      "job": "bus_roof_plus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_plus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_plus_open",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_plus_open",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_minus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_minus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_minus_open",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "bus_roof_minus_open",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_plus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_plus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_plus_open",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_plus_open",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_minus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_minus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_minus_open",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "taxi_roof_minus_open",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_a_roof_plus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_a_roof_plus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_a_roof_minus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_a_roof_minus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_b_roof_plus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_b_roof_plus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_b_roof_minus",
+      "scale": 1,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    },
+    {
+      "job": "sedan_b_roof_minus",
+      "scale": 2,
+      "frames": 48,
+      "max_error": 0,
+      "max_nonblack_contributors": 1
+    }
+  ],
+  "reference_roof_pixel_identity": [
+    {
+      "job": "bus_roof_plus",
+      "scale": 1,
+      "max_error": 0
+    },
+    {
+      "job": "bus_roof_plus",
+      "scale": 2,
+      "max_error": 0
+    },
+    {
+      "job": "taxi_roof_plus",
+      "scale": 1,
+      "max_error": 0
+    },
+    {
+      "job": "taxi_roof_plus",
+      "scale": 2,
+      "max_error": 0
+    }
+  ],
+  "reference_png_byte_identity": [
+    "umbrella/red_wet.png",
+    "umbrella/red_wet@2x.png",
+    "vehicles/rain/bus_spray_plus.png",
+    "vehicles/rain/bus_spray_plus@2x.png",
+    "vehicles/rain/bus_wake_plus.png",
+    "vehicles/rain/bus_wake_plus@2x.png",
+    "vehicles/rain/sedan_a_spray_plus.png",
+    "vehicles/rain/sedan_a_spray_plus@2x.png",
+    "vehicles/rain/sedan_a_wake_plus.png",
+    "vehicles/rain/sedan_a_wake_plus@2x.png"
+  ],
+  "geometry_closure_components": 15,
+  "geometry_all_closed": true,
+  "new_capture_count": 502,
+  "devices": [
+    "NVIDIA GeForce RTX 4090 / Cycles OptiX"
+  ],
+  "render_capture_seconds": 7074.9935796877835,
+  "render_job_wall_seconds": 8131.609696383588,
+  "memory": {
+    "new_loops_1x_bytes": 154290048,
+    "new_loops_2x_bytes": 617160192,
+    "all_shipped_png_1x_bytes": 340144788,
+    "all_shipped_png_2x_with_1x_fallback_bytes": 1360579152,
+    "all_shipped_png_1x_count": 401,
+    "all_shipped_png_2x_count": 401,
+    "unpaired_1x_fallback_count": 0,
+    "measurement": "RGBA8 image inventory, not measured browser VRAM; excludes decoder surfaces, mipmaps and compositor copies",
+    "active_map_dimension_change_bytes": 0
+  },
+  "checks": [
+    {
+      "name": "downloaded archive and all 1589 member hashes",
+      "passed": true
+    },
+    {
+      "name": "frozen scene/runtime/driver hashes and 802-file live baseline",
+      "passed": true
+    },
+    {
+      "name": "500 native capture receipts plus two mist passes, cloud provenance and endpoint proofs",
+      "passed": true
+    },
+    {
+      "name": "all 432 delivered video frames decoded, 144 frames / 24 fps / 6 seconds each",
+      "passed": true
+    },
+    {
+      "name": "all 288 decoded bell states A12/B12 and three video 143-to-0 wraps",
+      "passed": true
+    },
+    {
+      "name": "116 wet sheets: every cyclic transition and exact paired slots",
+      "passed": true
+    },
+    {
+      "name": "39 parent alpha masks and 107 depth slices at both scales, exact reconstruction and disjoint ownership",
+      "passed": true
+    },
+    {
+      "name": "eight door atlas alpha masks at both scales unchanged",
+      "passed": true
+    },
+    {
+      "name": "mist support, rim subset and masked height/light",
+      "passed": true
+    },
+    {
+      "name": "96 Brief 53 rain PNGs and all 272 vehicle/umbrella files byte-identical",
+      "passed": true
+    },
+    {
+      "name": "all manifest references and inherited dimensions preserved",
+      "passed": true
+    },
+    {
+      "name": "48 raw phases at both scales reconstruct exactly from base plus light delta",
+      "passed": true
+    },
+    {
+      "name": "production sign/floodlight and both 144-frame bell sheets visually inspected",
+      "passed": true
+    },
+    {
+      "name": "protected live packs, page, source/reference files, stopped fallback and cloud result hashes unchanged",
+      "passed": true
+    }
+  ],
+  "manifest_existing_values_unchanged": false,
+  "inherited_files_byte_identical": 358,
+  "protected_files_unchanged": 2757,
+  "prior_validation_sha256": "a29ff3283b3ecd9f2230c61fe6065b7403d6417ffaec00696858a57561300c40",
+  "audit_seconds": 52.07392450000043,
+  "visual_qa": {
+    "passed": true,
+    "owner_sha256": "e96b56e62277aa37f7b0ba37cee036faa71cf2109fe6f09ba893b7be0fb9a1cf",
+    "inspected": [
+      {
+        "file": "qa10/draft24-dinkdonk-production.png",
+        "sha256": "e96b56e62277aa37f7b0ba37cee036faa71cf2109fe6f09ba893b7be0fb9a1cf"
+      },
+      {
+        "file": "qa58/qa/light_loop-bell-144.png",
+        "sha256": "857a35efec200203dba77437c6d104d93a7c37a442590cf2d8a39bc1d441cf05"
+      },
+      {
+        "file": "qa58/qa/light_loop_2x-bell-144.png",
+        "sha256": "6b5ee038ccf8fc46b49c4eb7d46cf3fd4b174236b595333ea8b0565ef6776e59"
+      },
+      {
+        "file": "qa58/qa/sign-native-A.png",
+        "sha256": "04605374bd5b326b1862b1ec83b20084502063ac1f98bad667185cff90b75786"
+      },
+      {
+        "file": "qa58/qa/sign-native-B.png",
+        "sha256": "bc1de5fbf669ecf363bdd323be30ce54c6243e193a0178924d0deee17c27b874"
+      }
+    ],
+    "method": "Opened comparison, both complete 12x12 bell contact sheets and native-resolution A/B sign crops using view_image; no generated or retouched pixels.",
+    "findings": "CINEMAS is legible in cyan, all seven glyphs are intact, the two bell poses are distinct, and the contact sheets alternate complete twelve-frame rows. The upper amber bulb rhythm is clean. No stray white aperture glint is visible above the O. The central wash remains restrained; no broad new white hotspot is visible on the sign or roof. The A/B comparison has readable labels, equal crops and no panel clipping.",
+    "limits": "Static native-image and full-cycle contact-sheet review; browser/OBS playback and moving-actor page acceptance remain with Claude."
+  },
+  "all_96_atlases_reopened_and_verified": true,
+  "completion_brief": 58,
+  "rendered_on": "NVIDIA GeForce RTX 4090 / Cycles OptiX / Blender 5.2.3 LTS on Linux",
+  "acceptance": "home decoded media, alpha/depth, image review and packaging complete; page/OBS acceptance pending",
+  "cloud_stage_seconds": {
+    "backgrounds": 3454.410600692965,
+    "weather": 878.2827437450178,
+    "foreground": 5031.164597763913,
+    "doors": 609.2427430250682,
+    "mist": 99.21263812109828,
+    "package": 27.738654871936888,
+    "videos": 203.08582201390527
+  },
+  "cloud_production_seconds": 10472.339772670064,
+  "scene_sha256": "33090d845e0c10348627b42b24f55a774691eb44b1b47326158099e657987942",
+  "home_evidence": "../qa58/",
+  "cloud_evidence": "../out10i.cloud/out10/_work/cloud57/",
+  "exr_verification_scope": "EXRs verified on pod; home verifies returned receipts and sealed archive, not absent EXR bytes."
+}

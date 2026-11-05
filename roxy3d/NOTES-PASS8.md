@@ -1,0 +1,63 @@
+# Pass 8 — connected rainy city, revised lighting
+
+Complete layout-2 pack: `out8/manifest.json`. The source scene is `roxy_pass8.blend`. All work products and caches are inside `roxy3d/`.
+The pack contains **423 files / 90,954,688 bytes**. All **1,759 files** in out, out2, out3, out4, out5, out6 and out7 match the pre-run SHA-256 inventory. 382 inherited assets were copied byte-for-byte; only the nine background/full/video files and manifest changed.
+
+## Interruption recovery and order of work
+
+Read BRIEF-9-pass8.md, the adopted review-8-suggestions.md and BRIEF-9b-lighting.md. The interrupted first scene and preview were complete, but its first holdout exposed 198 covered action pixels at the left fire escape. Its landing was moved from v=8.84..9.24 to v=8.69..9.09, behind the protected sidewalk. The scene and checks were rebuilt; no interrupted loop or partial manifest was reused.
+The original `qa8/preview_surroundings.png` remains as the first-preview record. The revised lit preview is `qa8/preview_surroundings_2.png`, with `preview_surroundings_2_gray.png`. Both were inspected before heavy loops. Timestamped finished stages, including corrections and rerenders, are in `qa8/STATUS.md`. The wet mat border and tiny wet-print crop were corrected after visual inspection and their affected outputs regenerated.
+
+## Surroundings and lighting
+
+The existing camera and all published marquee, poster, billboard, actor, vehicle and prop coordinates are unchanged. The billboard mesh moved only along camera rays so it sits on real steel supports without changing its screen rectangle.
+- Connected terrain, far curb and sidewalk continue into opposite workshop roofs at u=-2..14, v=16.5..21. Their parapet heights are 96, 105 and 112 px; taller kit is set back. Roofs include felt repairs, puddles, AC units, vents, wired skylights, a tank and street-facing original signs with visible backs/braces.
+- At the left: the auditorium block, apartments over VIDEO RENTAL and NOODLES, fire escape, shutters, awning, drainpipes, roof hatch, HVAC ducts, copings and a steaming roof outlet. The highest left addition is 278 px.
+- At the right: a service alley, RECORDS & REPAIR annex (63 px maximum), apartments (239 px maximum), and the commercial tower under the billboard (500 px including tank/structure).
+- Distant buildings are actual 3D blocks in the same projection. An indigo-violet cloud dome and warm atmospheric haze separate them. Receiver-linked fill lifts brick courses, roof felt and parapets while keeping the Roxy the main pink/cyan focus.
+- 62 of 168 neighborhood windows are lit (36.9 percent), mostly warm; five TV-blue windows have restrained periodic modulation wherever visible. Curtains, mullions and reflective unlit panes remain. Far sidewalk lamps and original DINER / LAUNDERETTE / AUTO ELECTRIC signs provide warm neighborhood spill.
+
+## Rain and wet surfaces
+
+Both videos are 1920x1080, 144 frames, 24 fps, 6 seconds. Use the same two streams on a 4K stage. Distant/middle rain lives below walkers and vehicles; the 300 foreground streaks and 24 nearest streaks belong above them, at z=70001 and below bubbles/HUD. The background has 600 distant and 180 middle streaks. Slant, speed and brightness vary coherently, with neutral rain colors.
+The street has rough aggregate, feathered transparent water films, stronger real lamp/neon/shop reflections, and darker asphalt between pools. Reflection displacement reaches about 2.6 px. The delivered base is the exact per-channel minimum of all 144 displaced 1080p images; the additive video restores each displaced frame with nonnegative differences. At 4K, the native still carries the corresponding upscaled minimum correction and the videos scale 2x.
+There are 916 world-projected visible impact sites on the road, sidewalk and roofs, plus rings and crowns, gutter flow at v=10.56/13.56, drain grilles, downspout and awning runoff, umbrella runoff outside the entrance and roof steam. Separate prop sheets put impacts above both shelter-roof slices and above the rental-shop awning; the inherited shelter-drip and tyre-spray assets remain available. Runoff uses these existing canopy/awning surfaces and the front glass; no new solid canopy crosses the cinema action volume.
+Indoor and sheltered volumes, marquee content areas and the billboard have protected rain masks. The base and foreground rain have exact zero-valued source pixels in the billboard collar. Most neon remains steady; the inherited troubled TICKETS E remains the only tube animation.
+
+## New PNG assets and integration
+
+All new PNG entries have native 1x and @2x files. Every inherited entry and coordinate remains intact. Use each new entry's timing and blend fields; the old general prop-loop description applies to inherited sheets.
+- `water_glass_left_00..05` and `water_glass_right_00..02`: nine 22x40 logical crops, 72 frames at 12 fps, 8 columns x 9 rows. Straight RGBA, `source-over`, exact parent-slice z_index, inserted immediately after that glass slice. These contain descending 2–4 px beads, 8–20 px runnels, merging beads, sill water and faint reflected street color. Cashier glass stays dry.
+- Glass atlas allocation is **10.876 MiB total for 1x and 2x combined**, below the 16 MiB budget. Fully transparent texels have RGB zero. Water is sparse within the panes to preserve the crop/memory budget.
+- `arcade_play`: original orbit-breaker round, 72 frames at 24 fps. `arcade_hiscore`: blinking original HI / SCORE and 00880 display, 24 frames at 24 fps. Both exactly match arcade_attract: rect [1177,889,32,42], z=3021, parent arcade, parent_slices=[arcade_00]. Select exactly one arcade state at a time.
+- `roof_rain_bus_stop_00/01`: 72 frames at 12 fps, additive, each at its existing roof slice depth. `awning_rain`: 72 frames at 12 fps, additive, a tight crop over the background shop awning; its `surroundings` parent is baked into the base, so parent_slices is empty.
+- `items.wet_print`: 10x6 and 20x12, anchor [5,3], straight RGBA. A rendered dark wet heel/forefoot with glossy variation, sampled through the unchanged camera at 4x and reduced in premultiplied space. Its border is transparent. Place on the floor behind arrivals and fade with source-over.
+- The recessed mat occupies u=8.52..10.48,v=8.45..8.96; the worn threshold is u=8.43..10.57,v=9.015..9.13. These are base-surface details, with no changed published walking footprint.
+- `full.png` and `full@2x.png` include frame 60 of both weather streams, the depth-sorted props/glass/roof water, and the default arcade attract state. `lit_bg` is the background plus base-light frame 60, for the inherited fallback path.
+A read-only inspection of roxy.html confirmed that its generic prop-loop loader honors source-over, per-entry fps, same-depth placement, and the arcade name-based play/hiscore/attract switch; it also has rain_fg and wet_print hooks. The page was not modified or run as part of this asset build.
+
+## Encoding and measured decode cost
+
+Blender 5.2.3 bundled FFmpeg/libvpx VP9: custom CRF 18, video_bitrate=0, minrate=0, maxrate=0, GOOD preset, GOP 144, no audio. Parsed keyframe headers confirm profile 0, 8-bit 4:2:0 and limited-range signaling; the decoded RGB blacks are exactly zero. The sparse additive streams compress below the review's planning bitrate range without a bitrate cap.
+| Stream | Bytes | Average Mb/s | Encode seconds | Sequential VSE ms/frame |
+|---|---:|---:|---:|---:|
+| light_loop | 2,165,128 | 2.887 | 18.461 | 6.044 |
+| rain_fg | 620,200 | 0.827 | 10.983 | 5.065 |
+
+Decode cost is wall-clock time for 144 sequential decoded frames through Blender VSE, including color conversion/render overhead and seven PNG saves. It is not isolated decoder timing, concurrent two-stream performance, CEF timing or an OBS benchmark. Two 1080p/24 streams represent 99.53 million decoded pixels/s; 4K uses those same streams, not native 4K video.
+
+## Validation evidence
+
+- Fresh saved-camera calibration: 11 rendered markers, maximum axis error **0.011163 px** (`qa8/calibration.json`).
+- Independent Cycles solid-geometry holdouts: **0 covered / 893,839 protected action pixels at 1080p**; **0 / 3,579,808 at 4K**. Action coverage threshold >0.999 and new-solid alpha >1/255; antialiased partial boundary pixels are excluded from that hard count. Full cinema/street/sidewalk prisms and both spawn u positions are included (`surroundings_occlusion*.json`).
+- Green aperture after decoded videos and all default overlays: **186,624/186,624 physical pixels at 1080p** and **746,496/746,496 at 4K**, equal to **186,624 logical pixels** at either scale. Frames 0,72,143 pass independently at both scales (`aperture_green*.png`, `final_validation.json`).
+- Both source videos have 144 distinct frames; regenerated frame 144 equals frame 0 exactly. Every new atlas regenerates its period endpoint exactly. Last-to-first differences remain within normal adjacent-frame variation (`weather_validation.json`, `prop_validation.json`, `roof_water_validation.json`).
+- All 144 encoded frames of each video were sequentially decoded. Seven saved frames per stream (0,1,36,72,108,142,143) were pixel-compared: exact black in aperture and indoor sample, active-rain error checked, all samples distinct. The decoded last-to-first seam is measured against adjacent movement (`video_validation.json`).
+- 382 inherited image/video assets are byte-identical; all previous keys, contracts and coordinates are preserved except the expressly updated loop duration, pack version, full-composition and validation metadata. The final inventory includes SHA-256 for every output (`final_validation.json`).
+- Visual inspection covered the reference image, lit and reduced grayscale surroundings, wet backgrounds, multiple rain frames, enlarged glass sheets, the delivered CRT states, the entrance/threshold and the corrected wet print. `final_decoded_f072.png` is the decoded composite preview; `entrance_glass_arcade_check.png` compares play and hiscore in place.
+
+## Reproduction and remaining page acceptance
+
+Run from standby: `powershell -NoProfile -ExecutionPolicy Bypass -File roxy3d/render_pass8.ps1 -Mode all`. `-Mode preview` stops after the lit surroundings and first holdout. `-Mode package` validates/repackages existing completed renders and rewrites these notes. All scripts fail on validation errors; the final manifest is replaced atomically after checks.
+The reproducible stages are build_pass8 + lighting_pass8, render_wet_scene_pass8, geometry_qa_pass8, calibrate_pass8, weather_pass8, render_wet_print_pass8, package_props_pass8, roof_water_pass8, encode_pass8, finalize_pass8 and write_notes_pass8. No internet or downloaded art was used.
+Live OBS/CEF playback with 55 chatters, traffic in both lanes, bus unloading, speech and the output encoder has not been benchmarked here. Browser restart pacing and two-video clock behavior also remain page acceptance checks. Crowd spacing, bubble avoidance, emote contact and bench patron behavior are the page-side work identified in the brief.

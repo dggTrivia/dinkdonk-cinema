@@ -1,0 +1,6 @@
+{
+  "adaptive": true,
+  "threshold": 0.01,
+  "split": false,
+  "persistent": true
+}

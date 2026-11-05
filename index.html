@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Standby Drafts</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 32px; background: #101012; color: #eee; font: 15px/1.5 system-ui, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  p { margin: 0 0 24px; color: #9a9aa2; }
+  code { background: #1f1f24; padding: 1px 6px; border-radius: 4px; color: #d4ff3a; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 24px; }
+  .card { background: #18181c; border: 1px solid #2a2a30; border-radius: 12px; overflow: hidden; }
+  .card iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #000; }
+  .meta { padding: 14px 16px; }
+  .meta b { font-size: 17px; }
+  .meta div { color: #9a9aa2; margin-top: 4px; }
+  .meta a { color: #8fd3ff; margin-right: 14px; }
+</style>
+</head>
+<body>
+<h1>Standby screen drafts</h1>
+<p>Previews run with fake chat (<code>?demo=1</code>). In OBS use the "live" link — it reads Destiny.gg chat through the DSA overlay relay on 127.0.0.1:18765.</p>
+<div class="grid" id="grid"></div>
+<script>
+  const drafts = [
+    ['lobby.html', '★ Lobby (main)', 'Late-90s pre-rendered isometric cinema in a rainy city block (Blender art by Codex + live layer): downpour, wet streets, water on the glass. Cars, a bus and taxis drop chatters off; box office and snack bar counters with staff, usher gate, 5 screens = last 5 dinkdonk.mov films, doors that open, a lobby cat and a janitor, rain/neon light loop. Poll billboard green screen top right, speech bubbles instead of a chat panel.'],
+    ['hall-1-monastery.html', 'H1 · Monastery Picture House', 'Diablo 2 Act I monastery at night: flagstones, torches and moonlight, wooden ticket stall, cloister with 5 curtained arches. Cauldron popcorn, privy, sleeping cat, rat, Old Deckard, stash chest.'],
+    ['hall-2-deco.html', 'H2 · The Grand Palace', '1930s art-deco movie palace: reflective marble, revolving door, round box office with velvet-rope queue, 5 leather doors with chasing-bulb lightboxes. Popcorn cart, usher, sleeping doorman, phone booth, player piano.'],
+    ['hall-3-bazaar.html', 'H3 · Desert Rose Cinema', 'Diablo 2 Act II desert courtyard at dusk: sandstone, striped awnings, star-pattern lantern light, 5 curtained archways. Copper popcorn pot, cobra basket, camel, fountain.'],
+    ['hall-4-noir.html', 'H4 · The Roxy (90s)', '★ Chosen direction. 90s cinema on a rainy night: glass ticket booth with LED ticker, changeable-letter marquee, video rental shop, wet reflections, Memphis-carpet lobby with 5 screens, snack bar, standee, CRT TV, arcade. Payphone, taxi, skater, boombox, cat, lightning.'],
+    ['hall-5-lodge.html', 'H5 · Highlands Lodge Cinema', 'Cozy snowy mountain lodge: plank floors, roaring fireplace, log ticket counter, 5 plank doors with carved signs. Popcorn kettle, cocoa cauldron, sleeping dog, moose head, snowman.'],
+    ['cinema-1-iso.html', 'C1 · Isometric Multiplex', 'Habbo / Theme Hospital isometric pixel art. Chatters walk in from the street, past the ticket counter, and sit down in one of 5 cut-away screening rooms (the last 5 films on dinkdonk.mov). Popcorn, restroom, mopping janitor, sleeping cat, arcade.'],
+    ['cinema-2-rpg.html', 'C2 · 16-bit RPG Cinema', 'Top-down SNES RPG interior. RPG dialogue-box bubbles, 5 screening rooms with seats and poster screens, big-TV green screen in the lobby.'],
+    ['cinema-3-gothic.html', 'C3 · Gothic Picture Palace', 'Diablo 2 inspired, cozy torchlight. Chatters arrive through a waypoint, banners for the 5 films, life/mana orbs for chat speed and viewers, popcorn potion belt, Deckard Clean.'],
+    ['cinema-4-tower.html', 'C4 · Tiny Tower Cinema', 'Side-view pixel building at night. Street, lobby, elevator and stairs to 5 screening floors with seats and projector beams, rooftop billboard green screen.'],
+    ['cinema-5-pocket.html', 'C5 · Pocket Cinema', 'Game Boy 4-shade green, tile-by-tile hopping, palette-dithered posters and emotes, GB text boxes. Tip: key it with ?green=ff00ff (see file header).'],
+    ['concepts/cinema-lobby.html', 'Cinema Lobby (old concept)', 'Cozy cinema lobby. Every chatter is a cinema-goer wearing their emote: they queue for tickets, grab popcorn, chat in speech bubbles and walk into Screens 1-3. Green screen on the wall for an OBS insert, showtimes board from dinkdonk.mov, DSA chat on the lobby monitor. Chat: !popcorn, !enter 1-3, !hop, !ticket.'],
+    ['dinkdonk.html', '★ DinkDonk Intermission', 'Live from dinkdonk.mov: just watched + vote histogram, recent screenings, animated poll replays (instant runoff round by round), hall of fame & shame, stats, next movie night. Chat: !rate 0-5, !pick 1-3, !watched TITLE, !skip.'],
+    ['01-testcard.html', '01 · Test Card', 'SMPTE bars + CRT. Emotes ghost through the signal, combos glitch it. Chat: !dvd EMOTE (bouncing logo, corner hits counted), !channel, !static.'],
+    ['02-aquarium.html', '02 · Chat Tank', 'Every chatter becomes a fish with speech bubbles; emotes are bubbles, combos grow one giant bubble. Chat: !feed, !shark, !bubbles.'],
+    ['03-claw.html', '03 · Emote Claw', 'Arcade claw machine. Chat emotes fall into a physics pile, combos drop a mega emote. Chat: !claw (win a prize — it can slip), !shake.'],
+    ['04-pulse.html', '04 · Pulse', 'Editorial live dashboard: what chat is talking about, msgs/min sparkline, loudest chatters, combos and the PEPE vs YEE tug-of-war (!pepe / !yee).'],
+    ['05-nightdrive.html', '05 · Night Drive', 'Synthwave drive. Chat speed is the car speed, emotes become roadside billboards, combos fire nitro. Chat: !boost, !honk, !radio.'],
+  ];
+  const grid = document.getElementById('grid');
+  for (const [file, name, desc] of drafts) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<iframe loading="lazy" src="${file}?demo=1"></iframe>
+      <div class="meta"><b>${name}</b><div>${desc}</div>
+      <div><a href="${file}?demo=1" target="_blank">open demo</a><a href="${file}" target="_blank">live</a></div></div>`;
+    grid.append(card);
+  }
+</script>
+</body>
+</html>

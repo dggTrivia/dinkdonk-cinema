@@ -1,0 +1,8 @@
+1. **Almost, not every point:** draft 23 fixes the visible geometry problems; I’d resolve the floodlight’s appearance and check playback before production.
+2. **1× readability passes:** the comparison is **94.1% of native scale**; CINEMAS reads clearly at **45% cap height**, **66.71% title width**, **0.27 tracking**; keep the cyan.
+3. **Frame/bulbs pass:** lower clearance **12→18 logical px**; **9 bulbs/upright**, pitch **20.5**, only **7.89%** above original; no obvious disconnected extension.
+4. **Mounts pass visually:** the shared raceway is quieter; reported **33→21 clips**, **3/glyph**, and **1.01 px** carriers resolve the heavy hardware.
+5. **S/braces pass:** S now reads as S; reported terminal clearance **5.56 px**, M/A/S support clearances **4.95–5.12 px** at comparison size.
+6. **Fitting clearance passes with an exception:** central movement **53 px**, not **8–12**, achieves **6.57 px**; the right fitting’s **10 px** move gives **77.06 px**.
+7. **Lighting still needs attention:** the **53 px / 0° re-aim** move loses the warm wash beneath O/M and leaves a white glint around **(1077,294)** above O; re-aim/shield it for restrained sign/roof illumination and a clean bulb rhythm.
+8. **Timing remains unverified visually:** **A12/B12, 0.50 s/state** is correct on paper; inspect **1 complete 144-frame/6-second loop**, including the wrap, before the production render.

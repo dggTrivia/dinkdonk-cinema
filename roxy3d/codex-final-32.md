@@ -1,0 +1,1 @@
+STATUS: COMPLETE — [Blockout image](roxy3d/qa11/cinema_draft_05_blockout.png), [report](roxy3d/qa11/CINEMA-DRAFT-05.md), [layout JSON](roxy3d/qa11/cinema_layout_05.json). Six rows; minimum separation 29.68 px. Existing files untouched. STOP.

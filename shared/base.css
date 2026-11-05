@@ -1,0 +1,86 @@
+/* Shared by every standby draft. Each page lays out a 1920x1080 #stage. */
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+#stage { position: absolute; }
+* { box-sizing: border-box; }
+
+/* Emotes: DGG's emotes.css sets the image and size; we only scale. */
+.emote {
+  display: inline-block;
+  background-repeat: no-repeat;
+  vertical-align: top;
+  transform-origin: 0 0;
+}
+.sb-emote {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  overflow: visible;
+}
+.sb-emote > .emote { position: absolute; left: 0; top: 0; }
+/* DGG chat effects drawn as text glyphs on some emotes (GSN dolphins, 💤, 🔫, ...): hidden here (see core.js textDeco) */
+.sb-emote > .emote.sb-nob::before, .sb-emote > .emote.sb-noa::after { display: none !important; }
+.sb-emote-text {
+  display: inline-block;
+  padding: 0.1em 0.35em;
+  border-radius: 0.3em;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font: 700 1em/1.2 system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+/* Chat panel: DSA relay iframe, or our own list (chat=native / demo). */
+.sb-chat { position: absolute; overflow: hidden; }
+.sb-chat-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color-scheme: normal;
+}
+.sb-chat-note {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(180, 30, 40, 0.85);
+  color: #fff;
+  font: 600 18px/1.3 system-ui, sans-serif;
+}
+.sb-chat-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+}
+.sb-chat-line {
+  color: #fff;
+  font: 500 24px/1.45 Roboto, 'Segoe UI', sans-serif;
+  overflow-wrap: anywhere;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  animation: sb-line-in 0.25s ease-out;
+}
+.sb-chat-nick { font-weight: 700; }
+@keyframes sb-line-in {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+/* Little legend of chat commands every draft shows. */
+.sb-cmds { display: flex; gap: 10px; flex-wrap: wrap; }
+.sb-cmds b { font-weight: 800; }
+

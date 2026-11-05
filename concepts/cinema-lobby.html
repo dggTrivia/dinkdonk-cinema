@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cinema Lobby</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Limelight&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/base.css">
+<style>
+  :root {
+    --wall: #5a1724; --wall-dark: #3d0f19; --wood: #3a2216; --wood-hi: #5c3a24; --gold: #e3b450; --gold-dim: #9c7a2c;
+    --neon: #ff5fa2; --amber: #ffb43a; --green: #00ff00; --ink: #fff6e8;
+  }
+  #stage { background: #120a0c; font-family: 'Fredoka', sans-serif; color: var(--ink); }
+  .abs { position: absolute; }
+
+  /* ---------- room ---------- */
+  #ceiling { left: 0; top: 0; width: 1920px; height: 92px; background: linear-gradient(#0d0709, #1d0f12); border-bottom: 6px solid var(--gold-dim); }
+  .bulbs { left: 0; right: 0; top: 70px; height: 16px; background: radial-gradient(circle, #fff3c4 0 5px, #ffcf5a 6px, transparent 9px) 0 0 / 40px 16px;
+    filter: drop-shadow(0 0 6px #ffcf5a); animation: chase 1.4s steps(2) infinite; }
+  @keyframes chase { 50% { background-position: 20px 0; } }
+  #wall { left: 0; top: 92px; width: 1920px; height: 618px;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255,210,140,.07) 0 10px, transparent 11px) 0 0 / 60px 60px,
+      radial-gradient(ellipse 18px 28px at 50% 50%, rgba(0,0,0,.18), transparent 70%) 30px 30px / 60px 60px,
+      linear-gradient(var(--wall), var(--wall-dark)); }
+  #wainscot { left: 0; top: 560px; width: 1920px; height: 150px;
+    background:
+      linear-gradient(90deg, transparent 0 14px, rgba(0,0,0,.25) 14px 16px, transparent 16px) 0 0 / 160px 100%,
+      linear-gradient(var(--wood-hi), var(--wood) 12%, #2a170f); border-top: 8px solid var(--gold-dim); }
+  .sconce { width: 34px; height: 46px; border-radius: 6px 6px 18px 18px; background: linear-gradient(#ffe6a8, var(--gold)); }
+  .sconce::after { content: ''; position: absolute; left: -110px; top: -70px; width: 254px; height: 260px; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 35%, rgba(255,200,120,.32), transparent 65%); }
+  #floor { left: 0; top: 710px; width: 1920px; height: 370px;
+    background:
+      radial-gradient(circle at 20% 30%, #c8364a 0 7px, transparent 8px) 0 0 / 90px 70px,
+      radial-gradient(circle at 70% 70%, var(--gold) 0 5px, transparent 6px) 0 0 / 90px 70px,
+      radial-gradient(ellipse 22px 9px at 45% 55%, #2c7f8a 0 70%, transparent 72%) 0 0 / 90px 70px,
+      linear-gradient(135deg, transparent 46%, rgba(227,180,80,.25) 47% 53%, transparent 54%) 0 0 / 45px 35px,
+      #1b1838; }
+  #floor::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.05) 45%, rgba(0,0,0,.25)); }
+
+  /* ---------- ticket booth ---------- */
+  #booth { left: 40px; top: 250px; width: 360px; height: 470px; }
+  #booth .sign { position: absolute; left: 30px; right: 30px; top: 0; height: 80px; border-radius: 14px; background: #1a0b10;
+    border: 4px solid var(--gold); display: grid; place-items: center; font: 400 50px 'Limelight'; color: #ffd6ea;
+    text-shadow: 0 0 6px var(--neon), 0 0 18px var(--neon), 0 0 36px var(--neon); animation: buzz 7s infinite; }
+  @keyframes buzz { 0%, 100% { opacity: 1; } 71% { opacity: 1; } 72% { opacity: .55; } 73% { opacity: 1; } 75% { opacity: .7; } 76% { opacity: 1; } }
+  #booth .body { position: absolute; left: 0; right: 0; top: 96px; bottom: 0; border-radius: 22px 22px 6px 6px;
+    background: linear-gradient(90deg, #6b1020, #9c1f31 50%, #6b1020); border: 6px solid var(--gold-dim); box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+  #booth .window { position: absolute; left: 40px; right: 40px; top: 120px; height: 200px; border-radius: 100px 100px 8px 8px; overflow: hidden;
+    background: linear-gradient(#2a3e52, #142130); border: 6px solid var(--gold); }
+  #booth .window::after { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.12) 36%, transparent 44%); }
+  #clerk { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); animation: clerk 3s ease-in-out infinite; transform-origin: 50% 100%; }
+  @keyframes clerk { 50% { transform: translateX(-50%) translateY(-6px) rotate(-3deg); } }
+  #clerk.sell { animation: sell .5s ease-out; }
+  @keyframes sell { 40% { transform: translateX(-50%) translateY(-18px) scale(1.08); } }
+  #booth .counter { position: absolute; left: 20px; right: 20px; top: 318px; height: 24px; background: linear-gradient(var(--gold), var(--gold-dim)); border-radius: 4px; }
+  #booth .slot { position: absolute; left: 50%; top: 322px; width: 90px; height: 10px; margin-left: -45px; background: #111; border-radius: 3px; }
+  #booth .price { position: absolute; left: 24px; right: 24px; bottom: 14px; padding: 6px 0; text-align: center; font: 500 19px/1.3 'Fredoka'; color: #ffe2a8;
+    background: rgba(26,11,16,.7); border-radius: 10px; border: 2px solid var(--gold-dim); }
+  #booth .price b { color: var(--gold); }
+
+  /* ---------- wall screens ---------- */
+  .bezel { position: absolute; background: #0b0b0d; border-radius: 12px; box-shadow: 0 0 0 4px #2b2b30, 0 18px 40px rgba(0,0,0,.6); }
+  #chatsign { left: 436px; top: 128px; width: 270px; height: 524px; }
+  #chatsign .cap { position: absolute; left: 0; right: 0; top: 0; height: 40px; line-height: 40px; text-align: center; font: 400 26px 'VT323';
+    color: var(--amber); letter-spacing: 3px; border-bottom: 2px solid #222; }
+  #chat { left: 6px; right: 6px; top: 44px; bottom: 6px; }
+  #chat .sb-chat-line { font-size: 19px; }
+
+  /* The chroma-key screen: pure colour, nothing drawn over it. */
+  #gs-bezel { left: 724px; top: 122px; width: 612px; height: 350px; }
+  #green { position: absolute; left: 730px; top: 128px; width: 600px; height: 338px; background: var(--green); z-index: 50; }
+  #green.off { background: #000; display: grid; place-items: center; }
+  #board { left: 724px; top: 486px; width: 612px; height: 168px; padding: 8px 18px; font: 400 27px/1.1 'VT323'; color: var(--amber);
+    text-shadow: 0 0 6px rgba(255,180,58,.7); overflow: hidden; }
+  #board .row { display: flex; justify-content: space-between; gap: 16px; white-space: nowrap; }
+  #board .row span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  #board .hd { color: #fff2d0; }
+  #ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; background: #160d03; border-top: 1px solid #3a2a10; overflow: hidden; }
+  #ticker-in { position: absolute; top: 2px; white-space: nowrap; font: 400 24px 'VT323'; color: #ffcf6e; }
+
+  /* ---------- theater doors ---------- */
+  .theater { position: absolute; top: 250px; width: 170px; height: 460px; }
+  .theater .marq { position: absolute; left: -6px; right: -6px; top: 0; height: 104px; border-radius: 10px; background: #14090c;
+    border: 4px solid var(--gold); box-shadow: 0 0 20px rgba(227,180,80,.3); text-align: center; overflow: hidden; }
+  .theater .marq::before { content: ''; position: absolute; inset: 3px; border-radius: 6px; pointer-events: none;
+    background: radial-gradient(circle, #fff1c4 0 2.5px, transparent 3.5px) 0 0 / 14px 14px; mask: linear-gradient(#000 0 7px, transparent 7px calc(100% - 7px), #000 0);
+    animation: chase 1s steps(2) infinite; }
+  .theater .num { font: 400 46px/1 'Limelight'; color: var(--gold); margin-top: 10px; text-shadow: 0 0 12px rgba(227,180,80,.6); }
+  .theater .film { font: 600 17px/1.15 'Fredoka'; color: var(--ink); padding: 4px 10px 0; height: 42px; overflow: hidden; }
+  .theater .frame { position: absolute; left: 0; right: 0; top: 140px; bottom: 0; background: #1c0d10; border: 8px solid var(--gold-dim); border-bottom: 0;
+    border-radius: 8px 8px 0 0; overflow: hidden; perspective: 600px; }
+  .theater .inside { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 20%, #fff2c8 0%, #ffb35a 25%, #5a2a14 70%, #1a0b06); animation: projector 3s infinite; }
+  @keyframes projector { 50% { filter: brightness(1.15); } 52% { filter: brightness(.9); } 54% { filter: brightness(1.1); } }
+  .door { position: absolute; top: 0; bottom: 0; width: 50%; transition: transform .45s cubic-bezier(.3,.7,.3,1);
+    background:
+      radial-gradient(circle, rgba(0,0,0,.35) 0 3px, transparent 4px) 6px 6px / 26px 26px,
+      linear-gradient(90deg, #7d1526, #a6283a 50%, #7d1526); }
+  .door.l { left: 0; transform-origin: 0 50%; border-right: 2px solid #3d0a12; }
+  .door.r { right: 0; transform-origin: 100% 50%; border-left: 2px solid #3d0a12; }
+  .door .port { position: absolute; top: 60px; left: 50%; width: 40px; height: 40px; margin-left: -20px; border-radius: 50%; background: #ffcf8a; border: 4px solid var(--gold); opacity: .85; }
+  .door .plate { position: absolute; top: 160px; width: 14px; height: 60px; background: var(--gold); border-radius: 3px; }
+  .door.l .plate { right: 8px; } .door.r .plate { left: 8px; }
+  .theater.open .door.l { transform: rotateY(-70deg); }
+  .theater.open .door.r { transform: rotateY(70deg); }
+  .theater .count { position: absolute; left: 50%; top: 112px; transform: translateX(-50%); padding: 1px 12px; border-radius: 12px; background: rgba(0,0,0,.55);
+    font: 600 18px 'Fredoka'; white-space: nowrap; }
+  .exit { position: absolute; top: 112px; width: 54px; height: 22px; border-radius: 3px; background: #0d3b1a; color: #6dff9a; font: 700 14px/22px 'Fredoka'; text-align: center;
+    text-shadow: 0 0 6px #3dff7a; letter-spacing: 1px; }
+
+  /* ---------- floor props ---------- */
+  #props, #crowd { position: absolute; inset: 0; }
+  .prop { position: absolute; }
+  .post { width: 14px; height: 70px; margin-left: -7px; border-radius: 7px 7px 2px 2px; background: linear-gradient(90deg, var(--gold-dim), #ffe7a6, var(--gold-dim)); }
+  .post::before { content: ''; position: absolute; left: -5px; top: -8px; width: 24px; height: 16px; border-radius: 50%; background: var(--gold); }
+  .post::after { content: ''; position: absolute; left: -12px; bottom: -4px; width: 38px; height: 10px; border-radius: 50%; background: #1d1206; }
+  #ropes { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+  #cart { width: 190px; height: 210px; }
+  #cart .glass { position: absolute; left: 10px; right: 10px; top: 0; height: 100px; border-radius: 10px 10px 0 0; background: rgba(255,240,200,.18);
+    border: 4px solid #c9a24a; overflow: hidden; }
+  #cart .pile { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background:
+    radial-gradient(circle, #fff7d6 0 8px, transparent 9px) 0 0 / 18px 16px, radial-gradient(circle, #ffe28a 0 7px, transparent 8px) 9px 8px / 18px 16px; }
+  #cart .body { position: absolute; left: 0; right: 0; top: 100px; height: 90px; border-radius: 6px;
+    background: repeating-linear-gradient(90deg, #d8283c 0 24px, #fff1e6 24px 48px); border: 4px solid #c9a24a; }
+  #cart .label { position: absolute; left: 30px; right: 30px; top: 120px; padding: 4px 0; text-align: center; background: #1a0b10; border-radius: 8px;
+    font: 400 26px 'Limelight'; color: var(--gold); }
+  #cart .wheel { position: absolute; bottom: 0; width: 34px; height: 34px; border-radius: 50%; background: #222; border: 4px solid #c9a24a; }
+  .kernel { position: absolute; width: 14px; height: 12px; border-radius: 50%; background: #fff7d6; box-shadow: 4px 2px 0 -1px #ffe28a; }
+  #howto { width: 290px; padding: 12px 16px; border-radius: 10px; background: #1a0b10; border: 3px solid var(--gold); font: 500 18px/1.35 'Fredoka';
+    box-shadow: 0 10px 20px rgba(0,0,0,.5); }
+  #howto b { color: var(--gold); }
+  #howto .t { font: 400 24px 'Limelight'; color: var(--gold); margin-bottom: 4px; }
+  #howto + .stand { }
+
+  /* ---------- cinema-goers ---------- */
+  .goer { position: absolute; left: 0; top: 0; will-change: transform; }
+  .goer .shadow { position: absolute; left: -30px; top: -9px; width: 60px; height: 16px; border-radius: 50%; background: rgba(0,0,0,.45); }
+  .goer .bod { position: absolute; left: 0; bottom: 0; transform-origin: 50% 100%; }
+  .goer .bod .sb-emote { position: absolute; bottom: 0; }
+  .goer .nick { position: absolute; left: 0; top: 6px; transform: translateX(-50%); white-space: nowrap; font: 600 17px 'Fredoka';
+    padding: 0 7px; border-radius: 8px; background: rgba(0,0,0,.5); }
+  .goer .carry { position: absolute; bottom: 4px; font-size: 26px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+  .goer .bubble { position: absolute; left: 0; bottom: 112px; transform: translateX(-50%); max-width: 300px; width: max-content; padding: 7px 12px; border-radius: 14px;
+    background: #fffaf0; color: #2a1218; font: 500 18px/1.3 'Fredoka'; box-shadow: 0 6px 14px rgba(0,0,0,.4); overflow-wrap: anywhere; animation: pop-in .25s cubic-bezier(.2,1.6,.4,1); }
+  .goer .bubble::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-top-color: #fffaf0; border-bottom: 0; }
+  .goer .bubble .sb-emote { margin: 0 2px; }
+  .goer .pop { position: absolute; left: 0; bottom: 70px; transform: translateX(-50%); font-size: 28px; animation: float-up 1.4s ease-out forwards; }
+  @keyframes pop-in { from { transform: translateX(-50%) scale(.3); opacity: 0; } }
+  @keyframes float-up { to { transform: translateX(-50%) translateY(-50px); opacity: 0; } }
+  .poof { animation: poof .35s ease-out; }
+  @keyframes poof { 0% { filter: brightness(3); transform: scale(1.4); } }
+
+  #combo { position: absolute; left: 1030px; top: 760px; transform: translate(-50%, -50%) scale(.4); opacity: 0; z-index: 2000; pointer-events: none;
+    font: 400 64px 'Limelight'; color: var(--gold); text-shadow: 0 0 14px rgba(227,180,80,.8), 0 4px 0 #000; transition: all .3s cubic-bezier(.2,1.6,.4,1); white-space: nowrap;
+    display: flex; align-items: center; gap: 14px; }
+  #combo.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  #shade { position: absolute; inset: 0; pointer-events: none; z-index: 40;
+    background: radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(0,0,0,.45) 100%); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="ceiling" class="abs"><div class="bulbs abs"></div></div>
+  <div id="wall" class="abs"></div>
+  <div class="sconce abs" style="left:415px;top:150px"></div>
+  <div class="sconce abs" style="left:1355px;top:150px;display:none"></div>
+  <div id="wainscot" class="abs"></div>
+  <div id="floor" class="abs"></div>
+
+  <div id="booth" class="abs">
+    <div class="sign">Tickets</div>
+    <div class="body"></div>
+    <div class="window"><div id="clerk"></div></div>
+    <div class="counter"></div><div class="slot"></div>
+    <div class="price">say anything to walk in<br>use an <b>emote</b> to become it<br><b>!popcorn</b> · <b>!enter 1-3</b> · <b>!hop</b></div>
+  </div>
+
+  <div id="chatsign" class="bezel"><div class="cap">LOBBY CHAT</div><div id="chat"></div></div>
+  <div id="gs-bezel" class="bezel"></div>
+  <div id="board" class="bezel"><div id="board-rows"></div><div id="ticker"><div id="ticker-in"></div></div></div>
+
+  <div id="theaters"></div>
+
+  <div id="props">
+    <svg id="ropes"></svg>
+  </div>
+  <div id="crowd"></div>
+  <div id="shade"></div>
+  <div id="green"></div>
+  <div id="combo"></div>
+</div>
+
+<script src="../shared/core.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  SB.mountStage($('stage'));
+  if (!q.has('f')) SB.cfg.f = '2'; // the lobby chat screen is narrow
+  SB.mountChat($('chat'), { emoteHeight: 22, max: 30 });
+  if (SB.cfg.chat === 'off') $('chatsign').remove();
+
+  // ---------- green screen ----------
+  const gs = q.get('green');
+  if (gs === 'off') { $('green').classList.add('off'); }
+  else if (gs) $('green').style.background = gs.startsWith('#') ? gs : `#${gs}`;
+
+  // ---------- layout constants (stage px) ----------
+  const FLOOR_TOP = 760;     // feet can't go further back than this
+  const FLOOR_BOTTOM = 1050;
+  const QUEUE = { x: 230, y: 790, gap: 74, max: 8 }; // slot 0 stands at the booth window
+  const CART = { x: 1090, y: 905 };
+  const DOORS = [1380, 1560, 1740].map((x, i) => ({ i, x, cx: x + 85, y: 745, count: 0, el: null, timer: null }));
+  const LOBBY_MAX = 34;
+
+  const h = (tag, cls, ...kids) => { const el = document.createElement(tag); if (cls) el.className = cls; el.append(...kids); return el; };
+
+  // ---------- theaters ----------
+  for (const d of DOORS) {
+    const el = h('div', 'theater');
+    el.style.left = `${d.x}px`;
+    el.append(
+      h('div', 'marq', h('div', 'num', String(d.i + 1)), h('div', 'film', '')),
+      h('div', 'count', ''),
+      h('div', 'frame', h('div', 'inside'), h('div', 'door l', h('div', 'port'), h('div', 'plate')), h('div', 'door r', h('div', 'port'), h('div', 'plate'))));
+    $('theaters').append(el);
+    d.el = el;
+  }
+  const exitSign = h('div', 'exit', 'EXIT');
+  exitSign.style.left = '1852px';
+  exitSign.style.top = '206px';
+  $('theaters').append(exitSign);
+
+  function openDoor(d, ms = 1100) {
+    d.el.classList.add('open');
+    clearTimeout(d.timer);
+    d.timer = setTimeout(() => d.el.classList.remove('open'), ms);
+  }
+  function renderCounts() {
+    for (const d of DOORS) d.el.querySelector('.count').textContent = d.count ? `👥 ${d.count} inside` : 'seats free';
+  }
+  const films = (q.get('screens') || '').split('|').map((s) => s.trim()).filter(Boolean);
+  function setFilms(list) { DOORS.forEach((d, i) => { d.el.querySelector('.film').textContent = list[i] || ''; }); }
+  setFilms(films.length ? films : ['Now showing', 'Now showing', 'Now showing']);
+
+  // ---------- floor props ----------
+  const props = $('props');
+  function placeProp(el, x, y) { el.classList.add('prop'); el.style.left = `${x}px`; el.style.top = `${y}px`; el.style.zIndex = String(Math.round(y)); props.append(el); return el; }
+  // Queue lane: posts along y 760 and 830 with ropes between.
+  const postXs = [330, 500, 670, 840];
+  const ropes = $('ropes');
+  for (const y of [748, 842]) {
+    postXs.forEach((x) => placeProp(h('div', 'post'), x, y - 66));
+    for (let i = 0; i < postXs.length - 1; i++) {
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const x1 = postXs[i];
+      const x2 = postXs[i + 1];
+      const yy = y - 58;
+      p.setAttribute('d', `M${x1} ${yy} Q${(x1 + x2) / 2} ${yy + 26} ${x2} ${yy}`);
+      p.setAttribute('stroke', '#b0172b');
+      p.setAttribute('stroke-width', '7');
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke-linecap', 'round');
+      ropes.append(p);
+    }
+  }
+  ropes.style.zIndex = '760';
+  ropes.setAttribute('viewBox', '0 0 1920 1080');
+
+  const cart = h('div', '', h('div', 'glass', h('div', 'pile')), h('div', 'body'), h('div', 'label', 'Popcorn'),
+    Object.assign(h('div', 'wheel'), { style: 'left:18px' }), Object.assign(h('div', 'wheel'), { style: 'right:18px' }));
+  cart.id = 'cart';
+  placeProp(cart, CART.x - 95, CART.y - 230).style.zIndex = String(CART.y - 30);
+
+  // Popcorn machine keeps popping.
+  setInterval(() => {
+    const k = h('div', 'kernel');
+    const glass = cart.querySelector('.glass');
+    k.style.left = `${20 + Math.random() * 130}px`;
+    k.style.top = '60px';
+    glass.append(k);
+    k.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${(Math.random() - 0.5) * 50}px, -48px)`, offset: 0.45 }, { transform: `translate(${(Math.random() - 0.5) * 70}px, 0)` }],
+      { duration: 900, easing: 'ease-out' }).onfinish = () => k.remove();
+  }, 260);
+
+  // ---------- emotes ----------
+  const DEFAULT_POOL = ['PEPE', 'YEE', 'AYAYA', 'FeelsGoodMan', 'Wowee', 'NOBULLY', 'Klappa', 'PepeLaugh', 'WEOW', 'GIMI', 'monkaS', 'SoSad', 'AngelThump', 'DuckerZ'];
+  let pool = DEFAULT_POOL;
+  SB.on('emotes', () => {
+    const have = DEFAULT_POOL.filter((e) => SB.emotes.names.has(e));
+    pool = have.length >= 3 ? have : [...SB.emotes.names].slice(0, 20);
+    const clerkName = q.get('clerk') || (SB.emotes.names.has('DinkDonk') ? 'DinkDonk' : pool[0]);
+    $('clerk').replaceChildren(SB.emoteEl(clerkName, 120));
+  });
+  const defaultEmote = (nick) => pool[SB.hashHue(nick) % pool.length];
+
+  // ---------- cinema-goers ----------
+  const goers = new Map();   // nick -> goer
+  const queue = [];
+  const crowd = $('crowd');
+  const rand = SB.rand;
+  const now = () => performance.now();
+
+  function makeEl(g) {
+    const el = h('div', 'goer');
+    const bod = h('div', 'bod');
+    const nick = h('div', 'nick', g.nick);
+    nick.style.color = SB.nickColor(g.nick, 85, 75);
+    el.append(h('div', 'shadow'), bod, nick);
+    crowd.append(el);
+    g.el = el;
+    g.bod = bod;
+    setEmote(g, g.emote, false);
+  }
+
+  function setEmote(g, name, poof = true) {
+    g.emote = name;
+    if (!g.bod) return;
+    const e = SB.emoteEl(name, 80);
+    const w = Number(e.dataset.w) || 80;
+    e.style.left = `${-w / 2}px`;
+    g.bod.replaceChildren(e);
+    if (g.carry) g.bod.append(g.carry);
+    g.halfW = w / 2;
+    if (poof) { g.bod.classList.remove('poof'); void g.bod.offsetWidth; g.bod.classList.add('poof'); }
+    placeCarry(g);
+  }
+
+  function placeCarry(g) { if (g.carry) g.carry.style.left = `${(g.halfW || 32) - 6}px`; }
+  function carry(g, emoji) {
+    if (!g.carry) { g.carry = h('div', 'carry'); g.bod.append(g.carry); }
+    g.carry.textContent = emoji;
+    placeCarry(g);
+  }
+
+  function spawn(nick, emote) {
+    const g = {
+      nick, emote, x: -80, y: rand(880, 1030), tx: null, ty: null, speed: rand(150, 200), phase: rand(0, 6),
+      state: 'arrive', onArrive: null, waitUntil: 0, lobbyUntil: 0, ticket: false, popcorn: false, door: null,
+      last: Date.now(), bubbleUntil: 0, hopBoost: 0, facing: 1, halfW: 32,
+    };
+    makeEl(g);
+    goers.set(nick, g);
+    toQueue(g);
+    return g;
+  }
+
+  function goTo(g, x, y, then) {
+    g.tx = x;
+    g.ty = Math.max(FLOOR_TOP, Math.min(FLOOR_BOTTOM, y));
+    g.onArrive = then || null;
+  }
+
+  function toQueue(g) {
+    if (queue.length >= QUEUE.max) {           // long line: e-ticket, skip it
+      g.ticket = true;
+      pop(g, '🎟️');
+      wander(g);
+      return;
+    }
+    g.state = 'queue';
+    queue.push(g);
+    layoutQueue();
+  }
+
+  function layoutQueue() {
+    queue.forEach((g, i) => {
+      const x = QUEUE.x + 20 + i * QUEUE.gap;
+      goTo(g, x, QUEUE.y + (i % 2 ? 4 : -4), i === 0 ? () => serve(g) : null);
+    });
+  }
+
+  function serve(g) {
+    if (queue[0] !== g || g.serving) return;
+    g.serving = true;
+    g.facing = -1;
+    setTimeout(() => {
+      g.serving = false;
+      const i = queue.indexOf(g);
+      if (i < 0 || !goers.has(g.nick)) return;   // left the line meanwhile
+      $('clerk').classList.remove('sell');
+      void $('clerk').offsetWidth;
+      $('clerk').classList.add('sell');
+      g.ticket = true;
+      pop(g, '🎟️');
+      queue.splice(i, 1);
+      layoutQueue();
+      g.state = 'lobby';
+      if (g.want === 'popcorn') toPopcorn(g); else wander(g);
+    }, rand(1100, 1900));
+  }
+
+  function lobbyPoint() {
+    const x = rand(120, 1860);
+    // Keep wanderers out of the queue lane in front of the booth.
+    const y = x < 860 ? rand(870, 1040) : rand(780, 1040);
+    return [x, y];
+  }
+
+  function wander(g) {
+    g.state = 'lobby';
+    if (!g.lobbyUntil) g.lobbyUntil = now() + rand(60_000, 160_000);
+    const [x, y] = lobbyPoint();
+    goTo(g, x, y, () => { g.waitUntil = now() + rand(2500, 9000); });
+  }
+
+  function toPopcorn(g) {
+    g.state = 'popcorn';
+    goTo(g, CART.x + rand(-60, 60), CART.y + rand(10, 30), () => {
+      g.waitUntil = now() + 1200;
+      setTimeout(() => { if (!goers.has(g.nick)) return; g.popcorn = true; carry(g, '🍿'); pop(g, '🍿'); wander(g); }, 1100);
+    });
+  }
+
+  function toDoor(g, d, then) {
+    g.state = 'toDoor';
+    goTo(g, d.cx + rand(-20, 20), d.y, () => {
+      openDoor(d);
+      g.state = 'entering';
+      g.el.animate([{ opacity: 1, transform: g.el.style.transform }, { opacity: 0, transform: `${g.el.style.transform} translateY(-30px) scale(.7)` }], { duration: 500, fill: 'forwards' })
+        .onfinish = () => {
+          g.el.remove();
+          g.el = null;
+          g.bod = null;
+          g.carry = null;
+          g.state = 'inside';
+          g.door = d;
+          d.count += 1;
+          renderCounts();
+          if (g.leaving) forget(g);
+          else if (then) then();
+        };
+    });
+  }
+
+  function comeOut(g) {
+    const d = g.door || SB.pick(DOORS);
+    d.count = Math.max(0, d.count - 1);
+    renderCounts();
+    openDoor(d);
+    g.x = d.cx;
+    g.y = d.y;
+    g.lobbyUntil = now() + rand(60_000, 160_000);
+    makeEl(g);
+    if (g.popcorn) carry(g, '🍿');
+    g.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
+    wander(g);
+    goTo(g, d.cx + rand(-120, 120), rand(860, 980), () => { g.waitUntil = now() + rand(3000, 7000); });
+  }
+
+  function forget(g) {
+    if (g.door && g.state === 'inside') g.door.count = Math.max(0, g.door.count - 1);
+    renderCounts();
+    goers.delete(g.nick);
+  }
+
+  // Gone for good: walks into a theater and is forgotten.
+  function leave(g) {
+    if (g.leaving) return;
+    g.leaving = true;
+    if (g.state === 'inside') { forget(g); return; }
+    if (g.state === 'toDoor' || g.state === 'entering') return; // forgotten once inside
+    removeFromQueue(g);
+    toDoor(g, SB.pick(DOORS));
+  }
+
+  function removeFromQueue(g) {
+    const i = queue.indexOf(g);
+    if (i >= 0) { queue.splice(i, 1); layoutQueue(); }
+  }
+
+  function pop(g, emoji) {
+    if (!g.el) return;
+    const p = h('div', 'pop', emoji);
+    g.el.append(p);
+    setTimeout(() => p.remove(), 1400);
+  }
+
+  function bubble(g, m) {
+    if (!g.el) return;
+    g.el.querySelector('.bubble')?.remove();
+    const b = h('div', 'bubble');
+    SB.renderTokens(b, m.tokens, 26, 80);
+    g.el.append(b);
+    g.bubbleUntil = now() + 5500;
+    g.waitUntil = Math.max(g.waitUntil, now() + 1800); // stop to talk
+    setTimeout(() => { if (b.isConnected && now() >= g.bubbleUntil - 50) b.remove(); }, 5600);
+  }
+
+  // ---------- chat ----------
+  SB.on('msg', (m) => {
+    const emote = m.emotes[0] || null;
+    let g = goers.get(m.nick);
+    if (!g) g = spawn(m.nick, emote || defaultEmote(m.nick));
+    else if (emote && emote !== g.emote) setEmote(g, emote);
+    g.last = Date.now();
+    g.leaving = false;
+    if (g.state === 'inside') comeOut(g);
+    if (!m.text.startsWith('!')) bubble(g, m);
+  });
+  SB.on('purge', (nick) => {
+    const g = [...goers.values()].find((o) => o.nick.toLowerCase() === nick.toLowerCase());
+    if (!g) return;
+    removeFromQueue(g);
+    if (g.el) g.el.remove();
+    if (g.state === 'inside') { g.door.count = Math.max(0, g.door.count - 1); renderCounts(); }
+    goers.delete(g.nick);
+  });
+
+  SB.command('popcorn', 0, ({ nick }) => {
+    const g = goers.get(nick);
+    if (!g || g.popcorn) return;
+    if (g.state === 'queue') { g.want = 'popcorn'; return; }
+    toPopcorn(g);
+  });
+  SB.command(['enter', 'screen', 'seat'], 0, ({ nick, args }) => {
+    const g = goers.get(nick);
+    if (!g || g.state === 'inside' || g.state === 'entering') return;
+    const n = Number(args[0]);
+    removeFromQueue(g);
+    toDoor(g, DOORS[n >= 1 && n <= 3 ? n - 1 : Math.floor(Math.random() * 3)]);
+  });
+  SB.command(['hop', 'dance', 'jump'], 0, ({ nick }) => {
+    const g = goers.get(nick);
+    if (g && g.el) { g.hopBoost = now() + 3000; pop(g, '✨'); }
+  });
+  SB.command('ticket', 0, ({ nick }) => {
+    const g = goers.get(nick);
+    if (g && !g.ticket && g.state !== 'queue' && g.el) toQueue(g);
+  });
+
+  // Combos: everyone wearing that emote jumps together.
+  let comboTimer;
+  SB.on('combo', ({ emote, count }) => {
+    for (const g of goers.values()) if (g.el && g.emote === emote) g.hopBoost = now() + 2500;
+    if (count < 3) return;
+    $('combo').replaceChildren(SB.emoteEl(emote, 70), `${count}× C-C-COMBO`);
+    $('combo').classList.add('show');
+    clearTimeout(comboTimer);
+    comboTimer = setTimeout(() => $('combo').classList.remove('show'), 1800);
+  });
+
+  // ---------- simulation ----------
+  let last = now();
+  function frame(t) {
+    const dt = Math.min(0.05, (t - last) / 1000);
+    last = t;
+    const wall = Date.now();
+    let inLobby = 0;
+    for (const g of goers.values()) {
+      if (!g.el) continue;
+      inLobby += 1;
+      const moving = g.tx != null && now() >= g.waitUntil;
+      if (moving) {
+        const dx = g.tx - g.x;
+        const dy = g.ty - g.y;
+        const d = Math.hypot(dx, dy);
+        const step = g.speed * dt;
+        if (d <= step) {
+          g.x = g.tx; g.y = g.ty; g.tx = null;
+          const cb = g.onArrive; g.onArrive = null;
+          if (cb) cb();
+        } else {
+          g.x += (dx / d) * step;
+          g.y += (dy / d) * step * 0.8;
+          if (Math.abs(dx) > 4) g.facing = Math.sign(dx);
+        }
+        g.phase += dt * 11;
+      } else if (now() < g.hopBoost) {
+        g.phase += dt * 13;
+      } else {
+        // Idle: a single happy bounce now and then.
+        if (!g.idle && Math.random() < dt * 0.25) g.idle = 0.0001;
+        if (g.idle) { g.idle += dt * 9; if (g.idle >= Math.PI) g.idle = 0; }
+      }
+      // Lobby life: wander, then head into a theater.
+      if (g.state === 'lobby' && g.tx == null && now() >= g.waitUntil) {
+        if (now() > g.lobbyUntil && now() > g.bubbleUntil) toDoor(g, SB.pick(DOORS));
+        else wander(g);
+      }
+      const k = 0.78 + ((g.y - FLOOR_TOP) / (FLOOR_BOTTOM - FLOOR_TOP)) * 0.42;
+      const boosted = moving || now() < g.hopBoost;
+      const hopping = boosted || g.idle > 0;
+      const s = Math.abs(Math.sin(boosted ? g.phase : g.idle));
+      const lift = hopping ? s * (moving ? 22 : 30) : 0;
+      const squash = hopping && s < 0.25 ? 0.86 : 1;
+      g.el.style.transform = `translate(${g.x}px, ${g.y}px) scale(${k})`;
+      g.el.style.zIndex = String(Math.round(g.y));
+      g.bod.style.transform = `translateY(${-lift}px) scale(${g.facing * (2 - squash)}, ${squash})`;
+    }
+    // Forget people who went quiet; keep the lobby from overfilling.
+    if (Math.random() < dt) {
+      for (const g of goers.values()) if (wall - g.last > 20 * 60_000) leave(g);
+      if (inLobby > LOBBY_MAX) {
+        const idle = [...goers.values()].filter((g) => g.state === 'lobby' && g.el).sort((a, b) => a.last - b.last)[0];
+        if (idle) toDoor(idle, SB.pick(DOORS));
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  renderCounts();
+
+  // ---------- showtimes board ----------
+  let dd = null;
+  async function loadDinkdonk() {
+    try {
+      const res = await fetch('/dd/data.json', { cache: 'no-store' });
+      if (res.ok) dd = await res.json();
+    } catch { /* board falls back to lobby info */ }
+    if (dd && !films.length) setFilms(dd.history.slice(0, 3).map((e) => e.title));
+    renderBoard();
+  }
+  const timeLocal = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dayShort = (ts) => new Date(ts).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+  function renderBoard() {
+    const rows = [h('div', 'row hd', h('span', '', SB.cfg.title ? SB.cfg.title.toUpperCase() : 'SHOWTIMES'), h('span', '', SB.clockText()))];
+    const sessions = (dd?.schedule?.sessions || []).filter((s) => s.end > Date.now()).sort((a, b) => a.start - b.start).slice(0, 2);
+    for (const s of sessions) {
+      const live = s.start <= Date.now();
+      rows.push(h('div', 'row', h('span', '', live ? 'MOVIE NIGHT  · NOW' : `MOVIE NIGHT  · ${dayShort(s.start)}`), h('span', '', live ? `UNTIL ${timeLocal(s.end)}` : timeLocal(s.start))));
+    }
+    const lastSeen = dd?.history?.find((e) => e.rating != null);
+    if (lastSeen) rows.push(h('div', 'row', h('span', '', `LAST: ${lastSeen.title.toUpperCase()}`), h('span', '', `★${lastSeen.rating.toFixed(2)}`)));
+    if (!sessions.length && !lastSeen) rows.push(h('div', 'row', h('span', '', 'PROGRAMME STARTS SOON'), h('span', '', '')));
+    $('board-rows').replaceChildren(...rows.slice(0, 4));
+  }
+  setInterval(renderBoard, 15_000);
+
+  // Ticker under the board.
+  const tick = $('ticker-in');
+  let tx = 612;
+  function tickerText() {
+    const inside = DOORS.map((d) => `SCREEN ${d.i + 1}: ${d.count}`).join('   ');
+    const lobby = [...goers.values()].filter((g) => g.el).length;
+    return `★ ${lobby} IN THE LOBBY   ${inside}   ★ TYPE AN EMOTE TO BECOME IT   ★ !popcorn  !enter 1-3  !hop  !ticket   ★ dinkdonk.mov`;
+  }
+  tick.textContent = tickerText();
+  setInterval(() => {
+    tx -= 2;
+    if (tx < -tick.offsetWidth) { tx = 612; tick.textContent = tickerText(); }
+    tick.style.transform = `translateX(${tx}px)`;
+  }, 30);
+
+  // Demo: also use this page's commands, with arguments.
+  if (SB.cfg.demo) {
+    setInterval(() => {
+      const nicks = [...goers.keys()];
+      if (!nicks.length) return;
+      const n = SB.pick(nicks);
+      const r = Math.random();
+      if (r < 0.35) SB.say(n, '!popcorn');
+      else if (r < 0.6) SB.say(n, '!hop');
+      else if (r < 0.8) SB.say(n, `!enter ${1 + Math.floor(Math.random() * 3)}`);
+    }, 2500);
+  }
+
+  loadDinkdonk();
+  setInterval(loadDinkdonk, 120_000);
+  SB.start();
+})();
+</script>
+</body>
+</html>

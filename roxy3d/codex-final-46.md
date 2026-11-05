@@ -1,0 +1,1 @@
+![Draft 15 — before and after: screen doors and night-lit vehicles](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa10/draft15-cars-door2.png)

@@ -1,0 +1,10 @@
+Created the **1280×720 draft-22 / draft-23 comparison** and notes:
+
+- [View draft 23 comparison](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/qa10/draft23-dinkdonk-cinemas.png)
+- [Read NOTES-55.md](C:/Users/maxsp/Desktop/Angelthump_H264_4K/standby/roxy3d/NOTES-55.md)
+
+The cleanup is rendered and verified. One documented exception: the central floodlight needed a **53 px move** to achieve **6.57 px clearance**; the tested 8–12 px moves still overlapped the lettering.
+
+Final local GPU exposure: **64.19 seconds**. A12/B12 timing is unchanged. All **7,480 protected files** and **28 draft-22 reference files** remain unchanged.
+
+**STATUS: COMPLETE — draft only; stopped.**

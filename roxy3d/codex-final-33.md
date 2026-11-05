@@ -1,0 +1,1 @@
+STATUS: DRAFT 06 COMPLETE | [Blockout image](roxy3d/qa11/cinema_draft_06_blockout.png) | [Report](roxy3d/qa11/CINEMA-DRAFT-06.md) | [Layout JSON](roxy3d/qa11/cinema_layout_06.json) | 135 seats | Protected files unchanged | STOP
