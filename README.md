@@ -3,9 +3,13 @@
 OBS standby screens for DinkDonk movie nights: a rainy late-90s isometric cinema where Destiny.gg chatters walk
 into the **lobby** (`lobby.html`) and take their seats in the **auditorium** (`auditorium.html`).
 
+- **Docs:** [docs/](docs/README.md)
+- **AI agents:** read [AGENTS.md](AGENTS.md) first
+- **How the owner uses it:** [docs/owner-workflow.md](docs/owner-workflow.md)
+
 ## Run it
 
-Needs Node 18+. Start `start-all.bat` (or `node standby-server.js`), then open:
+Needs Node 22+ (the OBS bridge uses its built-in WebSocket). Start `start-all.bat` (or `node standby-server.js`), then open:
 
 - http://127.0.0.1:18770/lobby.html?everyone=1 - the lobby (`roxy.html` still works and redirects here)
 - http://127.0.0.1:18770/auditorium.html?everyone=1 - the auditorium

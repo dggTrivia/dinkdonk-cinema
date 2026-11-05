@@ -1,5 +1,7 @@
 # Local-only: installs, caches, backups, builds
-/tools/
+/tools/*
+!/tools/emote-sheet.html
+!/tools/blender-5.2.3.sha256
 /cache/
 /backup-*/
 /dist/

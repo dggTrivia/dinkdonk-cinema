@@ -1,0 +1,74 @@
+<!doctype html>
+<!--
+  Tool: every DGG emote on a numbered contact sheet (1920x1080 per page), used to label which way each emote
+  faces by default (shared/emote-facing.json). ?page=0.. &per=48 &labels=1 (current label from shared/emote-facing.json)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Emote sheet</title>
+<link rel="stylesheet" href="/shared/base.css">
+<style>
+  html, body { margin: 0; background: #808080; }
+  #grid { display: grid; grid-template-columns: repeat(8, 240px); grid-auto-rows: 180px; width: 1920px; }
+  .cell { position: relative; border: 1px solid #666; display: flex; align-items: center; justify-content: center; }
+  .cell .n { position: absolute; left: 4px; bottom: 3px; right: 4px; font: 700 15px/1 Verdana, sans-serif; color: #000;
+    background: #fff; padding: 2px 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .cell .i { position: absolute; left: 4px; top: 3px; font: 700 13px/1 Verdana, sans-serif; color: #fff; }
+  .cell .f { position: absolute; right: 4px; top: 3px; font: 700 15px/1 Verdana, sans-serif; color: #000; background: #ffd23f; padding: 2px 4px; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script src="/shared/core.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const page = Number(q.get('page') || 0);
+  const huge = !!q.get('huge');   // &huge=1: 5x2 cells of 384x540, emote ~300 px, clipped to its cell
+  const big = !!q.get('big') || huge;   // &big=1: 6x4 cells of 320x270 with the emote ~190 px tall
+  const per = Number(q.get('per') || (big ? 24 : 48));
+  if (huge) document.head.insertAdjacentHTML('beforeend', '<style>#grid { grid-template-columns: repeat(5, 384px) !important; grid-auto-rows: 540px !important; } .cell { overflow: hidden; } .cell .n, .cell .i, .cell .f { font-size: 22px; z-index: 2; }</style>');
+  if (big) document.head.insertAdjacentHTML('beforeend', '<style>#grid { grid-template-columns: repeat(6, 320px); grid-auto-rows: 270px; }</style>');
+  const list = await (await fetch('/dgg/emotes.json')).json();
+  const facing = q.get('labels') ? await (await fetch('/shared/emote-facing.json', { cache: 'no-store' })).json() : null;
+  const only = q.get('names') ? q.get('names').split(',') : null;   // &names=A,B,C: just these, in this order
+  const names = only || list.map((e) => e.prefix).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  await new Promise((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/dgg/emotes.css';
+    link.onload = resolve;
+    link.onerror = resolve;
+    document.head.append(link);
+  });
+  SB.emotes.css = true;
+  names.forEach((n) => SB.emotes.names.add(n));
+  const grid = document.getElementById('grid');
+  names.slice(page * per, page * per + per).forEach((n, i) => {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    const { w, h } = SB.emoteSize(n);
+    const em = huge ? SB.emoteEl(n, Math.min(300, (360 * h) / w)) : big ? SB.emoteEl(n, Math.min(190, (300 * h) / w)) : SB.emoteEl(n, Math.min(96, (220 * h) / w));
+    c.append(em);
+    const lab = document.createElement('div');
+    lab.className = 'n';
+    lab.textContent = n;
+    const idx = document.createElement('div');
+    idx.className = 'i';
+    idx.textContent = String(page * per + i + 1);
+    c.append(lab, idx);
+    if (facing) {
+      const fb = document.createElement('div');
+      fb.className = 'f';
+      fb.textContent = { left: '<- L', right: 'R ->', front: 'o F' }[facing[n]] || '?';
+      c.append(fb);
+    }
+    grid.append(c);
+  });
+  document.title = `Emote sheet ${page} (${names.length} emotes)`;
+  window.SHEET_NAMES = names;
+})();
+</script>
+</body>
+</html>
