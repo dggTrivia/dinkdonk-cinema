@@ -12,12 +12,13 @@
   Zoom director: now and then the camera follows one arriving chatter to their door (control.html,
   keys F/R/W/D). Options: demo=1, live=1 (auto-reload on file change), wet2x=1 (4K wet loops, heavy), crowd=<n> (people outside/in line before new chatters are skipped, 14; 0 = never), mist=1-4 (splash spray samples, off by default), morerain=0 (no extra rain/weather; 1-4 = one fixed style), weather=<x> (weather clock x times faster, testing), rainfps=<n> (extra rain steps per second, 24 like the baked loops; 0 = smooth), tag= / everyone=1 (who walks in,
   see shared/cinema.js), director=0|<seconds>, zoom=<1.2-3>, ctl=0 (no control panel link), maxres=<height> (cap the art
-  resolution, e.g. 1080: no 4K art or loops even at 1440p; off by default).
+  resolution, e.g. 1080: no 4K art or loops even at 1440p; off by default), fit=cover (fill a squarer or wider source:
+  crop the sides instead of black bars; the wide shot centres on fitx=<stage x>, 1040), rainspeed=<x> / raintune=1.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Lobby QA</title>
+<title>Lobby</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600&family=Yellowtail&display=swap" rel="stylesheet">
@@ -212,6 +213,9 @@
   // floor plan (tiles)
   const G = [3.7, 3.7];       // usher gate (lobby back corner)
   const J = [1.4, 1.4];       // corridor junction behind the gate
+  // through the gap between the restroom corner (u 3.1, v 3.1) and the snack partition (u 4.4) before turning to J:
+  // the straight line G -> J ran over the corner, so walkers clipped through the restroom wall (owner, 05 Nov)
+  const GATE_OUT = [3.75, 2.45];
   const DOORS = [             // screens 1-5 -> room index 0-4
     { wall: 'u', at: 6.4 },   // left wing, wall u = 0, at v (screen 1 is the left-most)
     { wall: 'u', at: 4.0 },
@@ -251,7 +255,10 @@
     },
   };
   // pass 10: three screens on the right, restroom on the left, red-rope queue lane entered at its far end
-  LAYOUTS[3] = { ...LAYOUTS[2], slot: (i) => [5.47 + i * 0.62, 7.4], queueEntry: [9.3, 7.4], lane: [5.2, 7.15, 9.25, 7.65] };
+  // Everyone lines up now, so the line snakes: 7 in the lane, then a second row back along the free floor between
+  // the ropes and the glass front (v 8.25), whose head steps in at the lane's open end as places free up.
+  LAYOUTS[3] = { ...LAYOUTS[2], queueEntry: [9.3, 7.4], lane: [5.2, 7.15, 9.25, 7.65], qmax: 14,
+    slot: (i) => (i < 7 ? [5.47 + i * 0.62, 7.4] : [9.0 - (i - 7) * 0.62, 8.25]) };
   let L = LAYOUTS[1];
   let windows = [];
   let snackSpots = [];
@@ -303,6 +310,11 @@
   let scale = 1;
   // the zoom director magnifies the world up to ZOOM x, so the art resolution is chosen with that headroom
   const ZOOM = clamp(Number(q.get('zoom')) || 1.85, 1.2, 3);
+  // ?fit=cover: a squarer OBS source (owner, 05 Nov) is filled to its height and the sides are cropped; the wide
+  // shot then centres on the lobby (stage x WIDE_X) as far as the art reaches
+  const FIT_COVER = q.get('fit') === 'cover';
+  const WIDE_X = clamp(Number(q.get('fitx')) || (FIT_COVER ? 1040 : 960), 0, 1920);
+  const view = () => SB.view;   // the part of the stage on screen [x0, y0, x1, y1]
   const DIRECTOR_ON = q.get('director') !== '0';
   // ?maxres=<px height> (off by default): never pick art sharper than this output height needs, zoom included
   // (maxres=1080: the 1080p art and light loop even at 1440p and in zoom-ins; less memory and video decode, softer zooms)
@@ -932,6 +944,7 @@
 
   const staff = {};
   const STAFF_STEP = 18;   // px the counter staff stand higher
+  const STAFF_CHAIR = { BINGQILIN: 14 };   // extra px for staff emotes the counter hides too much (owner, 05 Nov)
   // staff look at the people they serve: cashiers at their window's line, clerks at their register's line, the
   // usher at the way in to the gate (screen x = u - v)
   function faceStaff(role, w) {
@@ -942,14 +955,16 @@
   function placeStaff() {
     for (const [role, [u, v]] of Object.entries(L.staff)) {
       const name = Cinema.defaultEmote(`roxy-${role}`);
-      if (staff[role]) { setEmote(staff[role], name); faceStaff(role, staff[role]); continue; }
+      // cashiers and snack clerks stand on a raised step behind their counters (or the counter hides them); a few
+      // emotes whose face sits low in the frame get a chair on top of that
+      const stand = role === 'usher' ? 0 : STAFF_STEP + (STAFF_CHAIR[name] || 0);
+      if (staff[role]) { setEmote(staff[role], name); staff[role].stand = stand; faceStaff(role, staff[role]); continue; }
       const w = makeFigure(role, name, '#fff', true);
       w.cap = itemEl(role === 'usher' ? 'cap_usher' : 'cap_cashier', `hat${role === 'usher' ? ' usher' : ''}`);
       w.bod.append(w.cap);
       if (w.cap.dataset.item) placeItem(w, w.cap, 'cap');
       w.u = u; w.v = v;
-      // cashiers and snack clerks stand on a raised step behind their counters (or the counter hides them)
-      w.stand = role === 'usher' ? 0 : STAFF_STEP;
+      w.stand = stand;
       staff[role] = w;
       faceStaff(role, w);
     }
@@ -996,36 +1011,46 @@
     stub: (ew) => [-ew / 2 + 1, -14],
     cap: (ew, eh) => [0, -eh + 6],   // sits on the emote's actual top (wide emotes are shorter)
   };
-  function itemEl(name, fallbackCls) {
+  const HELD = { carry: 2, stub: 2 };   // sodas, popcorn and ticket stubs in a chatter's hand: twice the sprite size (owner, 05 Nov)
+  function itemEl(name, fallbackCls, scale = 1) {
     const it = ITEMS?.[name];
-    if (!it?.file || !Array.isArray(it.anchor)) return h('div', fallbackCls);
+    if (!it?.file || !Array.isArray(it.anchor)) {
+      const d = h('div', fallbackCls);
+      if (scale !== 1) { d.style.transform = `scale(${scale})`; d.style.transformOrigin = '50% 100%'; }
+      return d;
+    }
     const im = h('img', 'item');
     im.alt = '';
     im.dataset.item = name;
-    setImg(im, it.file, it.file_2x, dpr() > 1.3, () => { im.style.display = 'none'; });
-    im.style.width = `${it.w}px`;
-    im.style.height = `${it.h}px`;
+    setImg(im, it.file, it.file_2x, dpr() * scale > 1.3, () => { im.style.display = 'none'; });
+    im.style.width = `${it.w * scale}px`;
+    im.style.height = `${it.h * scale}px`;
     return im;
   }
   function placeItem(w, el, slot) {
     const ew = Number(w.em?.dataset.w || 40);
     const eh = parseFloat(w.em?.style.height) || EH;
     const it = ITEMS?.[el.dataset.item];
+    const s = HELD[slot] || 1;
     if (it) {
       const [px, py] = ATTACH[slot](ew, eh);
-      el.style.left = `${px - it.anchor[0]}px`;
-      el.style.top = `${py - it.anchor[1]}px`;
+      el.style.left = `${px - it.anchor[0] * s}px`;
+      el.style.top = `${py - it.anchor[1] * s}px`;
     } else if (slot === 'carry') el.style.left = `${ew / 2 - 8}px`;
     else if (slot === 'stub') el.style.left = `${-ew / 2 - 6}px`;
   }
   function giveCarry(w) {
     if (w.carry) return;
-    w.carry = itemEl(Math.random() < 0.3 ? 'soda' : 'popcorn', 'carry');
+    w.carry = itemEl(Math.random() < 0.3 ? 'soda' : 'popcorn', 'carry', HELD.carry);
     w.bod.append(w.carry);
     placeItem(w, w.carry, 'carry');
   }
 
-  const onScreen = (w) => { const [x, y] = toScreen(w.x, w.y); return w.alpha > 0.6 && x > 20 && x < 1900 && y > 0 && y < 1075; };
+  const onScreen = (w) => {
+    const [x, y] = toScreen(w.x, w.y);
+    const [x0, y0, x1, y1] = view();
+    return w.alpha > 0.6 && x > x0 + 20 && x < x1 - 20 && y > y0 && y < y1 - 5;
+  };
   // speech of someone not visible yet (still off screen, in the restroom) waits, so it can't push a
   // readable bubble out of the allowance (MAX_BUB on screen, ?bubbles=N; the oldest fades out for a new one)
   const MAX_BUB = clamp(Number(q.get('bubbles')) || 8, 2, 14);
@@ -1074,6 +1099,8 @@
   }
   function startEnter(w) { w.entering = true; w.alphaT = 0; dropBubble(w); playDoor(w.doorRoom + 1); }
   function finishEnter(w) {
+    journey?.handoff({ ...w.journeyMessage, nick: w.nick, emote: w.emName,
+      roomIndex: w.doorRoom, carry: w.carry ? (w.carry.dataset.item || 'popcorn') : null });
     const s = signs[w.doorRoom];
     if (s) {
       s.count++;
@@ -1124,7 +1151,7 @@
 
   function afterTicket(w) {
     // past the usher: maybe a chat in the corridor first, then the restroom, then their door
-    const past = [{ to: J }, { call: hangHall }];
+    const past = [{ to: GATE_OUT }, { to: J }, { call: hangHall }];
     if (w.detour === 'bathroom') past.push(...(RESTROOM ? [{ call: tryRestroom }] : [{ to: [J[0], WC_V - 0.8] }, { call: tryWC }]));
     past.push({ call: (x) => { x.plan.unshift(...doorSteps(x)); } });
     let rest;
@@ -1190,7 +1217,7 @@
     gateT = 0;
     gateLine.shift();
     head.gi = -1;
-    head.plan = head.afterGate || [{ to: J }, { call: (x) => { x.plan.unshift(...doorSteps(x)); } }];
+    head.plan = head.afterGate || [{ to: GATE_OUT }, { to: J }, { call: (x) => { x.plan.unshift(...doorSteps(x)); } }];
     head.afterGate = null;
   }
 
@@ -1244,7 +1271,9 @@
 
   function joinQueue(w) {
     if (tryBench(w)) return;
-    if (queue.length >= QMAX || w.hurry || Math.random() < 0.12) {
+    // everyone lines up for a ticket (owner, 05 Nov); only at a full house (CAP) or a line past its last row do they
+    // come with one already
+    if (queue.length >= (L.qmax || QMAX) || w.hurry || liveCount() >= CAP) {
       giveStub(w);   // already has a ticket: the stub in hand says it, no announcement
       afterTicket(w);
       return;
@@ -1338,7 +1367,7 @@
   // ticket stub: carried from the box office to the usher, who tears it
   function giveStub(w) {
     if (w.stub) return;
-    w.stub = itemEl('stub', 'stub');
+    w.stub = itemEl('stub', 'stub', HELD.stub);
     placeItem(w, w.stub, 'stub');
     w.bod.append(w.stub);
   }
@@ -1396,19 +1425,21 @@
     const key = wi.nick.toLowerCase();
     const old = walkers.get(key);
     if (old && !old.entering && !old.removing) {
+      old.journeyMessage = wi;
       setEmote(old, wi.emote);
       queueLine(old, wi.tokens);   // said at their next conversation
-      if (!old.doorBound) old.room = wi.roomIndex;
+      if (!old.doorBound) old.room = journey ? 0 : wi.roomIndex;
       return;
     }
-    if (crowdSkip(wi)) return;
+    if (!journey && crowdSkip(wi)) return;
     // someone already going through a door keeps going (still updated via `figures`); a new one walks in
     if (old) walkers.delete(key);
     const w = makeFigure(wi.nick, wi.emote, wi.color, false);
     if (wi.rainbow) { w.nm.textContent = ''; w.nm.append(h('span', 'rbt', wi.nick)); }   // tier 5: rainbow name, as in DGG chat
     w.key = key;
     figures.add(w);
-    w.room = wi.roomIndex;
+    w.room = journey ? 0 : wi.roomIndex;
+    w.journeyMessage = wi;
     // with the real restroom (layout 3) about one in five drops by before the film (chat already sends ~5 %)
     const r = Math.random();
     w.detour = wi.detour || (RESTROOM && r < 0.16 ? 'bathroom' : r > 0.93 ? 'arcade' : null);
@@ -1501,6 +1532,11 @@
     w.removing = true;
     w.alphaT = 0;
   }
+  function liveCount() {
+    let n = 0;
+    for (const w of figures) if (!w.removing && !w.jan) n++;
+    return n;
+  }
   function enforceCap() {
     const live = [...figures].filter((w) => !w.removing && !w.jan);
     if (live.length > CAP) {
@@ -1541,11 +1577,64 @@
     if (walkers.get(w.key) === w) walkers.delete(w.key);
     figures.delete(w);
     w.gone = true;
+    journey?.release(w.nick, 'lobby');
   }
 
-  Cinema.onWalkIn(spawn);
+  // Combined mode is a single journey. Direct lobby URLs retain their old behavior.
+  let journey = null;
+  try {
+    if (q.get('managed') === '1' && window.parent !== window
+        && window.parent.location.origin === location.origin) journey = window.parent.CinemaJourney || null;
+  } catch { /* standalone */ }
+  const pendingArrivals = new Map();
+  let nextLobbyArrival = 0, arrivalBurstRemaining = 0;
+  function receiveArrival(message) {
+    if (!journey) { spawn(message); return; }
+    if (message.features?.includes('moderator')) return;
+    const nick = String(message.nick || '').trim().slice(0, 25);
+    if (!nick || journey.location(nick) === 'auditorium') return;
+    const key = nick.toLowerCase();
+    const old = walkers.get(key);
+    if (old) {
+      old.journeyMessage = { ...message, nick };
+      if (!old.entering && !old.removing) spawn(old.journeyMessage);
+      return;
+    }
+    const entry = pendingArrivals.get(key);
+    if (entry) { entry.message = { ...message, nick }; entry.updated = performance.now(); return; }
+    if (pendingArrivals.size >= 512 || !journey.claimLobby(nick)) return;
+    pendingArrivals.set(key, { message: { ...message, nick }, updated: performance.now() });
+  }
+  function stepLobbyArrivals(now) {
+    if (!journey) return;
+    for (const [key, entry] of pendingArrivals) {
+      if (now - entry.updated <= 10 * 60000) continue;
+      pendingArrivals.delete(key);
+      journey.release(entry.message.nick, 'lobby');
+    }
+    if (now < nextLobbyArrival || liveCount() >= CAP || (CROWD && crowdEvery() > 1)) return;
+    const first = pendingArrivals.entries().next().value;
+    if (!first) return;
+    const backlog = pendingArrivals.size;
+    const [key, entry] = first;
+    pendingArrivals.delete(key);
+    spawn(entry.message);
+    // Small queues stay relaxed; busy queues arrive in pairs or groups of three.
+    // Only one spawn per tick, with crowd/capacity checks before every group member.
+    if (backlog < 12) {
+      arrivalBurstRemaining = 0;
+      nextLobbyArrival = now + (backlog < 6 ? rand(1400, 2200) : rand(900, 1400));
+    } else {
+      if (arrivalBurstRemaining <= 0) arrivalBurstRemaining = backlog >= 40 ? 3 : 2;
+      arrivalBurstRemaining--;
+      nextLobbyArrival = now + (arrivalBurstRemaining > 0 ? rand(250, 450) : rand(900, 1400));
+    }
+  }
+  Cinema.onWalkIn(receiveArrival);
   Cinema.onPurge((nick) => {
     const key = nick.toLowerCase();
+    pendingArrivals.delete(key);
+    journey?.release(nick, 'lobby');
     for (const w of [...figures]) if (w.key === key) removeWalker(w);
   });
   Cinema.onCombo(({ emote }) => {   // everyone wearing the combo emote jumps (no floating badge)
@@ -2193,6 +2282,13 @@
     return false;
   }
 
+  // Walking pace: a stroll at 75% (owner, 05 Nov) while the lobby has room, back up to full speed as the crowd nears
+  // the cap (70% -> 85% of CAP), so a busy night still clears; eased so nobody visibly changes gear mid-step.
+  let pace = 0.75;
+  function stepPace(dt) {
+    const target = 0.75 + 0.25 * clamp((liveCount() / CAP - 0.7) / 0.15, 0, 1);
+    pace += (target - pace) * Math.min(1, dt * 0.5);
+  }
   function stepPlan(w, dt) {
     let moving = false;
     let guard = 8;
@@ -2210,7 +2306,7 @@
           break;
         }
         w.holdT = 0;
-        const sp = (s.slow ? 0.9 : w.hurry ? 3.0 : 2.0) * dt;
+        const sp = (w.hurry ? 3.0 : (s.slow ? 0.9 : 2.0) * pace) * dt;
         if (d <= sp) { w.u = tu; w.v = tv; w.plan.shift(); moving = d > 0.001; } else { w.u += (du / d) * sp; w.v += (dv / d) * sp; moving = true; }
         if (moving) SB.faceEmote(w.em, w.emName, du - dv);   // looks the way it walks (screen x = u - v)
         break;
@@ -2262,7 +2358,7 @@
       bouncing = true;
     } else if (moving) {
       // one lazy hop every ~0.8 s (0.55 s hurrying), waddling along the floor in between
-      w.phase += dt * (w.hurry ? 5.7 : 3.9);
+      w.phase += dt * (w.hurry ? 5.7 : 3.9 * pace);
       const c = (w.phase / Math.PI) % 1;
       s = c < 0.5 ? Math.sin((c / 0.5) * Math.PI) : 0;
       lift = s * 13;
@@ -2399,9 +2495,10 @@
     const drawn = [];
     const hitAt = (x, by, w) => placed.find((p) => Math.abs(p.x - x) < (p.half + w.bubW / 2 + 6) && by > p.top - 4 && by - w.bubH < p.bottom + 4);
     const over = (rects, x, by, w) => rects.find(([l, t, r, b]) => x + w.bubW / 2 > l && x - w.bubW / 2 < r && by > t && by - w.bubH < b);
+    const [vx0, vy0, vx1] = view();   // bubbles stay inside the part of the stage on screen (fit=cover crops it)
     for (const w of list) {
       const half = w.bubW / 2;
-      const fit = (x) => clamp(x, half + 8, 1912 - half);
+      const fit = (x) => clamp(x, vx0 + half + 8, vx1 - 8 - half);
       let by = w.by;
       for (let guard = 0; guard < 7; guard++) {
         const hit = hitAt(w.bx, by, w);
@@ -2413,9 +2510,9 @@
       for (const r of [...HARD_RECTS, ...soft]) {
         if (over([r], w.bx, by, w)) cands.push([fit(r[0] - half - 6), by], [fit(r[2] + half + 6), by]);
       }
-      const low = Math.max(w.by, 8 + w.bubH);
+      const low = Math.max(w.by, vy0 + 8 + w.bubH);
       cands.push([fit(w.bx + 2 * half + 12), low], [fit(w.bx - 2 * half - 12), low]);
-      const ok = cands.filter(([x, y]) => y - w.bubH >= 8 && !hitAt(x, y, w) && !over(HARD_RECTS, x, y, w));
+      const ok = cands.filter(([x, y]) => y - w.bubH >= vy0 + 8 &&!hitAt(x, y, w) && !over(HARD_RECTS, x, y, w));
       const pick = ok.find(([x, y]) => !over(soft, x, y, w)) || ok[0];
       w.bubBlocked = !pick;
       if (!pick) { w.bub.style.opacity = '0'; w.bubShown = false; continue; }
@@ -2429,7 +2526,7 @@
         [w.offY, w.offVY] = spring(w.offY, dy, w.offVY, 0.2, dt);
       }
       // kept on the stage while gliding too (the speaker can move on while a sideways offset is still easing)
-      const cx = clamp(w.bx + w.offX, half + 8, 1912 - half);
+      const cx = clamp(w.bx + w.offX, vx0 + half + 8, vx1 - 8 - half);
       const cy0 = w.by + w.offY;
       // a push eases back down on its own spring, but only while the way down is free (else it would sink into the
       // bubble below and be pushed out again every frame: a wobble)
@@ -2443,7 +2540,7 @@
         if (!hit) break;
         cy = hit.top - 6;
       }
-      cy = Math.max(cy, 8 + w.bubH);   // never above the top edge either (a glide down from a high stacked spot)
+      cy = Math.max(cy, vy0 + 8 + w.bubH);   // never above the top edge either (a glide down from a high stacked spot)
       if (cy !== cy0 + w.pushOff) {
         // pushed up at most 900 px/s: a quick slide, never a jump (a bubble gliding in sideways underneath)
         const need = cy - cy0;
@@ -2679,37 +2776,115 @@ void main() {
   // Weather: the mix drifts between light / steady / downpour / curtains / deluge, holding each 40-120 s and
   // crossfading over ~15 s (?weather=<x> runs the clock x times faster, for testing). Fixed styles: 1 steady,
   // 2 downpour, 3 curtains, 4 deluge (the owner's sample numbers).
+  // 5th number = the streaks' fall speed (x the first tuning): 0.20-0.40, faster as it gets heavier (owner, 05 Nov:
+  // 1.00 fell far faster than the baked rain; the speed drifts with the weather like the intensity does)
   const WEATHER = {
-    light: [0.35, 0, 0, 0],
-    steady: [1, 0, 0, 0],
-    downpour: [1, 1, 0, 0],
-    curtains: [1, 0.7, 1, 0],
-    deluge: [1.15, 1.1, 0, 1],
+    light: [0.35, 0, 0, 0, 0.2],
+    steady: [1, 0, 0, 0, 0.26],
+    downpour: [1, 1, 0, 0, 0.34],
+    curtains: [1, 0.7, 1, 0, 0.3],
+    deluge: [1.15, 1.1, 0, 1, 0.4],
   };
   const WEATHER_ODDS = { light: 2, steady: 3, downpour: 2, curtains: 1.5, deluge: 1 };
   const RAIN2 = q.has('morerain') ? clamp(Math.round(Number(q.get('morerain')) || 0), 0, 4) : 5;   // 5 = weather
   const RAIN2_GAIN = clamp(Number(q.get('moreraingain')) || 1, 0.1, 4);
   const WEATHER_SPEED = clamp(Number(q.get('weather')) || 1, 0.1, 100);
   const RAIN2_FPS = q.has('rainfps') ? clamp(Number(q.get('rainfps')) || 0, 0, 120) : 24;   // 0 = every display frame
+  // fall speed of the extra rain's streaks: follows the weather (WEATHER[...][4]); ?rainspeed=x fixes it,
+  // ?raintune=1 shows a slider that fixes it while testing
+  let rainSpeed = 0.26;
+  let rainSpeedFixed = q.has('rainspeed') ? clamp(Number(q.get('rainspeed')) || 0.26, 0.1, 2) : null;
+  let rainClock = 0;
+  if (q.has('raintune')) {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:16px;top:16px;z-index:99999;padding:10px 14px;border-radius:8px;'
+      + 'background:rgba(10,12,20,.85);color:#fff;font:600 18px/1.3 system-ui,sans-serif;display:flex;gap:12px;align-items:center';
+    const label = document.createElement('span');
+    const range = Object.assign(document.createElement('input'), { type: 'range', min: '0.1', max: '2', step: '0.05', value: String(rainSpeedFixed ?? rainSpeed) });
+    range.style.width = '320px';
+    const show = () => { label.textContent = `rain speed ${(rainSpeedFixed ?? rainSpeed).toFixed(2)}${rainSpeedFixed === null ? ' (weather)' : ''}`; };
+    range.addEventListener('input', () => { rainSpeedFixed = Number(range.value); show(); });
+    setInterval(show, 500);
+    box.append(label, range);
+    document.body.append(box);
+    show();
+  }
   let rain2 = null;
   const weather = { from: WEATHER.steady, to: WEATHER.steady, name: 'steady', fade: 1, fadeT: 15, hold: 60 };
   if (RAIN2 && RAIN2 < 5) weather.from = weather.to = WEATHER[['steady', 'downpour', 'curtains', 'deluge'][RAIN2 - 1]];
   if (RAIN2) {
     const load = (f) => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = MIST_DIR + f; });
-    Promise.all(['light.png', 'catch.png'].map(load)).then(([light, ctch]) => {
-      const m = document.createElement('canvas');   // white = rain may fall here
+    Promise.all(['light.png', 'catch.png', 'height.png'].map(load)).then(([light, ctch, hgt]) => {
+      // red = the extra rain may fall here, green = the baked foreground rain (rain_fg) shows here
+      const m = document.createElement('canvas');
       m.width = 1920;
       m.height = 1080;
-      const x = m.getContext('2d');
+      const x = m.getContext('2d', { willReadFrequently: true });
+      const poly = (pts) => { x.beginPath(); pts.forEach(([bx, by], i) => (i ? x.lineTo(bx, by) : x.moveTo(bx, by))); x.closePath(); };
       x.fillStyle = '#fff';
       x.fillRect(0, 0, 1920, 1080);
-      x.fillStyle = '#000';
-      x.beginPath();
-      [P(0, 9.05, WALL), P(0, 0, WALL), P(13, 0, WALL), P(13, 9.05, WALL)].forEach(([bx, by], i) => (i ? x.lineTo(bx, by) : x.moveTo(bx, by)));
+      x.fillStyle = '#0f0';   // under the roof line: no extra rain (the baked rain has its own holdouts)
+      poly([P(0, 9.05, WALL), P(0, 0, WALL), P(13, 0, WALL), P(13, 9.05, WALL)]);
       x.fill();
-      rain2 = glLayer($('rain2'), RAIN2_FS, { uL: light, uC: ctch, uM: m }, 0, RAIN2_GAIN);
+      // The cutaway strip along the lobby's right side (u 13-15.6, the railing and plants by the ABSOLUTE CINEMA
+      // annex) stays dry, both rains (owner, 05 Nov): the air above it up to the roof line, wherever the surface seen
+      // there is low (height pass < 60 = under ~100 px); the taller roof in front of it keeps its rain.
+      const strip = [P(13, -0.6, WALL), P(15.6, -0.6, WALL), P(15.6, -0.6, 0), P(15.6, 9.05, 0), P(13, 9.05, 0), P(13, 9.05, WALL)];
+      const bx0 = Math.floor(Math.min(...strip.map((p) => p[0]))), by0 = Math.floor(Math.min(...strip.map((p) => p[1])));
+      const bw = Math.min(1920, Math.ceil(Math.max(...strip.map((p) => p[0])))) - bx0, bh = Math.min(1080, Math.ceil(Math.max(...strip.map((p) => p[1])))) - by0;
+      x.drawImage(hgt, bx0, by0, bw, bh, bx0, by0, bw, bh);
+      const hd = x.getImageData(bx0, by0, bw, bh);
+      x.fillStyle = '#fff';
+      x.fillRect(bx0, by0, bw, bh);
+      x.fillStyle = '#0f0';
+      poly([P(0, 9.05, WALL), P(0, 0, WALL), P(13, 0, WALL), P(13, 9.05, WALL)]);
+      x.fill();
+      x.fillStyle = '#f00';   // marks the strip; turned into "dry" below where the surface is low
+      poly(strip);
+      x.fill();
+      const md = x.getImageData(bx0, by0, bw, bh);
+      for (let p = 0; p < md.data.length; p += 4) {
+        if (md.data[p] > 128 && md.data[p + 1] < 128 && hd.data[p] < 60) { md.data[p] = 0; md.data[p + 1] = 0; }
+        else if (md.data[p] > 128 && md.data[p + 1] < 128) md.data[p + 1] = 255;   // high roof in the strip: rain as before
+      }
+      x.putImageData(md, bx0, by0);
+      // Drops in the air take their light from the surface pass, which is black wherever no rain lands (the glass
+      // front, walls): streaks over the windows came out dim grey-blue next to the lamp-lit ones over the street
+      // ("another version", owner 05 Nov). Those holes get the light of the lit surfaces around them instead: a wide
+      // blur of the light pass divided by the same blur of its coverage (catch), at quarter size, once.
+      const q4 = (img, f) => { const c = document.createElement('canvas'); c.width = 480; c.height = 270; const g = c.getContext('2d', { willReadFrequently: true }); g.filter = f; g.drawImage(img, 0, 0, 480, 270); return g.getImageData(0, 0, 480, 270); };
+      const Lb = q4(light, 'blur(18px)'), Cb = q4(ctch, 'blur(18px)');
+      const fill = document.createElement('canvas');
+      fill.width = 480;
+      fill.height = 270;
+      const fd = fill.getContext('2d').createImageData(480, 270);
+      for (let p = 0; p < fd.data.length; p += 4) {
+        const cv = Math.max(Cb.data[p] / 255, 0.04);
+        for (let k = 0; k < 3; k++) fd.data[p + k] = Math.min(255, Lb.data[p + k] / cv);
+        fd.data[p + 3] = 255;
+      }
+      fill.getContext('2d').putImageData(fd, 0, 0);
+      const airL = document.createElement('canvas');
+      airL.width = 1920;
+      airL.height = 1080;
+      const ag = airL.getContext('2d');
+      ag.drawImage(fill, 0, 0, 1920, 1080);
+      // the real light pass on top wherever rain lands (its catch coverage as the alpha)
+      const lit = document.createElement('canvas');
+      lit.width = 1920;
+      lit.height = 1080;
+      const lg = lit.getContext('2d', { willReadFrequently: true });
+      lg.drawImage(light, 0, 0);
+      const ld = lg.getImageData(0, 0, 1920, 1080);
+      lg.drawImage(ctch, 0, 0);
+      const cd = lg.getImageData(0, 0, 1920, 1080).data;
+      for (let p = 0; p < ld.data.length; p += 4) ld.data[p + 3] = Math.min(255, cd[p] * 3);
+      lg.putImageData(ld, 0, 0);
+      ag.drawImage(lit, 0, 0);
+      rain2 = glLayer($('rain2'), RAIN2_FS, { uL: airL, uC: ctch, uM: m }, 0, RAIN2_GAIN);
       if (rain2) {
         rain2.uW = rain2.gl.getUniformLocation(rain2.pr, 'uW');
+        rain2.uS = rain2.gl.getUniformLocation(rain2.pr, 'uS');
         // texture unit 3: the baked foreground rain video (fgToRain2), empty until it plays
         const gl = rain2.gl;
         gl.activeTexture(gl.TEXTURE3);
@@ -2787,12 +2962,13 @@ void main() {
     const f = w.fade * w.fade * (3 - 2 * w.fade);
     const m = w.from.map((a, i) => a + (w.to[i] - a) * f);
     rain2.gl.uniform4f(rain2.uW, m[0], m[1], m[2], m[3]);
+    rainSpeed = rainSpeedFixed ?? m[4];
   }
   const RAIN2_FS = `
 precision highp float;
 uniform sampler2D uL, uC, uM, uV;
 uniform vec2 uRes;
-uniform float uT, uGain, uVid;
+uniform float uT, uGain, uVid, uS;   // uS = the streaks' own clock (rain speed)
 uniform vec4 uW;   // weights: fine rain, near drops, gust curtains, splash crowns
 float h1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
 float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -2811,7 +2987,7 @@ float fbm(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a
 float streaks(vec2 px, float cw, float speed, float len, float gap, float prob, float width, float seed) {
   float x = px.x + 0.06 * px.y;
   float col = floor(x / cw);
-  float y = px.y - uT * speed * (0.85 + 0.3 * h1(col + seed)) + h1(col * 3.1 + seed) * 977.0;
+  float y = px.y - uS * speed * (0.85 + 0.3 * h1(col + seed)) + h1(col * 3.1 + seed) * 977.0;
   float k = floor(y / gap);
   float r = h1(k * 7.13 + col * 1.31 + seed);
   if (r > prob) return 0.0;
@@ -2846,9 +3022,11 @@ float crowns(vec2 px, float cs, float rate, float density, float size, out vec3 
 }
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
-  // the baked foreground rain (rain_fg video), everywhere (not masked), added like its old plus-lighter <video>
-  vec3 fg = uVid > 0.5 ? texture2D(uV, px / uRes).rgb : vec3(0.0);
-  if (texture2D(uM, px / uRes).r < 0.5) { gl_FragColor = vec4(fg, max(fg.r, max(fg.g, fg.b))); return; }
+  // the baked foreground rain (rain_fg video), added like its old plus-lighter <video>, everywhere but the dry
+  // strip (mask green); the extra rain only where the mask is red
+  vec2 mk = texture2D(uM, px / uRes).rg;
+  vec3 fg = uVid > 0.5 ? texture2D(uV, px / uRes).rgb * step(0.5, mk.g) : vec3(0.0);
+  if (mk.r < 0.5) { gl_FragColor = vec4(fg, max(fg.r, max(fg.g, fg.b))); return; }
   // drops in the air catch the light of the lamps/neon around them: average the surface light nearby
   vec3 La = (texture2D(uL, px / uRes).rgb + texture2D(uL, (px + vec2(0.0, 30.0)) / uRes).rgb
            + texture2D(uL, (px + vec2(-24.0, 12.0)) / uRes).rgb + texture2D(uL, (px + vec2(24.0, 12.0)) / uRes).rgb) * 0.25;
@@ -3059,7 +3237,10 @@ void main() {
     // sidewalk either side of the entrance, two in the corridor
     SPOTS.lobby = [...HANGOUTS.map((c) => ({ c, r: 0.42 })), { c: [5.9, 8.35], r: 0.42 }];
     SPOTS.outside = [{ c: [6.8, 9.5], r: 0.34 }, { c: [11.9, 9.5], r: 0.34 }];
-    SPOTS.hall = [{ c: [5.9, 2.15], r: 0.32 }, { c: [11.4, 2.15], r: 0.32 }];
+    // corridor spots between the screen doors (v = 0 wall), on the strip in front of the walking line (v 1.4): behind
+    // the line (v > ~1.6) the snack bar's tall back wall hides the floor, so people standing there showed only their
+    // heads over the wall top and looked like they stood on it (owner, 05 Nov)
+    SPOTS.hall = [{ c: [6.3, 0.85], r: 0.28 }, { c: [9.7, 0.85], r: 0.28 }];
     // the janitor spot between the front rope and the glass: reached round the rope lane's open (east) end, not
     // through the rope, and clear of the new talk spot
     JAN_SPOTS[2] = { at: [6.7, 8.35], route: [[9.6, 8.35], [9.6, 6.6]] };
@@ -3096,7 +3277,7 @@ void main() {
   // moment, then eases back out. Manual: keys F (follow the next arrival), R (follow someone now),
   // W / Esc (wide shot), D (director on/off), and control.html through the standby server.
   const camEl = $('cam');
-  const cam = { x: 960, y: 540, z: 1, vx: 0, vy: 0, vz: 0, key: '' };
+  const cam = { x: WIDE_X, y: 540, z: 1, vx: 0, vy: 0, vz: 0, key: '' };
   const director = { on: DIRECTOR_ON, every: clamp(Number(q.get('director')) || 150, 30, 1800), zoom: ZOOM,
     follow: null, next: performance.now() + rand(45, 75) * 1000, wantNext: false };
   function toScreen(x, y) { return [(x - cam.x) * cam.z + 960, (y - cam.y) * cam.z + 540]; }
@@ -3133,7 +3314,7 @@ void main() {
   function stepCamera(dt) {
     const now = performance.now();
     const f = director.follow;
-    let tx = 960;
+    let tx = WIDE_X;
     let ty = 540;
     let tz = 1;
     if (f) {
@@ -3163,15 +3344,18 @@ void main() {
         if (f.tx != null) { tx = f.tx; ty = f.ty; tz = director.zoom; }
       }
     }
-    // the view never leaves the stage
+    // the view never leaves the stage (with fit=cover only the cropped middle is on screen: its half size)
     const fit = (c, half, size) => clamp(c, half, size - half);
-    tx = fit(tx, 960 / tz, 1920);
-    ty = fit(ty, 540 / tz, 1080);
+    const [vx0, vy0, vx1, vy1] = view();
+    const hw = (vx1 - vx0) / 2;
+    const hh = (vy1 - vy0) / 2;
+    tx = fit(tx, hw / tz, 1920);
+    ty = fit(ty, hh / tz, 1080);
     [cam.z, cam.vz] = damp(cam.z, cam.vz, tz, 1.5, dt);
     [cam.x, cam.vx] = damp(cam.x, cam.vx, tx, f ? 0.75 : 1.4, dt);
     [cam.y, cam.vy] = damp(cam.y, cam.vy, ty, f ? 0.75 : 1.4, dt);
-    cam.x = fit(cam.x, 960 / cam.z, 1920);
-    cam.y = fit(cam.y, 540 / cam.z, 1080);
+    cam.x = fit(cam.x, hw / cam.z, 1920);
+    cam.y = fit(cam.y, hh / cam.z, 1080);
     // a bad target must never freeze the camera (and with it every bubble): back to the wide shot
     if (![cam.x, cam.y, cam.z].every(Number.isFinite)) { Object.assign(cam, { x: 960, y: 540, z: 1, vx: 0, vy: 0, vz: 0 }); endFollow(); }
     const key = `translate(${(960 - cam.x * cam.z).toFixed(2)}px, ${(540 - cam.y * cam.z).toFixed(2)}px) scale(${cam.z.toFixed(4)})`;
@@ -3213,6 +3397,8 @@ void main() {
       case 'every': if (Number.isFinite(+c.value)) director.every = clamp(+c.value, 30, 1800); break;
       case 'zoom': if (Number.isFinite(+c.value)) director.zoom = clamp(+c.value, 1.2, 3); break;
       case 'remove':
+        pendingArrivals.delete(key);
+        journey?.release(key, 'lobby');
         for (const w of [...figures]) {
           if (w.key !== key || w.removing) continue;
           retire(w);
@@ -3227,7 +3413,7 @@ void main() {
         const w = walkers.get(key);
         if (c.cmd === 'say' && w && !w.entering && !w.removing) { say(w, tokens); break; }
         const em = tokens.find((t) => t.t === 'emote')?.name;
-        spawn({ nick, emote: em || Cinema.defaultEmote(nick), tokens, color: SB.nickColor(nick),
+        receiveArrival({ nick, emote: em || Cinema.defaultEmote(nick), tokens, color: SB.nickColor(nick),
           roomIndex: Math.floor(Math.random() * 5), detour: c.detour || null });
         break;
       }
@@ -3245,9 +3431,11 @@ void main() {
       const f = director.follow;
       // obs: this screen is the OBS source (the panel shows it before a bigger preview tab)
       const body = { id: pageId, ts: Date.now(), size: [innerWidth, innerHeight], obs: !!window.obsstudio,
+        journey: journey ? { ...journey.stats(), waitingToArrive: pendingArrivals.size } : null,
         director: { on: director.on, every: director.every, zoom: director.zoom, wantNext: director.wantNext,
           following: f && !f.w.gone ? f.w.nick : null, nextIn: Math.max(0, Math.round((director.next - performance.now()) / 1000)) },
-        chatters: [...figures].filter((w) => !w.gone).map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w })) };
+        chatters: [...figures].filter((w) => !w.gone).map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w }))
+          .concat([...pendingArrivals.values()].map(({ message }) => ({ nick: message.nick, emote: message.emote, status: 'waiting to arrive', followed: false }))) };
       statePending = true;
       fetch('/ctl/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(3500) })
         .then((r) => { if (r.status === 404) { alive = false; es.close(); } })   // an older server without the panel
@@ -3263,6 +3451,7 @@ void main() {
     const dt = clamp((t - last) / 1000, 0, 0.1);
     last = t;
     lastFrame = performance.now();
+    stepLobbyArrivals(t);
     stepCamera(dt);
     serveQueue(dt);
     serveSnacks(dt);
@@ -3274,6 +3463,7 @@ void main() {
     stepShots(dt);
     stepCat(dt);
     stepJanitor(dt);
+    stepPace(dt);
     for (const w of [...figures]) {
       if (w.gone) continue;
       w.moving = stepPlan(w, dt);
@@ -3296,6 +3486,8 @@ void main() {
     if (mist) drawGL(mist, t, 1000);
     if (rain2) {
       stepWeather(dt);
+      rainClock = (rainClock + dt * rainSpeed) % 1000;
+      rain2.gl.uniform1f(rain2.uS, rainClock);
       // stepped like the baked rain (24 fps loops); the canvas keeps its last frame between steps
       const tq = RAIN2_FPS ? Math.floor(t * RAIN2_FPS / 1000) * 1000 / RAIN2_FPS : t;
       // with the foreground-rain video in this pass, its new frames are the steps (24 a second, both layers change
@@ -3399,7 +3591,7 @@ void main() {
       // the 4K base needs the 4K loop (each is the other's exact complement); ?loop2x=0 keeps the lighter 1080p one
       // (from the window size: the stage scale is not known yet here, so with director=0 at 1440p dpr() said 1 and the
       // 1080p loop ran over the 4K base, which is not its exact complement; QA 05 Nov)
-      const k = Math.min(MAXK, Math.min(innerWidth / 1920, innerHeight / 1080) * (devicePixelRatio || 1) * (DIRECTOR_ON ? ZOOM : 1));
+      const k = Math.min(MAXK, (FIT_COVER ? Math.max : Math.min)(innerWidth / 1920, innerHeight / 1080) * (devicePixelRatio || 1) * (DIRECTOR_ON ? ZOOM : 1));
       const two = m.scale2x && k > 1.3 && typeof m.light_loop_2x === 'string' && q.get('loop2x') !== '0';
       // the source resized across the 4K/1080p line (resize handler): the loop follows the base art, as its complement
       let loopTwo = two;
@@ -3423,12 +3615,23 @@ void main() {
     } else if (m.glow) { $('glow').style.display = 'block'; artImgs.push([$('glow'), m.glow]); }
     for (const o of m.occluders) {
       if (!o || typeof o !== 'object') continue;
-      for (const s of Array.isArray(o.depth_slices) && o.depth_slices.length ? o.depth_slices : [o]) {
+      const sliced = Array.isArray(o.depth_slices) && o.depth_slices.length ? o.depth_slices : null;
+      // Where two depth slices meet, both have soft (antialiased) edges, so the art behind the wall (the restroom
+      // floor) showed through as thin dark lines across the TICKETS / SNACK BAR signs (owner, 05 Nov). The whole
+      // wall goes underneath at the lowest slice depth and fills those seams; anyone further back than that is
+      // behind every slice anyway, so it hides nothing the slices didn't.
+      const parts = sliced && typeof o.file === 'string' && [o.x, o.y, o.w, o.h].every(Number.isFinite)
+        ? [{ ...o, z_index: Math.min(...sliced.map((s) => s.z_index ?? o.z_index)) }, ...sliced] : sliced || [o];
+      for (const s of parts) {
         if (!s || typeof s.file !== 'string' || ![s.x, s.y, s.w, s.h].every(Number.isFinite)) continue;   // skip broken entries
         const im = h('img', 'prop');
         im.alt = '';
         im.decoding = 'async';
         Object.assign(im.style, { left: `${s.x}px`, top: `${s.y}px`, width: `${s.w}px`, height: `${s.h}px`, zIndex: String(s.z_index ?? o.z_index) });
+        // the restroom's side wall and the ticket wall are two walls almost on top of each other: this slice of the
+        // restroom one carries a black strip (its shaded face) that lands on the ticket wall as a black bar beside
+        // the box office; only its lit top cap is kept
+        if (/occ_restroom_side_wall_01\.png$/.test(s.file) && s.w === 159 && s.h === 99) im.style.clipPath = 'polygon(0 0, 159px 0, 159px 10px, 143px 10px, 143px 99px, 0 99px)';
         world.append(im);
         artImgs.push([im, s.file]);
       }
@@ -3586,7 +3789,7 @@ void main() {
       for (const w of figures) if (w.umbSpec && w.umb) setImg(w.umb, w.umbSpec.file, w.umbSpec.file_2x, dpr() > 1.3);
       shots.forEach((sh) => sheetStyle(sh.el, sh.spec));
     });
-    SB.mountStage($('stage'));
+    SB.mountStage($('stage'), { cover: FIT_COVER });
     if (!art) document.fonts?.ready.then(() => { redrawBg(); redrawProps(); });
     requestAnimationFrame(loop);
     SB.start();

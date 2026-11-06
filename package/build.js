@@ -14,7 +14,6 @@ const { artFiles } = require('./art');
 const STANDBY = path.resolve(__dirname, '..');
 const RELAY = path.join(process.env.USERPROFILE || '', 'Desktop', 'customchat', 'destinygg-obs-overlay');
 const OBS_SCENES = path.join(process.env.APPDATA || '', 'obs-studio', 'basic', 'scenes', 'Moobies_1440p_poll.json');
-const SHADER = 'C:/Program Files/obs-studio/data/obs-plugins/obs-shaderfilter/examples/corner-pin.shader';
 
 const args = process.argv.slice(2);
 const OUT = path.resolve(args.includes('--out') ? args[args.indexOf('--out') + 1] : path.join(STANDBY, '..', 'dist', 'DinkDonk-Cinema'));
@@ -52,7 +51,7 @@ if (fs.existsSync(OUT)) {
 fs.mkdirSync(SCREENS, { recursive: true });
 
 // ---------- 1. pages, server, bridge ----------
-for (const f of ['lobby.html', 'auditorium.html', 'control.html', 'standby-server.js', 'dinkdonk.js', 'obs-bridge.js', 'lan-proxy.js']) {
+for (const f of ['lobby.html', 'auditorium.html', 'control.html', 'standby-server.js', 'dinkdonk.js', 'obs-bridge.js', 'bridge-sizing.js', 'bridge-captures.js', 'cinema-screen.shader', 'lan-proxy.js']) {
   copy(path.join(STANDBY, f), path.join(SCREENS, f));
 }
 copyTree(path.join(STANDBY, 'shared'), path.join(SCREENS, 'shared'));
@@ -62,10 +61,7 @@ if (fs.existsSync(path.join(STANDBY, 'cache', 'dinkdonk.json'))) copy(path.join(
 fs.writeFileSync(path.join(SCREENS, 'index.html'),
   '<!doctype html><meta charset="utf-8"><title>DinkDonk Cinema</title><meta http-equiv="refresh" content="0; url=control.html">\n');
 
-// the bridge points the corner-pin filter at the shader shipped in obs\ instead of an OBS install path
-patch(path.join(SCREENS, 'obs-bridge.js'), `const SHADER = '${SHADER}';`,
-  "const SHADER = path.join(__dirname, '..', 'obs', 'corner-pin.shader').replace(/\\\\/g, '/');");
-copy(SHADER, path.join(OUT, 'obs', 'corner-pin.shader'));
+// The bridge uses cinema-screen.shader beside its script, included above.
 
 // ---------- 2. art: only what the two pages load ----------
 const art = artFiles(STANDBY, fail);

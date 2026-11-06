@@ -35,11 +35,28 @@
   .state b { color: var(--text); font-weight: 600; }
   .empty { color: var(--dim); padding: 10px 0; }
   kbd { background: #262a35; border: 1px solid #3a3f4d; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 13px; }
+  button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+  .output-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+  .output-buttons button { min-height: 44px; }
+  .source-url { display: block; color: var(--acc); overflow-wrap: anywhere; margin-top: 8px; }
+  .output-help { color: var(--dim); margin: 8px 0 0; max-width: 70ch; }
+  .output-buttons + p { margin: 8px 0; }
 </style>
 </head>
 <body>
 <h1>Cinema control</h1>
-<div class="row"><label>Scene <select id="page"><option value="lobby">Lobby (lobby.html)</option><option value="auditorium">Auditorium (auditorium.html)</option></select></label></div>
+<section class="card" aria-labelledby="output-heading">
+  <h2 id="output-heading">Show in OBS</h2>
+  <div class="output-buttons">
+    <button type="button" data-present="lobby" aria-pressed="false" disabled>Show lobby</button>
+    <button type="button" data-present="auditorium" aria-pressed="false" disabled>Show auditorium</button>
+  </div>
+  <p id="outputstate" role="status" aria-live="polite">Checking cinema output…</p>
+  <p class="output-help">Add one Browser Source in OBS, sized to your canvas (for example 1920 × 1080):</p>
+  <a class="source-url" id="source-url" target="_blank" rel="noopener"></a>
+  <p class="output-help">Both rooms stay live. Switching keeps the audience, camera and lighting state. Camera and lighting controls below act on the selected view.</p>
+</section>
+<div class="row"><label>Controls for <select id="page"><option value="lobby">Lobby</option><option value="auditorium">Auditorium</option></select></label></div>
 <div class="sub" id="screens">looking for open screens…</div>
 
 <div class="card" id="preshow" hidden>
@@ -47,6 +64,7 @@
   <div class="row">
     <button data-phase="seating">Seating</button><button data-phase="dim">Lights down</button>
     <button data-phase="film">Film</button><button id="movie" title="Film on the screen without the camera pushing in">Movie (no zoom)</button>
+    <button id="pov" aria-pressed="false" disabled title="Watch the film from the center seat">POV view</button>
     <button id="outro" title="The camera eases back out to the wide shot; the film keeps playing">Film outro</button>
     <button id="lightson" title="House lights up while the film keeps playing (e.g. the credits); press again to dim them">Lights on (film plays)</button>
     <button id="houseout" title="Everyone stands up and walks out, one after another; new arrivals wait until the next Seating">Everyone leaves</button>
@@ -109,12 +127,32 @@
   };
   let dir = null;
   let preshow = null;
+  let presenting = false;
+  let lastPresented = null;
+  const sourceUrl = new URL('cinema.html?everyone=1', location.href).href;
+  $('source-url').href = sourceUrl;
+  $('source-url').textContent = sourceUrl;
+  for (const button of document.querySelectorAll('[data-present]')) button.onclick = async () => {
+    if (presenting) return;
+    presenting = true;
+    for (const b of document.querySelectorAll('[data-present]')) b.disabled = true;
+    $('outputstate').textContent = 'Switching cinema view…';
+    try {
+      const response = await fetch('/ctl/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd: 'present', value: button.dataset.present }), signal: AbortSignal.timeout(3500) });
+      if (!response.ok) throw new Error('Switch failed');
+      $('page').value = button.dataset.present;
+      $('page').onchange();
+    } catch { $('outputstate').textContent = 'Could not switch views. Check the cinema server, then try again.'; }
+    finally { presenting = false; refresh(); }
+  };
   // switching scene clears the old scene's rows at once (a refresh in flight kept them clickable, and a Follow/Remove
   // there went to the newly selected scene)
   $('page').onchange = () => { dir = null; for (const tr of chatterRows.values()) tr.remove(); chatterRows.clear(); refresh(); };
   for (const b of document.querySelectorAll('[data-phase]')) b.onclick = () => send({ cmd: 'phase', value: b.dataset.phase });
   $('phaseauto').onclick = () => send({ cmd: 'phaseAuto', on: !preshow?.auto });
   $('movie').onclick = () => send({ cmd: 'movie' });
+  $('pov').onclick = () => send({ cmd: 'pov' });
   $('outro').onclick = () => send({ cmd: 'outro' });
   $('lightson').onclick = () => send({ cmd: 'lights', on: !preshow?.lightsOn });
   $('houseout').onclick = () => send({ cmd: 'houseOut', on: !preshow?.houseOut });
@@ -146,6 +184,12 @@
     let data;
     try { data = await (await fetch('/ctl/state', { cache: 'no-store', signal: AbortSignal.timeout(3500) })).json(); } catch { $('screens').textContent = 'The standby server is not reachable (start-standby.bat).'; return; }
     controlVersion = data.controlVersion || 0;
+    const presentation = data.presentation;
+    if (presentation?.view && presentation.view !== lastPresented) {
+      lastPresented = presentation.view;
+      $('page').value = presentation.view;
+      dir = null;
+    }
     const page = $('page').value;
     const all = data.screens || [];
     const screens = all.filter((s) => (s.page || 'lobby') === page);
@@ -153,6 +197,22 @@
     $('preshow').hidden = page !== 'auditorium';
     const blocked = page === 'auditorium' && controlVersion < 2;
     for (const el of document.querySelectorAll('button, input')) el.disabled = blocked;
+    for (const button of document.querySelectorAll('[data-present]')) {
+      button.disabled = presenting || presentation?.version !== 1;
+      button.classList.toggle('on', button.dataset.present === presentation?.view);
+      button.setAttribute('aria-pressed', String(button.dataset.present === presentation?.view));
+    }
+    if (!presenting) {
+      const outputs = presentation?.outputs || [];
+      const obsOutputs = outputs.filter((output) => output.obs);
+      const targets = obsOutputs.length ? obsOutputs : outputs;
+      const label = presentation?.view === 'auditorium' ? 'Auditorium' : 'Lobby';
+      $('outputstate').textContent = !presentation ? 'Restart the cinema server to enable view switching.'
+        : !targets.length ? `${label} selected · waiting for the cinema Browser Source to open.`
+        : targets.every((output) => output.view === presentation.view)
+          ? `${label} showing in ${obsOutputs.length ? 'OBS' : 'browser preview'}.`
+          : `${label} selected · waiting for the output to switch…`;
+    }
     $('screens').textContent = screens.length ? `${screens.length} screen${screens.length > 1 ? 's' : ''} open (${screens.map((s) => s.size.join('×')).join(', ')}) - commands go to all of them`
       : 'No screen is open: start the standby screen (or the OBS source) first.';
     $('screens').textContent = blocked ? 'Restart standby-server.js to enable safe auditorium controls.'
@@ -167,7 +227,7 @@
     const labels = { seating: 'Seating', dim: 'Lights down', film: 'Film', up: 'Lights up' };
     // the film phase has three framings; screens without shot (older pages) count as Film
     const shot = preshow?.phase === 'film' ? preshow.shot || 'push' : '';
-    const shots = { push: '', movie: ' (movie, no zoom)', outro: ' (outro, zoomed out)' };
+    const shots = { push: '', movie: ' (movie, no zoom)', pov: ' (seated POV)', outro: ' (outro, zoomed out)' };
     $('phasestate').textContent = preshow ? `Phase: ${labels[preshow.phase] || preshow.phase}${shots[shot] || ''}`
       + `${preshow.lightsOn ? ' · house lights on' : ''}${preshow.houseOut ? ' · everyone is leaving, arrivals wait until Seating' : ''}`
       + `${preshow.alwaysGreen ? ' · screen=green override active' : ''}`
@@ -178,6 +238,9 @@
     $('phaseauto').textContent = `Auto: ${preshow?.auto ? 'on' : 'off'}`;
     for (const b of document.querySelectorAll('[data-phase]')) b.classList.toggle('on', b.dataset.phase === preshow?.phase && (b.dataset.phase !== 'film' || shot === 'push'));
     $('movie').classList.toggle('on', shot === 'movie');
+    $('pov').disabled = blocked || !preshow?.povReady;
+    $('pov').classList.toggle('on', shot === 'pov');
+    $('pov').setAttribute('aria-pressed', String(shot === 'pov'));
     $('outro').classList.toggle('on', shot === 'outro');
     const d = preshow?.download;
     let download = 'Download unavailable — the feature will begin shortly.';
@@ -222,7 +285,7 @@
       tr.classList.toggle('followed', !!c.followed);
       if (tr.cells[1].textContent !== (c.emote || '')) tr.cells[1].textContent = c.emote || '';
       if (tr._pill.textContent !== c.status) tr._pill.textContent = c.status;
-      tr._follow.disabled = blocked || c.status === 'waiting outside';
+      tr._follow.disabled = blocked || c.status === 'waiting outside' || c.status === 'waiting to arrive';
       // Preserve button identity while someone is pressing it during a one-second state refresh.
       const index = present.size - 1;
       if (list.children[index] !== tr) list.insertBefore(tr, list.children[index] || null);

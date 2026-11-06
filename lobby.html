@@ -1099,6 +1099,8 @@
   }
   function startEnter(w) { w.entering = true; w.alphaT = 0; dropBubble(w); playDoor(w.doorRoom + 1); }
   function finishEnter(w) {
+    journey?.handoff({ ...w.journeyMessage, nick: w.nick, emote: w.emName,
+      roomIndex: w.doorRoom, carry: w.carry ? (w.carry.dataset.item || 'popcorn') : null });
     const s = signs[w.doorRoom];
     if (s) {
       s.count++;
@@ -1423,19 +1425,21 @@
     const key = wi.nick.toLowerCase();
     const old = walkers.get(key);
     if (old && !old.entering && !old.removing) {
+      old.journeyMessage = wi;
       setEmote(old, wi.emote);
       queueLine(old, wi.tokens);   // said at their next conversation
-      if (!old.doorBound) old.room = wi.roomIndex;
+      if (!old.doorBound) old.room = journey ? 0 : wi.roomIndex;
       return;
     }
-    if (crowdSkip(wi)) return;
+    if (!journey && crowdSkip(wi)) return;
     // someone already going through a door keeps going (still updated via `figures`); a new one walks in
     if (old) walkers.delete(key);
     const w = makeFigure(wi.nick, wi.emote, wi.color, false);
     if (wi.rainbow) { w.nm.textContent = ''; w.nm.append(h('span', 'rbt', wi.nick)); }   // tier 5: rainbow name, as in DGG chat
     w.key = key;
     figures.add(w);
-    w.room = wi.roomIndex;
+    w.room = journey ? 0 : wi.roomIndex;
+    w.journeyMessage = wi;
     // with the real restroom (layout 3) about one in five drops by before the film (chat already sends ~5 %)
     const r = Math.random();
     w.detour = wi.detour || (RESTROOM && r < 0.16 ? 'bathroom' : r > 0.93 ? 'arcade' : null);
@@ -1573,11 +1577,64 @@
     if (walkers.get(w.key) === w) walkers.delete(w.key);
     figures.delete(w);
     w.gone = true;
+    journey?.release(w.nick, 'lobby');
   }
 
-  Cinema.onWalkIn(spawn);
+  // Combined mode is a single journey. Direct lobby URLs retain their old behavior.
+  let journey = null;
+  try {
+    if (q.get('managed') === '1' && window.parent !== window
+        && window.parent.location.origin === location.origin) journey = window.parent.CinemaJourney || null;
+  } catch { /* standalone */ }
+  const pendingArrivals = new Map();
+  let nextLobbyArrival = 0, arrivalBurstRemaining = 0;
+  function receiveArrival(message) {
+    if (!journey) { spawn(message); return; }
+    if (message.features?.includes('moderator')) return;
+    const nick = String(message.nick || '').trim().slice(0, 25);
+    if (!nick || journey.location(nick) === 'auditorium') return;
+    const key = nick.toLowerCase();
+    const old = walkers.get(key);
+    if (old) {
+      old.journeyMessage = { ...message, nick };
+      if (!old.entering && !old.removing) spawn(old.journeyMessage);
+      return;
+    }
+    const entry = pendingArrivals.get(key);
+    if (entry) { entry.message = { ...message, nick }; entry.updated = performance.now(); return; }
+    if (pendingArrivals.size >= 512 || !journey.claimLobby(nick)) return;
+    pendingArrivals.set(key, { message: { ...message, nick }, updated: performance.now() });
+  }
+  function stepLobbyArrivals(now) {
+    if (!journey) return;
+    for (const [key, entry] of pendingArrivals) {
+      if (now - entry.updated <= 10 * 60000) continue;
+      pendingArrivals.delete(key);
+      journey.release(entry.message.nick, 'lobby');
+    }
+    if (now < nextLobbyArrival || liveCount() >= CAP || (CROWD && crowdEvery() > 1)) return;
+    const first = pendingArrivals.entries().next().value;
+    if (!first) return;
+    const backlog = pendingArrivals.size;
+    const [key, entry] = first;
+    pendingArrivals.delete(key);
+    spawn(entry.message);
+    // Small queues stay relaxed; busy queues arrive in pairs or groups of three.
+    // Only one spawn per tick, with crowd/capacity checks before every group member.
+    if (backlog < 12) {
+      arrivalBurstRemaining = 0;
+      nextLobbyArrival = now + (backlog < 6 ? rand(1400, 2200) : rand(900, 1400));
+    } else {
+      if (arrivalBurstRemaining <= 0) arrivalBurstRemaining = backlog >= 40 ? 3 : 2;
+      arrivalBurstRemaining--;
+      nextLobbyArrival = now + (arrivalBurstRemaining > 0 ? rand(250, 450) : rand(900, 1400));
+    }
+  }
+  Cinema.onWalkIn(receiveArrival);
   Cinema.onPurge((nick) => {
     const key = nick.toLowerCase();
+    pendingArrivals.delete(key);
+    journey?.release(nick, 'lobby');
     for (const w of [...figures]) if (w.key === key) removeWalker(w);
   });
   Cinema.onCombo(({ emote }) => {   // everyone wearing the combo emote jumps (no floating badge)
@@ -3340,6 +3397,8 @@ void main() {
       case 'every': if (Number.isFinite(+c.value)) director.every = clamp(+c.value, 30, 1800); break;
       case 'zoom': if (Number.isFinite(+c.value)) director.zoom = clamp(+c.value, 1.2, 3); break;
       case 'remove':
+        pendingArrivals.delete(key);
+        journey?.release(key, 'lobby');
         for (const w of [...figures]) {
           if (w.key !== key || w.removing) continue;
           retire(w);
@@ -3354,7 +3413,7 @@ void main() {
         const w = walkers.get(key);
         if (c.cmd === 'say' && w && !w.entering && !w.removing) { say(w, tokens); break; }
         const em = tokens.find((t) => t.t === 'emote')?.name;
-        spawn({ nick, emote: em || Cinema.defaultEmote(nick), tokens, color: SB.nickColor(nick),
+        receiveArrival({ nick, emote: em || Cinema.defaultEmote(nick), tokens, color: SB.nickColor(nick),
           roomIndex: Math.floor(Math.random() * 5), detour: c.detour || null });
         break;
       }
@@ -3372,9 +3431,11 @@ void main() {
       const f = director.follow;
       // obs: this screen is the OBS source (the panel shows it before a bigger preview tab)
       const body = { id: pageId, ts: Date.now(), size: [innerWidth, innerHeight], obs: !!window.obsstudio,
+        journey: journey ? { ...journey.stats(), waitingToArrive: pendingArrivals.size } : null,
         director: { on: director.on, every: director.every, zoom: director.zoom, wantNext: director.wantNext,
           following: f && !f.w.gone ? f.w.nick : null, nextIn: Math.max(0, Math.round((director.next - performance.now()) / 1000)) },
-        chatters: [...figures].filter((w) => !w.gone).map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w })) };
+        chatters: [...figures].filter((w) => !w.gone).map((w) => ({ nick: w.nick, emote: w.emName, status: statusOf(w), followed: f?.w === w }))
+          .concat([...pendingArrivals.values()].map(({ message }) => ({ nick: message.nick, emote: message.emote, status: 'waiting to arrive', followed: false }))) };
       statePending = true;
       fetch('/ctl/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(3500) })
         .then((r) => { if (r.status === 404) { alive = false; es.close(); } })   // an older server without the panel
@@ -3390,6 +3451,7 @@ void main() {
     const dt = clamp((t - last) / 1000, 0, 0.1);
     last = t;
     lastFrame = performance.now();
+    stepLobbyArrivals(t);
     stepCamera(dt);
     serveQueue(dt);
     serveSnacks(dt);

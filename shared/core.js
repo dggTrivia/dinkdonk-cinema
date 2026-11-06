@@ -17,6 +17,15 @@
   'use strict';
 
   const q = new URLSearchParams(location.search);
+  // cinema.html is the top-level OBS browser source. Its same-origin child
+  // must retain OBS detection for the existing film bridge and panel priority.
+  if (q.get('managed') === '1' && window.parent !== window) {
+    try {
+      if (window.parent.location.origin === location.origin && window.parent.obsstudio) {
+        window.obsstudio = window.parent.obsstudio;
+      }
+    } catch { /* standalone or foreign parent: ordinary browser preview */ }
+  }
   const demo = q.has('demo') && q.get('demo') !== '0';
   const cfg = {
     relay: q.get('relay') || '127.0.0.1:18765',
@@ -39,6 +48,12 @@
       try { fn(data); } catch (error) { console.error(`[standby] ${type} handler`, error); }
     }
   };
+  const isOutputActive = () => q.get('managed') !== '1' || window.parent === window
+    || window.frameElement?.dataset.active !== 'false';
+  addEventListener('message', (event) => {
+    if (event.source === window.parent && event.origin === location.origin
+        && event.data?.type === 'cinema-output-visibility') emit('outputVisibility', isOutputActive());
+  });
 
   // ---------- stage ----------
   const W = 1920;
@@ -569,7 +584,7 @@
   }
 
   window.SB = {
-    cfg, on, emit, start, mountStage, fitCanvas, mountChat, command, stats, ...api,
+    cfg, on, emit, start, mountStage, fitCanvas, mountChat, command, stats, isOutputActive, ...api,
     emoteEl, emoteSize, emoteFacing, faceEmote, tokenize, renderTokens, nickColor, hashHue, timerText, clockText,
     rand, pick, get status() { return status; }, get emotes() { return emotes; }, get view() { return stage.view; }, W, H,
     // For testing from the console: SB.say('someone', '!claw')

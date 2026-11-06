@@ -565,3 +565,173 @@ twins up for 6.5 s after lights-up. Headless check: twin opacity = background di
   Tested locally on 18772 with real chat and a mock obs-websocket: setup, direct and relay film pinning, film off when
   the auditorium closes, per-room isolation, revoke. Not deployed yet: no SSH access to the Hetzner server
   (2.29.56.208); web/deploy/deploy.sh is ready once access is added (web/README.md, "Server access").
+- 5 Nov 2026, local Windows startup: added START-CINEMA.bat, hidden VBS/PowerShell launcher and a parent
+  MovieStream/start_cinema.bat entry point. Starts the existing standby server on 18770 and a new read-only
+  aiohttp public DGG chat relay on 18765, with logs in LOCALAPPDATA outside the repo. Opens control.html in the
+  default browser after readiness checks. Reuses matching processes; refuses unrelated port owners. Existing
+  scene pages, OBS configuration, original launcher and trivia profiles remain unchanged. LOCAL-START.md documents
+  use and prerequisites. Both ports were free before startup; no other inspected MovieStream project used them.
+  Verified real NAMES/MSG frames through the local relay, live upstream health, repeated startup with identical
+  process IDs, and the batch launcher opening Cinema control in Chrome. Movie corner-pin bridge remains a separate
+  OBS integration step. No commit or push.
+- 5 Nov 2026: renamed the parent launcher to cinema_dgg_lobby.bat at the owner's request; updated local startup notes.
+- 6 Nov 2026: located installed Blender 5.2.3, matching production. Created a hash-verified pre-edit snapshot in
+  sibling dinkdonk-cinema-backups/20261105T225845Z (11,353 files, 920,675,451 bytes), including runtime assets,
+  code/launchers, original top-level Blender sources/scripts and current cloud lobby source. Created local-only
+  roxy3d/current with auditorium, auditorium-dim and lobby working scene copies, preview/staging folders, source
+  mapping and dependency/verification reports. Background Blender checked packing and reopening of the copies:
+  no missing images/fonts or linked libraries; historical appended-asset filenames are weak metadata only.
+  10,984 protected original files verified unchanged. No scene edits, render, live promotion, OBS changes or
+  plugin installation. Original historical builder chain remains in place; missing untracked QA inputs mean a
+  portable layered exporter is a separate task. Added CURRENT-WORKSPACE.md and reproducible preparation helpers.
+- 6 Nov 2026: installed community MCP for Blender at the owner's request. Installed uv through winget, pinned
+  the MCP server to 2.2.7, installed/enabled its Codex plugin and Blender add-on, and backed up Codex config and
+  Blender preferences under LOCALAPPDATA/CodexIntegrations/blender-install-backup. Listener restricted to
+  127.0.0.1:9876, telemetry off. Opened the isolated auditorium working copy and verified actual MCP stdio
+  initialization, 14 tools and successful read-only scene inspection (3,024 objects). No art files saved or
+  rendered. Codex restart required for this existing chat to load the new plugin tools.
+- 6 Nov 2026: added local one-source cinema.html with host-panel Show lobby/Show auditorium controls. Added
+  validated/persisted presentation commands and output heartbeats to the server; retained origin and JSON guards.
+  Shared core propagates OBS detection only for managed same-origin children so the existing film bridge can
+  work when the auditorium is embedded. One room runs at a time: switching reloads transient room state.
+  Backed up affected files in sibling dinkdonk-cinema-backups/20261106-single-source-before. Built/tested in QA
+  on 18771 before promoting control and cinema pages. Verified browser switching in both directions, real DGG
+  arrivals, auditorium lighting, no captured browser warnings/errors, JS syntax, persistent selection file,
+  rejection of invalid views/foreign Origins/non-JSON commands, and a clean scoped design detector pass.
+  Confirmed OBS absent and zero OBS screens before restarting this checkout's own server on 18770; final local
+  browser verification passed. Did not alter OBS collections, render art, add media sources or deploy remotely.
+- 6 Nov 2026: corrected combined-source continuity at the owner's request. Both rooms now load once into
+  fixed full-size frames and stay connected to chat with their simulation running. Show controls change opacity,
+  focus and input/accessibility visibility only. No navigation or unloading occurs when switching. Added managed
+  output visibility to shared core; auditorium bridge sends film=false while hidden without resetting its phase.
+  Backups in sibling dinkdonk-cinema-backups/20261106-persistent-scenes-before. Tested QA on 18771: identical
+  scene IDs after repeated switches; hidden audience growth in both rooms; dim phase preserved on return; both
+  frames 1280x720. Regression check verified bridge film false/true/false across hide/show/hide without changing
+  film phase. Promoted and refreshed the user's Chrome preview once: both frames 2560x1215, both logical stages
+  identically scaled to 2160x1215 (16:9 fit), and live instance IDs stayed unchanged through switches. One captured
+  MutationObserver error had no matching code in the project; no claim of a clean browser console. Updated panel
+  help/docs. No Blender edits or renders, OBS collection edits, server restart or fake chat.
+
+- 6 Nov 2026: connected the combined source's real guest journey at the owner's request. Added shared/journey.js
+  with per-output, case-insensitive membership and buffered auditorium delivery. Lobby door completion now
+  transfers the same nickname, avatar and carried snack into the auditorium entrance/seat queue. Raw chat updates
+  theater guests instead of admitting them independently. Staggered lobby arrivals at 1.4-2.2 seconds with a
+  deduplicated FIFO, crowd/capacity pauses, quiet expiry and waiting roster. Staff/manual host overrides retained.
+  Backed up live/QA pages to sibling dinkdonk-cinema-backups/20261106-handoff-before; implemented and checked
+  QA on 18771 before promoting. Seven Node tests passed, including actual lobby queue draining under virtual
+  time; inline JS syntax checks passed. Real DGG QA observed 25 transfers, 17 seated and zero regular-guest
+  nickname overlap between rooms. Live Chrome preview refreshed once and verified two current room instances
+  with new gradual auditorium arrivals. A captured MutationObserver error has no matching project code; no clean
+  console claim. Existing single-source URL remains. No live server restart, OBS collection edits, fake scene
+  traffic, Blender edits or renders. Updated launch and shared-server documentation.
+
+- 6 Nov 2026: made combined-source lobby admission dynamic at the owner's request. Small queues retain
+  1.4-2.2-second spacing; 6-11 waiting use 0.9-1.4 seconds; 12-39 form pairs and 40+ groups of three,
+  0.25-0.45 seconds apart with 0.9-1.4-second group pauses. One spawn per tick, FIFO, crowd/capacity
+  checks and quiet expiry retained. Backed up lobby live/QA in sibling
+  dinkdonk-cinema-backups/20261106-dynamic-arrivals-before. Changed QA first, passed all eight Node
+  tests and inline JS syntax checks, then promoted lobby.html. Virtual-time checks cover group size,
+  spacing, crowded/full pauses, no catch-up flood, FIFO and return to slow spacing. No browser chat
+  injection, live server restart, OBS changes or art work. Existing loaded outputs need one refresh.
+
+- 6 Nov 2026: fixed Explorer-launched bridge and cinema startup when Node is absent from the inherited PATH.
+  Both launchers fall back to standard Node install paths and the existing Codex Node runtime. Added bridge
+  --check-runtime for a non-starting diagnostic. Backups in sibling 20261106-node-launcher-before folder.
+
+- 6 Nov 2026: matched obs-bridge.js to the owner's OBS scene name dggCINEMAtheatre.
+  Replaced the upstream collection-name error hint with the actual expected scene/source names.
+  Backed up bridge in sibling 20261106-bridge-scene-name-before folder; Node syntax check passed.
+
+- 6 Nov 2026: changed the bridge capture source name to firefoxBrowserCinema at the owner's request.
+  Main scene remains dggCINEMAtheatre. Updated shared-server documentation and passed Node syntax check.
+  Bridge backup in sibling 20261106-bridge-firefox-source-before folder.
+
+- 6 Nov 2026: traced port 18790 conflict to the earlier running obs-bridge.js process.
+  Added an explicit duplicate-port error message instead of an unhandled Node stack trace.
+  Kept page/bridge ports aligned. Automated restart was blocked by execution policy; owner must
+  close the previous bridge console and relaunch. Backup in sibling 20261106-bridge-port-guard-before.
+
+- 6 Nov 2026: added separate mpv.net and Firefox bridge preset launchers, with OBS_FILM_SOURCE
+  selection and automatic hiding of the alternate preset capture after target/filter setup. Both use
+  the existing auditorium connection on 18790; only one bridge runs at a time. Backed up bridge and
+  base launcher in sibling 20261106-mpv-bridge-before. Node syntax passed, both batch runtime
+  diagnostics passed, and isolated setup checks verified correct target filters/alternate visibility
+  for both presets. Updated setup docs. Live mpv capture awaits owner OBS setup; did not restart
+  the current bridge or edit OBS collections.
+
+- 6 Nov 2026: implemented auto-fit for changing capture window dimensions/DPI via bridge-sizing.js.
+  Read live OBS structure: firefoxBrowserCinema is a direct Window Capture, canvas 1920x1080; mpvCinema
+  is not present yet. Main shader item now uses a fixed full-canvas stretch box; nested helpers fit capture
+  children inside their canvas with aspect ratio and child crops retained. Included the module in packaging.
+  Backed up code and live transforms to sibling 20261106-auto-fit-before; applied Firefox sizing via
+  obs-websocket and verified 1920x1080 stretch bounds at origin, zero rotation. Current running bridge
+  left connected; OBS maintains persistent bounds. Future mpv setup gets sizing when its bridge starts.
+  Eleven Node tests passed (three sizing cases plus eight journey regressions), bridge/module syntax passed.
+  Did not move/resize the owner's actual windows, edit live collection JSON, restart server, or render art.
+
+- 6 Nov 2026: replaced exclusive Firefox/mpv bridge presets with one unified bridge, selected by OBS
+  source eye icons as requested. Added bridge-captures.js with independent user selection and automatic
+  host visibility gating; consumes own visibility echoes, keeps both shaders current, hides other capture
+  before enabling selection. Configures both available captures for auto-fit/filter setup, handles optional
+  missing sources and OBS item/name changes. Legacy launchers now alias the same bridge. Updated packaging
+  and docs. Backup in sibling 20261106-unified-bridge-before. Identified Game Capture targeting mpvnet.exe
+  in the main scene and renamed it mpvCinema via OBS API, saving its prior transform/name in backup.
+  Seventeen Node tests passed and syntax checks passed. Live non-streaming OBS check passed Firefox-to-mpv
+  selection, lobby hides both, auditorium restores mpv, and both shaders configured. Restored host phase/view.
+  Unified bridge now running on 18790. The initial combined process-management command was policy-blocked;
+  found port free, started the bridge directly in an owned tool session, and restarted only that session after
+  the source-name event update. No OBS collection JSON edits, live-server restart, art work or fake chat.
+
+- 6 Nov 2026: corrected unified bridge eye-control UX after the owner reported eyes switching back off.
+  Diagnosed auditorium dim phase with film=false. Added local cinema-screen.shader derived from the
+  installed GPL corner-pin shader (attribution retained), with Cinema_Visible alpha gate. Host gating
+  now hides pixels rather than toggling the selected source eye. OBS eyes remain a stable source selector;
+  switching still disables the other capture. Updated filters to load the local shader and packaging to
+  include it. Backups in sibling 20261106-eye-controls-before. Restarted only the owned bridge session.
+  All 17 tests and syntax checks passed. Live non-streaming OBS verification passed selected eye remains
+  on in dim/lobby, Firefox-to-mpv switches the other eye off, and movie mode toggles shader visibility.
+  Real source screenshots verified hidden alpha=(0,0) and visible alpha=(0,255); artifacts in backup folder.
+  Restored host view/phase with mpv selected. Bridge running with fix; no server restart or art edits.
+
+- 6 Nov 2026: refined eye behavior per owner: Show lobby disables both capture eyes, return to auditorium
+  restores selected eye regardless of movie phase. Bridge polls confirmed presentation separately from film
+  flag; phase gating remains shader alpha. Backups in sibling 20261106-lobby-eye-gate-before. Eighteen tests
+  passed; live OBS check passed auditorium Firefox eye on -> lobby both off -> auditorium Firefox restored.
+  Restored previous host view; restarted only owned bridge, with no cinema source reload/audience reset.
+
+- 6 Nov 2026: updated parent cinema_dgg_lobby.bat startup chain to include hidden unified bridge,
+  reusing existing service on 18790 with ownership/health checks. All ports checked before startup;
+  foreign listeners rejected without stopping them. OBS manual, host opens as before. Ports
+  18765/18770/18790 currently owned by cinema services; scoped other-project launcher scan found
+  no matching references. Backup in sibling 20261106-full-launcher-before.
+
+- 6 Nov 2026: made the bridge console visible in the main launcher at owner request. Server/relay
+  remain hidden, running bridge is reused, OBS manual. Removed bridge output redirection so console
+  displays diagnostics. Backup in sibling 20261106-visible-bridge-before.
+
+### 6 Nov 2026 — Seated auditorium POV
+
+Saved a separate local Blender file at `roxy3d/current/sources/auditorium-seated-pov.blend` with a linked auditorium scene and a seated camera at F11. The slight off-center angle keeps all four screen corners visible and fills roughly 88% of the frame in each dimension. The POV scene custom properties store the projected quad in the OBS bridge's 1920×1080 coordinate format for later wiring. A top-edge ray check confirmed the framing stays below the front wall cap.
+
+Added a ceiling, a right acoustic wall and an upper rear wall to the seated POV scene. A wide camera preview confirmed the gaps are closed. Restored the F11 playback framing and verified that the stored OBS quad still matches all four screen corners.
+
+Refined the POV enclosure with charcoal acoustic ceiling panels, recessed amber strips, and right wall pilasters and sconces. Verified in a wide material preview, then restored the playback framing. The enclosure is exclusive to the POV and all 1,620 seat objects are shared with the wide view. The playback screen quad still matches.
+
+Moved the POV to F10, matched the right sconces to the left wall's burgundy finish, and softened the ceiling panel seams. Exported a 2000x1125 viewport plate and added POV view to the host controls. Isolated browser QA verified that POV and Movie use separate bridge quads while the auditorium instance stays mounted. Backed up the live pages before promotion.
+
+Widened F10 to 21 mm and exported a 4K Workbench plate, perspective camera matrix, and 480x270 room-depth grid. The seated POV draws the existing live walkers through the F10 projection and clips them behind room geometry. Verified real DGG arrivals, visible sprite movement and seat clipping on a separate QA server. Switching back to Movie kept the auditorium instance mounted. Backed up the live page and Blender file before promotion.
+
+Reduced POV sprite size, capped foreground scale, and faded avatars near the lens and movie frame. Real-chat QA confirmed movement, seat occlusion, and screen clearance.
+
+Calibrated seated POV avatars against the projected Blender seat-back meshes. The front row shows an 11 px resting peek, with up to 23 px on the rows behind. Tilted F10 slightly down to include more seats and re-exported the matching plate, depth grid, and OBS quad. Live-chat QA captured correctly anchored seated heads in rows B, C, and D.
+
+Increased seated POV avatar size with a distance-based scale. Verified resting peek heights of up to 18 px in B, 38 px in C, 44 px in D, and 52 px in E. The calibrated chair cutouts and movie margin still apply.
+
+Adjusted seated POV scale relative to the previous sizes: row E +60%, D +40%, C +10%. Verified the calibrated head positions still leave the film area clear.
+
+- 6 Nov 2026: copied cinema_dgg_lobby.bat into the repository for the owner's PR. Adjusted its
+  START-CINEMA.bat path for the repository location. Verified DGG GitHub login dggTrivia and all
+  18 existing Node tests passed. Original parent-folder launcher remains available.
+
+- 6 Nov 2026: added PR-CHANGELIST.md with the upstream-relative feature summary, required OBS
+  scene/source names and ports, validation, local Blender sharing requirements, and POV limitations.

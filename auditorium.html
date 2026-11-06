@@ -140,6 +140,12 @@
     background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
     -webkit-text-fill-color: transparent; animation: rbt 4s linear infinite; }
   @keyframes rbt { to { background-position: -220% 0; } }
+  #pov { position: absolute; inset: 0; z-index: 90000; pointer-events: none; }
+  #pov-art, #pov-audience, #pov svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #pov-audience { overflow: hidden; isolation: isolate; }
+  .lights-down #pov-audience { filter: brightness(.82); }
+  #pov img { transition: filter 1s; }
+  .lights-down #pov img { filter: brightness(.68); }
   #bubbles { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 86000; pointer-events: none; }
   /* the lobby's dialog box: square, plain 90s game style */
   .bub { position: absolute; left: 0; top: 0; max-width: 300px; padding: 5px 10px 6px; border-radius: 3px;
@@ -180,10 +186,16 @@
   <div id="names"></div>
   </div>
   <div id="bubbles"></div>
+  <div id="pov" hidden>
+    <img id="pov-art" src="assets/auditorium-pov-live.png" alt="">
+    <div id="pov-audience"></div>
+    <svg viewBox="0 0 1920 1080"><polygon id="pov-screen"/></svg>
+  </div>
 </div>
 <script src="shared/core.js"></script>
 <script src="shared/cinema.js"></script>
 <script src="shared/live.js"></script>
+<script src="shared/pov-audience.js"></script>
 <script>
 (() => {
   'use strict';
@@ -210,7 +222,7 @@
   const phases = ['seating', 'dim', 'film', 'up'];
   const show = { phase: phases.includes(q.get('phase')) ? q.get('phase') : 'seating', auto: true,
     download: { available: false }, completedAt: 0, name: '', slide: 0, audience: '',
-    shot: 'push',     // how the film is framed: push (Film), movie (Movie, no zoom) or outro (Film outro)
+    shot: 'push',     // film framing: push, movie, pov or outro
     lightsOn: false };
   const alwaysGreen = q.get('screen') === 'green';
   // Once the dim art has fully faded in, the lit art under it stops being drawn, so only one set is decoded.
@@ -599,12 +611,24 @@
   let seats = [];               // { row, u, v, z, block, taken }
   let treads = [];              // [v0, v1, z] of the stair aisles
   let screenPoly = null;
+  // F10 art, occlusion and screen mapping share one exported Blender camera.
+  const povLayer = $('pov');
+  const povArt = $('pov-art');
+  const povScreen = $('pov-screen');
+  let povAudience = null;
+  window.CinemaPovAudience.load($('pov-audience')).then((audience) => {
+    povScreen.setAttribute('points', audience.quad.map((point) => point.join(',')).join(' '));
+    povAudience = audience;
+  }).catch((error) => console.error('[auditorium] POV', error));
+  const povReady = () => !!povAudience && povArt.complete && povArt.naturalWidth > 0;
+  const inPov = () => show.phase === 'film' && show.shot === 'pov';
 
   // ---------- OBS film screen (obs-bridge.js) ----------
   // Inside OBS only: on every camera move, tell the bridge where the screen is in this viewport, so it pins the VLC
   // capture onto it (easing with the camera) and shows it while the phase is Film. While the bridge has OBS ready the
   // screen is black under the film (a frame of lag never flashes green); without it, it stays green as before.
   const bridge = { ws: null, linked: false, key: '' };
+  SB.on('outputVisibility', () => { bridge.key = ''; sendScreen(); });
   function bridgeConnect() {
     if (!window.obsstudio || q.get('bridge') === '0' || bridge.ws) return;
     const ws = new WebSocket(`ws://${q.get('bridge') || `${location.hostname}:18790`}`);
@@ -621,19 +645,24 @@
     ws.onclose = () => { bridge.ws = null; bridge.linked = false; screenFill(); setTimeout(bridgeConnect, 3000); };
   }
   function sendScreen() {
+    const pov = inPov();
+    if (povLayer.hidden === pov) povLayer.hidden = !pov;
     const ws = bridge.ws;
     if (!ws || ws.readyState !== 1 || !bridge.linked || !screenPoly) return;
     // the same rounded numbers the camera transform uses, then the stage's fit into the viewport
-    const z = +cam.z.toFixed(4), tx = +(960 - cam.x * cam.z).toFixed(2), ty = +(540 - cam.y * cam.z).toFixed(2);
+    const z = pov ? 1 : +cam.z.toFixed(4);
+    const tx = pov ? 0 : +(960 - cam.x * cam.z).toFixed(2);
+    const ty = pov ? 0 : +(540 - cam.y * cam.z).toFixed(2);
     const ox = (innerWidth - 1920 * scale) / 2, oy = (innerHeight - 1080 * scale) / 2;
-    const quad = screenPoly.map(([x, y]) => [+((x * z + tx) * scale + ox).toFixed(1), +((y * z + ty) * scale + oy).toFixed(1)]);
-    const film = show.phase === 'film';
+    const quad = (pov ? povAudience.quad : screenPoly).map(([x, y]) => [+((x * z + tx) * scale + ox).toFixed(1), +((y * z + ty) * scale + oy).toFixed(1)]);
+    const film = show.phase === 'film' && SB.isOutputActive();
     const key = `${film} ${innerWidth}x${innerHeight} ${quad.join(' ')}`;
     if (key === bridge.key) return;
     bridge.key = key;
     ws.send(JSON.stringify({ film, w: innerWidth, h: innerHeight, quad }));
   }
   function screenFill() {
+    povScreen.setAttribute('fill', alwaysGreen && !bridge.linked ? '#00ff00' : '#000');
     if (!screenPoly) return;
     $('screenpoly').setAttribute('fill', bridge.linked && show.phase === 'film' ? '#000' : Cinema.green === 'off' ? '#00ff00' : Cinema.green);
   }
@@ -874,7 +903,8 @@
     em.style.left = `${-parseFloat(em.style.width) / 2}px`;
     bod.append(em);
     // most bring something from the snack bar (owner: most should have popcorn); some check their phone once seated
-    const item = Math.random() < 0.85 ? itemEl(Math.random() < 0.2 ? 'soda' : 'popcorn') : null;
+    const carry = m.handoff ? m.carry : Math.random() < 0.85 ? (Math.random() < 0.2 ? 'soda' : 'popcorn') : null;
+    const item = ['popcorn', 'soda'].includes(carry) ? itemEl(carry) : null;
     if (item) bod.append(item);
     const phone = Math.random() < PHONE_SHARE ? bod.appendChild(h('div', 'phone')) : null;
     const nm = nameLayer.appendChild(h('div', 'nm', m.nick));
@@ -966,21 +996,31 @@
     return true;
   }
 
-  function onMessage(m) {
+  let journey = null;
+  try {
+    if (q.get('managed') === '1' && window.parent !== window
+        && window.parent.location.origin === location.origin) journey = window.parent.CinemaJourney || null;
+  } catch { /* standalone */ }
+  function onMessage(m, handoff = false) {
     const nick = String(m.nick || '').trim().slice(0, 25);
     if (!nick) return;
     if (m.features?.includes('moderator')) return;   // mods are the jannies (onModMessage): they never take a seat
     m = { nick, emote: m.emote || Cinema.defaultEmote(nick), text: String(m.text || '').slice(0, 512),
-      tokens: shortTokens(m.tokens), color: m.color, rainbow: !!m.rainbow };
+      tokens: shortTokens(m.tokens), color: m.color, rainbow: !!m.rainbow,
+      handoff, carry: m.carry };
     const key = nick.toLowerCase();
     const w = walkers.get(key);
     if (!w) {
       const queued = arrivals.find((a) => a.nick.toLowerCase() === key);
+      if (journey && !handoff && !queued) return; // chat alone cannot bypass the lobby
       const now = performance.now();
       if (!queued) {
         // a full queue makes room by dropping whoever has been quiet longest (it used to refuse every new nick, so a
         // long night locked the queue to its first 270 chatters; QA 05 Nov)
-        if (arrivals.length >= MAX_QUEUE) arrivals.splice(arrivals.reduce((o, x, i) => (x.at < arrivals[o].at ? i : o), 0), 1);
+        if (arrivals.length >= MAX_QUEUE) {
+          const [dropped] = arrivals.splice(arrivals.reduce((o, x, i) => (x.at < arrivals[o].at ? i : o), 0), 1);
+          journey?.release(dropped.nick, 'auditorium');
+        }
         m.at = now;
         arrivals.push(m);
       } else { if (m.tokens.length) queued.more = m.tokens; queued.color = m.color; queued.rainbow = m.rainbow; queued.at = now; }
@@ -995,9 +1035,11 @@
   }
 
   function removeWalker(w) {
+    if (!w.jan && !w.usher) journey?.release(w.nick, 'auditorium');
     if (director.follow?.w === w) endFollow();
     dropBubble(w);
     w.el.remove();
+    povAudience?.remove(w);
     w.nm.remove();
     if (w.seat) w.seat.taken = false;
     walkers.delete(w.key);
@@ -1012,6 +1054,7 @@
     w.path.length = 0;
   }
   function removeNick(key) {
+    journey?.release(key, 'auditorium');
     const w = walkers.get(key);
     if (w) removeWalker(w);
     for (let i = arrivals.length - 1; i >= 0; i--) if (arrivals[i].nick.toLowerCase() === key) arrivals.splice(i, 1);
@@ -1622,7 +1665,10 @@
     // free seat does not walk in with an hour-old message
     if (now - lastQueueTrim > 1000) {
       lastQueueTrim = now;
-      for (let i = arrivals.length - 1; i >= 0; i--) if (now - (arrivals[i].at ?? now) > QUEUE_QUIET_MS) arrivals.splice(i, 1);
+      for (let i = arrivals.length - 1; i >= 0; i--) if (now - (arrivals[i].at ?? now) > QUEUE_QUIET_MS) {
+        journey?.release(arrivals[i].nick, 'auditorium');
+        arrivals.splice(i, 1);
+      }
       if (LEAVE_MS && L && arrivals.length && guests() >= seats.length && now - lastLeave > 5000) {
         let best = null;
         for (const w of walkers.values()) {
@@ -1813,6 +1859,7 @@
     style(w.el, 'zIndex', String(zi));
     // what this chatter covers in the world (emote, waddle, shadow) and its depth, for cullPieces
     w.box = [x - w.emW * grow / 2 - 10, y - lift - w.emH * grow - 10, x + w.emW * grow / 2 + 10, y + 8, zi];
+    if (inPov()) povAudience.draw(w, lift / K, tilt, sq);
     w.nameT = Math.max(0, w.nameT - dt);
     if (w.bub) {
       // a bubble waits (hidden, clock stopped) while its speaker walks through the tunnel; outside the zoomed-in view
@@ -1962,6 +2009,13 @@
       }
       // Movie: the film starts on the screen with no push in (the wide shot stays; follows still work)
       case 'movie': setPhase('film', true); director.screenAt = 0; director.outro = false; show.shot = 'movie'; break;
+      case 'pov':
+        if (!povReady()) break;
+        setPhase('film', true);
+        director.screenAt = 0;
+        director.outro = false;
+        show.shot = 'pov';
+        break;
       // Film outro: the push in reversed - the film keeps playing while the camera eases back out to the wide shot,
       // which then holds for one director interval before the automatic follows resume
       case 'outro':
@@ -1980,7 +2034,12 @@
       case 'follow': followSomeone(key); break;
       case 'random': followSomeone(); break;
       case 'next': director.wantNext = true; break;
-      case 'wide': director.wantNext = false; director.screenAt = 0; endFollow(); break;
+      case 'wide':
+        if (inPov()) show.shot = 'movie';
+        director.wantNext = false;
+        director.screenAt = 0;
+        endFollow();
+        break;
       case 'director': director.on = !!c.on; if (director.on) director.next = Math.min(director.next, now + 20000); break;
       case 'every': if (Number.isFinite(+c.value)) director.every = clamp(+c.value, 30, 1800); break;
       case 'zoom': if (Number.isFinite(+c.value)) director.zoom = clamp(+c.value, 1.2, 3); break;
@@ -1992,6 +2051,7 @@
         houseOut = false;
         director.wantNext = false;
         endFollow();
+        for (const entry of arrivals) journey?.release(entry.nick, 'auditorium');
         arrivals.length = 0;
         nextArrival = 0;
         for (const w of [...walkers.values()]) removeWalker(w);
@@ -2009,7 +2069,7 @@
         const text = String(c.text || '').slice(0, 200);
         const tokens = SB.tokenize(text);
         const emote = tokens.find((t) => t.t === 'emote')?.name || Cinema.defaultEmote(nick);
-        onMessage({ nick, text, tokens, emote, color: SB.nickColor(nick) });
+        onMessage({ nick, text, tokens, emote, color: SB.nickColor(nick) }, true);
         break;
       }
       default: break;
@@ -2026,7 +2086,8 @@
       const f = director.follow;
       // obs: this screen is the OBS source (the panel shows it before a bigger preview tab)
       const body = { id: pageId, page: 'auditorium', ts: Date.now(), size: [innerWidth, innerHeight], obs: !!window.obsstudio,
-        preshow: { phase: show.phase, shot: show.shot, lightsOn: show.lightsOn, houseOut, auto: show.auto, download: show.download, alwaysGreen },
+        journey: journey?.stats() || null,
+        preshow: { phase: show.phase, shot: show.shot, povReady: povReady(), lightsOn: show.lightsOn, houseOut, auto: show.auto, download: show.download, alwaysGreen },
         house: { capacity: seats.length, occupied: guests(), waiting: arrivals.length, queueLimit: MAX_QUEUE },
         director: { on: director.on, every: director.every, zoom: director.zoom, wantNext: director.wantNext,
           following: f?.w.nick || null, nextIn: Math.max(0, Math.round((director.next - performance.now()) / 1000)) },
@@ -2043,6 +2104,7 @@
 
   // ---------- start ----------
   Cinema.onWalkIn(onMessage);
+  journey?.onAuditoriumArrival((message) => { onMessage(message, true); return true; });
   Cinema.onPurge(onPurge);
 
   (async () => {

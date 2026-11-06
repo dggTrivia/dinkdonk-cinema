@@ -151,6 +151,17 @@ function sendVideo(req, res, file, type) {
 // each screen posts its state (chatters, director) back so the panel can list them. 127.0.0.1 only.
 const screens = new Map();          // open SSE response -> { page, id }; legacy connections are the lobby
 const states = new Map();           // screen id -> { at, state }
+const outputs = new Map();          // unified cinema.html instances
+const presentationFile = path.join(ROOT, 'cache', `presentation-${PORT}.json`);
+let activeView = 'lobby';
+try {
+  const saved = JSON.parse(fs.readFileSync(presentationFile, 'utf8'));
+  if (['lobby', 'auditorium'].includes(saved.view)) activeView = saved.view;
+} catch { /* first start: lobby */ }
+function freshOutputs() {
+  for (const [id, output] of outputs) if (Date.now() - output.at > 10000) outputs.delete(id);
+  return [...outputs.values()].map(({ at, ...output }) => output);
+}
 function readJson(req, limit = 64 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -166,6 +177,15 @@ async function controlRoute(req, res, pathname) {
   const origin = req.headers.origin;
   if (origin && origin !== `http://${HOST}:${PORT}` && origin !== `http://localhost:${PORT}`) { send(res, 403, 'text/plain', 'Forbidden'); return true; }
   if (req.method === 'POST' && !/^application\/json\b/.test(req.headers['content-type'] || '')) { send(res, 415, 'text/plain', 'JSON only'); return true; }
+  if (pathname === '/ctl/output' && req.method === 'POST') {
+    const output = await readJson(req, 4096);
+    if (!output || typeof output.id !== 'string' || !['lobby', 'auditorium'].includes(output.view)) {
+      send(res, 400, TYPES['.json'], '{"error":"invalid cinema output"}'); return true;
+    }
+    outputs.set(output.id.slice(0, 32), { at: Date.now(), view: output.view, obs: output.obs === true });
+    freshOutputs();
+    send(res, 204, TYPES['.json'], ''); return true;
+  }
   if (pathname === '/ctl/events' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
     res.write('retry: 3000\n\n');
@@ -178,6 +198,17 @@ async function controlRoute(req, res, pathname) {
   if (pathname === '/ctl/cmd' && req.method === 'POST') {
     const cmd = await readJson(req);
     if (!cmd || typeof cmd.cmd !== 'string') { send(res, 400, TYPES['.json'], '{"error":"no cmd"}'); return true; }
+    if (cmd.cmd === 'present') {
+      if (!['lobby', 'auditorium'].includes(cmd.value)) {
+        send(res, 400, TYPES['.json'], '{"error":"unknown cinema view"}'); return true;
+      }
+      // Persist before acknowledging, so a failed save never claims a switch succeeded.
+      fs.mkdirSync(path.dirname(presentationFile), { recursive: true });
+      fs.writeFileSync(presentationFile + '.tmp', JSON.stringify({ view: cmd.value }));
+      fs.renameSync(presentationFile + '.tmp', presentationFile);
+      activeView = cmd.value;
+      send(res, 200, TYPES['.json'], JSON.stringify({ view: activeView })); return true;
+    }
     const page = cmd.page || 'lobby';   // old panels keep controlling every lobby screen
     if (!['lobby', 'auditorium'].includes(page)) { send(res, 400, TYPES['.json'], '{"error":"unknown page"}'); return true; }
     const line = `data: ${JSON.stringify(cmd)}\n\n`;
@@ -201,6 +232,7 @@ async function controlRoute(req, res, pathname) {
   if (pathname === '/ctl/state' && req.method === 'GET') {
     for (const [id, s] of states) if (Date.now() - s.at > 10000) states.delete(id);   // closed screens drop out
     send(res, 200, TYPES['.json'], JSON.stringify({ controlVersion: 2,
+      presentation: { version: 1, view: activeView, outputs: freshOutputs() },
       screens: [...states.values()].map((s) => ({ ...s.state, page: s.state.page || 'lobby' })) }));
     return true;
   }

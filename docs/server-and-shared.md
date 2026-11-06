@@ -188,10 +188,10 @@ camera move; the bridge moves a VLC capture there with a corner-pin shader and s
 
 | Constant | Value in code | What |
 |---|---|---|
-| `SCENE` | `DinkDonk Cinema` | the scene that holds the film item |
-| `FILM` | `Film screen (src)` | the VLC capture source |
+| `SCENE` | `dggCINEMAtheatre` | the scene that holds the film item |
+| `CAPTURES` | `firefoxBrowserCinema`, `mpvCinema` | screen captures selected with OBS visibility |
 | `FILTER` | `Corner pin (live)` | the shader filter the bridge drives |
-| `SHADER` | `corner-pin.shader` from the obs-shaderfilter plugin's examples folder under Program Files | the shader file |
+| `SHADER` | `cinema-screen.shader` beside obs-bridge.js | corner pin plus transparent-output gate |
 
 **Password.** obs-websocket v5 authentication (`obsConnect()`, line 38). The password comes from `OBS_PASSWORD` if
 set, otherwise from obs-websocket's own config file on this PC (`%APPDATA%\obs-studio\plugin_config\obs-websocket\
@@ -201,15 +201,15 @@ password". Never put the password in a file in this repo.
 
 **What it changes in OBS** (`setup()`, line 87; `pump()`, line 211):
 
-1. Once: creates the `Corner pin (live)` shader filter on `Film screen (src)` if it doesn't exist.
+1. Once: creates the `Corner pin (live)` shader filter on `firefoxBrowserCinema` if it doesn't exist.
 2. Disables any other enabled filter on that source whose name contains "corner pin" (the old fixed pins stay as a
    manual fallback).
 3. Enables `Corner pin (live)`.
 4. On each update: sets the filter's eight corner values (`Top_Left_X` … `Bottom_Left_Y`), then shows or hides the
-   `Film screen (src)` item in `DinkDonk Cinema`. Corners always go first, so the film never flashes at the
+   `firefoxBrowserCinema` item in `dggCINEMAtheatre`. Corners always go first, so the film never flashes at the
    previous shot's corners.
 
-Nothing else in OBS is touched. It subscribes to Config events and re-runs setup when the scene collection changes.
+Capture transforms are also configured by bridge-sizing.js; current visibility gating is described below. It subscribes to Config events and re-runs setup when the scene collection changes.
 If an update fails (item or filter renamed, another collection), it looks again at most every 2 s. "not ready" in
 the log usually means the expected collection isn't loaded.
 
@@ -431,3 +431,86 @@ git-ignored `tools/` folder (local only). To label a new emote, add its line by 
 - `green=off` means "no green" in `cinema.js`, but the auditorium paints its screen `#00ff00` for it.
 - The server's control routes accept requests with no `Origin` header at all (curl, scripts on this PC). Fine while
   it is bound to 127.0.0.1; it matters only through the LAN proxy with `--control`.
+
+## One OBS cinema source (local edition)
+
+Use `http://127.0.0.1:18770/cinema.html?everyone=1` as one OBS Browser Source, at the canvas size.
+`control.html` now has Show lobby and Show auditorium buttons. They send `{cmd:"present",value:"lobby"|"auditorium"}`
+to `/ctl/cmd`. The existing Controls for selector changes the camera/lighting command target without changing
+what is shown. A successful Show command also selects that room's controls.
+
+`GET /ctl/state` additionally returns `presentation: {version:1, view, outputs}`. The selection is atomically
+saved to the ignored `cache/presentation-<port>.json` file. Test ports have their own selection. `/ctl/output`
+accepts small JSON heartbeats from unified outputs (`id`, `view`, `obs`); they expire after ten seconds.
+These routes retain the existing same-origin/JSON-only control protections. An invalid view gets 400.
+
+`cinema.html` polls once per second and loads both rooms once in full-size same-origin frames. Its URL
+options are forwarded, everyone=1 is the default unless a tag/everyone option was supplied, and managed=1
+lets shared/core.js preserve top-level OBS detection. Switching changes opacity, input focus and accessibility
+visibility; neither frame navigates, shrinks or unloads. Both continue receiving real chat and running their
+simulation. Audiences, camera positions and phase/lighting state survive switching. The pages' existing fallback
+animation timers handle background rAF throttling. Both scenes use more resources than one alone.
+
+shared/core.js exposes isOutputActive() and a same-origin parent-only outputVisibility event. The auditorium's
+film bridge requires both film phase and output visibility before showing the external capture. Hiding it sends
+film=false without changing its internal phase; returning restores the capture if it is still in film phase.
+Selected view survives server restart. Reloading the entire Browser Source still reloads both rooms. A server
+outage leaves both loaded and retries selection polling.
+This does not provision OBS sources or configure the corner-pin plugin. Standalone lobby/auditorium URLs still
+work, and the hosted edition requires its own server support before the new switching buttons can be enabled.
+
+## Continuous guest journey (combined source)
+
+`shared/journey.js` creates a coordinator per combined output before the two frames load. Managed same-origin
+rooms use case-insensitive nickname membership so regular guests belong to one room at a time. Each output
+has its own journey; this is not server-persisted state and a full source reload starts over.
+
+Lobby arrivals use a FIFO Map capped at 512 pending guests. Repeated messages update the pending payload
+without changing queue order. The animation loop admits at most one guest every 1.4-2.2 seconds, pauses at
+the lobby's 40-person cap or crowded entrance, and never catches up with a burst. Pending guests expire after
+ten minutes without chat. The roster includes pending guests as `waiting to arrive` with Follow disabled.
+
+Managed lobby guests use the first auditorium door. On completing the door animation, `finishEnter` transfers
+the nickname, current emote and carried snack through the coordinator, then removes the lobby walker.
+The auditorium admits new regular guests only from that handoff; its raw chat connection updates existing
+or queued guests. Its existing paced entrance, 135-seat capacity and 270-person waiting queue remain in use.
+Coordinator delivery buffers until the auditorium is ready and retries failures without counting extra transfers.
+Removal, queue expiry and reset release membership so a guest can return on later chat. State heartbeats expose
+journey counts and lobby waiting counts for QA. Moderator/janitor staff retain their separate behavior; the
+host's explicit Walk in action can still add someone directly to the selected room. Standalone room URLs keep
+the original independent admission behavior. No extra chat connection, trivia integration or art changes.
+
+Arrival pacing now adapts to the number waiting: 1-5 use 1.4-2.2 seconds; 6-11 use 0.9-1.4 seconds;
+12-39 arrive in pairs; 40+ arrive in groups of three. Group members are 0.25-0.45 seconds apart,
+with 0.9-1.4 seconds between groups. Every admission still checks crowding and capacity; no catch-up floods.
+The pacing slows automatically as the queue clears. These thresholds count pending lobby guests.
+
+Capture sizing: setup calls fitCapture from bridge-sizing.js for each available capture. GetVideoSettings supplies baseWidth/baseHeight.
+Each capture item gets a full-canvas OBS_BOUNDS_STRETCH box at (0,0), rotation zero, and no outer crop.
+This is after the shader, ensuring normalized corners span the correct canvas even when a direct capture
+changes dimensions. Nested helper scenes/groups also give Window/Game Capture children centered
+OBS_BOUNDS_SCALE_INNER boxes with crops preserved; unrelated children are untouched. Persistent OBS
+bounds respond to source dimension changes without per-frame API traffic. Canvas changes require a bridge
+restart. A direct capture fills the screen with stretching; helper capture boxes letterbox instead.
+
+Unified capture selection (6 Nov 2026): bridge-captures.js maintains both shader/visibility states.
+OBS Config, InputNameChanged and SceneItems events are subscribed (bitmask 138). Scene eye-on selects
+that capture, eye-off clears the selected capture. Automatic switching echoes are consumed separately. Host lobby/phase gating uses shader alpha,
+so the selected eye stays enabled in every mode. Both shaders get camera corners and Cinema_Visible, which is true
+only when the auditorium page requests film=true and valid screen corners are available. Inactive sources hide before the next one shows.
+Missing optional captures are allowed; none present reports not ready. New/removed/renamed sources trigger
+setup. Legacy Firefox/mpv launchers now alias the same bridge and ignore OBS_FILM_SOURCE.
+Selection survives visibility gating and reconnect within a process; full bridge restart uses current OBS
+visibility (topmost visible recognized item if both are on, none if both are hidden). No host source buttons.
+
+Eye-control correction: cinema-screen.shader retains the upstream corner-pin license/attribution and
+adds Cinema_Visible (default false). setup points both filters to this repo-local shader. bridge-captures
+sets this uniform from film/quad availability; source enable states now express only user selection.
+Thus the selected source eye remains enabled in dim/lobby and the shader outputs transparent pixels.
+The other source eye is disabled when switching. Host gating does not mute player audio.
+
+Lobby eye gating (current behavior): Show lobby turns both capture source eyes off and remembers selection.
+Returning to the auditorium restores the selected eye even in seating/dim mode. Film/Movie phase still
+controls visible pixels through Cinema_Visible. Thus eye controls work in auditorium mode, and lobby
+automatically disables both. Bridge polls the local /ctl/state every 500 ms to distinguish view from phase;
+CINEMA_CONTROL_URL can override its endpoint. Unavailable control state or no scene page hides both.

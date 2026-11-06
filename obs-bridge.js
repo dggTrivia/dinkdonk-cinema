@@ -1,8 +1,8 @@
 'use strict';
 
 // OBS bridge for the auditorium's film screen. The auditorium page inside OBS (Browser 3) sends where the screen is
-// on every camera move; this pins the VLC capture ("Film screen (src)") onto it through obs-websocket and shows it
-// only while the phase is Film. Nothing else in OBS is touched.
+// on every camera move; both capture shaders follow it, and OBS visibility selects the capture shown
+// only while the phase is Film. Capture bounding boxes track changing window sizes.
 //
 // Page -> bridge (WebSocket on PORT, text frames of JSON):
 //   { film: true|false, w: <viewport px>, h: <viewport px>, quad: [[x,y] TL, TR, BR, BL] }   (viewport px)
@@ -16,18 +16,20 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
+const { fitCapture } = require('./bridge-sizing');
+const { createCaptures } = require('./bridge-captures');
 
 const PORT = Number(process.env.OBS_BRIDGE_PORT || 18790);
 const OBS_URL = process.env.OBS_WS || 'ws://127.0.0.1:4455';
-const SCENE = 'DinkDonk Cinema';
-const FILM = 'Film screen (src)';
+const SCENE = 'dggCINEMAtheatre';
+const CAPTURES = ['firefoxBrowserCinema', 'mpvCinema'];
 const FILTER = 'Corner pin (live)';
-const SHADER = 'C:/Program Files/obs-studio/data/obs-plugins/obs-shaderfilter/examples/corner-pin.shader';
+const SHADER = path.join(__dirname, 'cinema-screen.shader');
 const OBS_CONFIG = path.join(process.env.APPDATA || '', 'obs-studio', 'plugin_config', 'obs-websocket', 'config.json');
 const log = (...a) => console.log(new Date().toTimeString().slice(0, 8), ...a);
 
 // ---------- OBS side (obs-websocket v5) ----------
-const obs = { ws: null, ready: false, itemId: null, pending: new Map(), seq: 0, setupAt: 0 };
+const obs = { ws: null, ready: false, pending: new Map(), seq: 0, setupAt: 0 };
 
 function obsPassword() {
   if (process.env.OBS_PASSWORD) return process.env.OBS_PASSWORD;
@@ -43,13 +45,23 @@ function obsConnect() {
     const m = JSON.parse(ev.data);
     if (m.op === 0) {   // Hello
       const a = m.d.authentication;
-      const identify = { rpcVersion: 1, eventSubscriptions: 2 };   // Config: scene collection switches
+      const identify = { rpcVersion: 1, eventSubscriptions: 138 };   // Config + inputs + scene item visibility
       if (a) identify.authentication = sha256b64(sha256b64(obsPassword() + a.salt) + a.challenge);
       ws.send(JSON.stringify({ op: 1, d: identify }));
     } else if (m.op === 2) {   // Identified
       log('OBS connected');
       setup();
     } else if (m.op === 5 && m.d.eventType === 'CurrentSceneCollectionChanged') {
+      setReady(false);
+      setup();
+    } else if (m.op === 5 && m.d.eventType === 'SceneItemEnableStateChanged') {
+      if (captures.visibility(m.d.eventData)) pump();
+    } else if (m.op === 5 && ['SceneItemCreated', 'SceneItemRemoved'].includes(m.d.eventType)
+        && m.d.eventData.sceneName === SCENE) {
+      setReady(false);
+      setup();
+    } else if (m.op === 5 && m.d.eventType === 'InputNameChanged'
+        && (CAPTURES.includes(m.d.eventData.inputName) || CAPTURES.includes(m.d.eventData.oldInputName))) {
       setReady(false);
       setup();
     } else if (m.op === 7) {   // RequestResponse
@@ -82,32 +94,44 @@ function request(requestType, requestData = {}) {
   });
 }
 
-// Find the film item and make sure the live corner-pin filter exists (created once; the two fixed pins stay as
-// a manual fallback but are switched off while the bridge drives the screen).
+// Configure every available screen capture; OBS eye icons choose which one is shown.
+let settingUp = false, setupAgain = false;
 async function setup() {
+  if (settingUp) { setupAgain = true; return; }
+  settingUp = true;
   obs.setupAt = Date.now();
   try {
-    const { sceneItemId } = await request('GetSceneItemId', { sceneName: SCENE, sourceName: FILM });
-    const { filters } = await request('GetSourceFilterList', { sourceName: FILM });
-    if (!filters.some((f) => f.filterName === FILTER)) {
-      await request('CreateSourceFilter', { sourceName: FILM, filterName: FILTER, filterKind: 'shader_filter',
-        filterSettings: { from_file: true, shader_file_name: SHADER, Antialias_Edges: true } });
-      log(`created filter "${FILTER}" on "${FILM}"`);
-    }
-    for (const f of filters) {
-      if (f.filterName !== FILTER && f.filterEnabled && /corner pin/i.test(f.filterName)) {
-        await request('SetSourceFilterEnabled', { sourceName: FILM, filterName: f.filterName, filterEnabled: false });
+    const { sceneItems } = await request('GetSceneItemList', { sceneName: SCENE });
+    const items = sceneItems.filter(item => CAPTURES.includes(item.sourceName));
+    if (!items.length) throw new Error(`Add ${CAPTURES.join(' or ')} to ${SCENE}`);
+    for (const item of items) {
+      const sourceName = item.sourceName;
+      await fitCapture(request, SCENE, sourceName);
+      const { filters } = await request('GetSourceFilterList', { sourceName });
+      if (!filters.some(f => f.filterName === FILTER)) {
+        await request('CreateSourceFilter', { sourceName, filterName: FILTER, filterKind: 'shader_filter',
+          filterSettings: { from_file: true, shader_file_name: SHADER, Antialias_Edges: true } });
       }
+      for (const filter of filters) {
+        if (filter.filterName !== FILTER && filter.filterEnabled && /corner pin/i.test(filter.filterName)) {
+          await request('SetSourceFilterEnabled', { sourceName, filterName: filter.filterName, filterEnabled: false });
+        }
+      }
+      await request('SetSourceFilterSettings', { sourceName, filterName: FILTER,
+        filterSettings: { from_file: true, shader_file_name: SHADER, Cinema_Visible: false }, overlay: true });
+      await request('SetSourceFilterEnabled', { sourceName, filterName: FILTER, filterEnabled: true });
     }
-    await request('SetSourceFilterEnabled', { sourceName: FILM, filterName: FILTER, filterEnabled: true });
-    obs.itemId = sceneItemId;
-    sent.quad = null;
-    sent.film = null;
+    captures.configure(items);
     setReady(true);
-    log(`ready: "${FILM}" is item ${sceneItemId} in "${SCENE}"`);
+    log(`ready: ${items.map(i => i.sourceName).join(', ')} in ${SCENE}; choose with OBS eye icons`);
+    log(`screen source: ${captures.selected() || 'none (enable one in OBS)'}`);
     pump();
-  } catch (e) {
-    log(`not ready (${e.message}); is the "Moobies 1440p poll" collection loaded?`);
+  } catch (error) {
+    setReady(false);
+    log(`not ready (${error.message})`);
+  } finally {
+    settingUp = false;
+    if (setupAgain) { setupAgain = false; setup(); }
   }
 }
 
@@ -120,15 +144,15 @@ function setReady(on) {
 // ---------- page side: a minimal WebSocket server (text frames only) ----------
 const pages = new Set();
 let driver = null;   // the page whose corners we follow: the latest one to connect
-const want = { film: false, quad: null };
-const sent = { film: null, quad: null };
-let busy = false;
+const want = { film: false, quad: null, active: false };
+const captures = createCaptures({ request, sceneName: SCENE, filterName: FILTER, log });
+let busy = false, pumpAgain = false;
 
 const ownAddresses = () => new Set(['127.0.0.1', '::1', ...Object.values(os.networkInterfaces()).flat().map((i) => i.address)]);
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end(`obs-bridge: OBS ${obs.ready ? 'ready' : 'not ready'}, ${pages.size} page(s), film ${want.film ? 'on' : 'off'}\n`);
+  res.end(`obs-bridge: OBS ${obs.ready ? 'ready' : 'not ready'}, ${pages.size} page(s), film ${want.film ? 'on' : 'off'}, selected ${captures.selected() || 'none'}\n`);
 });
 
 server.on('upgrade', (req, socket) => {
@@ -209,31 +233,50 @@ function onPage(text) {
 // Latest-only: while one update is on its way to OBS, newer corners overwrite the waiting ones, so a slow OBS
 // never builds a queue that plays back late.
 async function pump() {
-  if (busy || !obs.ready) return;
-  const quadKey = want.quad && JSON.stringify(want.quad);
-  const film = want.film && !!want.quad;
-  if (quadKey === sent.quad && film === sent.film) return;
+  if (!obs.ready) return;
+  if (busy) { pumpAgain = true; return; }
   busy = true;
   try {
-    // corners before the item shows, so the film never flashes at the previous shot's corners
-    if (quadKey && quadKey !== sent.quad) {
-      await request('SetSourceFilterSettings', { sourceName: FILM, filterName: FILTER, filterSettings: want.quad, overlay: true });
-      sent.quad = quadKey;
-    }
-    if (film !== sent.film) {
-      await request('SetSceneItemEnabled', { sceneName: SCENE, sceneItemId: obs.itemId, sceneItemEnabled: film });
-      sent.film = film;
-      log(`film ${film ? 'on' : 'off'}`);
-    }
-  } catch (e) {
-    log(`update failed: ${e.message}`);
-    // the film item or filter went away (renamed, other collection): look again, at most every 2 s
+    do {
+      pumpAgain = false;
+      await captures.render({ film: want.film, quad: want.quad, active: want.active });
+    } while (pumpAgain && obs.ready);
+  } catch (error) {
+    log(`update failed: ${error.message}`);
     if (obs.ws && Date.now() - obs.setupAt > 2000) { setReady(false); setup(); }
-  } finally {
-    busy = false;
-  }
-  if (obs.ready) setImmediate(pump);
+  } finally { busy = false; }
 }
 
-server.listen(PORT, '0.0.0.0', () => log(`obs-bridge on :${PORT} (pages on this PC only), OBS at ${OBS_URL}`));
-obsConnect();
+// View gating is independent of film phase: lobby closes both OBS eyes, whereas
+// dim/seating in the auditorium keeps the selected eye available for switching.
+let checkingView = false;
+async function refreshView() {
+  if (checkingView) return;
+  checkingView = true;
+  let active = false;
+  try {
+    const response = await fetch(process.env.CINEMA_CONTROL_URL || 'http://127.0.0.1:18770/ctl/state',
+      { signal: AbortSignal.timeout(1500) });
+    if (!response.ok) throw new Error(`Control HTTP ${response.status}`);
+    const state = await response.json();
+    active = state.presentation?.view === 'auditorium' && pages.size > 0;
+  } catch { /* no confirmed output: keep captures hidden */ }
+  finally { checkingView = false; }
+  if (want.active !== active) { want.active = active; pump(); }
+}
+setInterval(refreshView, 500);
+refreshView();
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    log(`Port ${PORT} is already in use. A bridge may already be running; close its window before restarting.`);
+    process.exit(1);
+  }
+  log(`Bridge server failed: ${error.message}`);
+  process.exit(1);
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  log(`obs-bridge on :${PORT} (pages on this PC only), OBS at ${OBS_URL}`);
+  obsConnect();
+});
